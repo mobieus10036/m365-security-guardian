@@ -39,6 +39,7 @@ function Test-PrivilegedAccounts {
 
         $allPrivilegedUsers = @()
         $roleDetails = @()
+        $privilegedAccountDetails = @()
 
         foreach ($roleName in $privilegedRoles) {
             try {
@@ -55,8 +56,21 @@ function Test-PrivilegedAccounts {
                         }
                         
                         foreach ($member in $roleMembers) {
-                            if ($member.AdditionalProperties.userPrincipalName) {
-                                $allPrivilegedUsers += $member.AdditionalProperties.userPrincipalName
+                            $upn = $member.AdditionalProperties.userPrincipalName
+                            if ($upn) {
+                                $allPrivilegedUsers += $upn
+                                
+                                # Track which roles each user has
+                                $existingAccount = $privilegedAccountDetails | Where-Object { $_.UserPrincipalName -eq $upn }
+                                if ($existingAccount) {
+                                    $existingAccount.Roles += $roleName
+                                } else {
+                                    $privilegedAccountDetails += [PSCustomObject]@{
+                                        UserPrincipalName = $upn
+                                        Roles = @($roleName)
+                                        HasMFA = $null
+                                    }
+                                }
                             }
                         }
                     }
@@ -102,6 +116,12 @@ function Test-PrivilegedAccounts {
                             '#microsoft.graph.softwareOathAuthenticationMethod',
                             '#microsoft.graph.windowsHelloForBusinessAuthenticationMethod'
                         )
+                    }
+
+                    # Update the privileged account details with MFA status
+                    $accountDetail = $privilegedAccountDetails | Where-Object { $_.UserPrincipalName -eq $upn }
+                    if ($accountDetail) {
+                        $accountDetail.HasMFA = ($null -ne $hasMFA -and $hasMFA.Count -gt 0)
                     }
 
                     if (-not $hasMFA) {
@@ -160,6 +180,7 @@ function Test-PrivilegedAccounts {
                 RoleBreakdown = $roleDetails
                 UsersWithoutMFA = $privUsersWithoutMFA
             }
+            PrivilegedAccounts = $privilegedAccountDetails
             Recommendation = if ($status -ne "Pass") {
                 "Enforce MFA for all privileged accounts immediately. Use dedicated admin accounts (not user accounts). Limit Global Admin role to 2-5 accounts."
             } else {

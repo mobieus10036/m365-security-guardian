@@ -359,6 +359,17 @@ function Export-Results {
             Write-Success "Domain email authentication CSV: $domainsCsvPath"
             Write-Info "  → $($emailAuthResult.DomainDetails.Count) domain(s) with SPF/DKIM/DMARC details exported"
         }
+
+        # Export privileged accounts to separate CSV
+        $privAccountResult = $script:AssessmentResults | Where-Object { $_.CheckName -eq "Privileged Account Security" -and $_.PrivilegedAccounts }
+        if ($privAccountResult -and $privAccountResult.PrivilegedAccounts.Count -gt 0) {
+            $privAccountsCsvPath = Join-Path $OutputPath "$($baseFileName)_PrivilegedAccounts.csv"
+            # Flatten the roles array for CSV export
+            $privAccountResult.PrivilegedAccounts | Select-Object UserPrincipalName, @{Name='Roles';Expression={$_.Roles -join '; '}}, @{Name='HasMFA';Expression={if($_.HasMFA){'Yes'}else{'No'}}} | 
+                Export-Csv -Path $privAccountsCsvPath -NoTypeInformation -Encoding UTF8
+            Write-Success "Privileged accounts CSV: $privAccountsCsvPath"
+            Write-Info "  → $($privAccountResult.PrivilegedAccounts.Count) privileged account(s) exported"
+        }
     }
 
     # HTML Export
@@ -472,6 +483,22 @@ function Export-HTMLReport {
                 $detailsCell += "</li>"
             }
             $detailsCell += "</ul>"
+        }
+        
+        # Handle privileged accounts from Privileged Account Security
+        if ($result.PrivilegedAccounts -and $result.PrivilegedAccounts.Count -gt 0) {
+            $detailsCell += "<br><br><strong>👤 Privileged Accounts ($($result.PrivilegedAccounts.Count)):</strong><br>"
+            $detailsCell += "<table style='width: 100%; margin-top: 5px; font-size: 0.85em; border-collapse: collapse;'>"
+            $detailsCell += "<tr style='background: #f0f0f0; font-weight: bold;'><td style='padding: 5px; border: 1px solid #ddd;'>User Principal Name</td><td style='padding: 5px; border: 1px solid #ddd;'>Roles</td><td style='padding: 5px; border: 1px solid #ddd;'>MFA Status</td></tr>"
+            foreach ($account in $result.PrivilegedAccounts) {
+                $mfaIcon = if ($account.HasMFA) { "✅ Enabled" } else { "❌ Not Enabled" }
+                $mfaColor = if ($account.HasMFA) { '#107c10' } else { '#d13438' }
+                $rolesDisplay = ($account.Roles | ForEach-Object { $_ }) -join ', '
+                $detailsCell += "<tr><td style='padding: 5px; border: 1px solid #ddd;'><code>$($account.UserPrincipalName)</code></td>"
+                $detailsCell += "<td style='padding: 5px; border: 1px solid #ddd; font-size: 0.8em;'>$rolesDisplay</td>"
+                $detailsCell += "<td style='padding: 5px; border: 1px solid #ddd; color: $mfaColor; font-weight: bold;'>$mfaIcon</td></tr>"
+            }
+            $detailsCell += "</table>"
         }
         
         $resultsHtml += @"
