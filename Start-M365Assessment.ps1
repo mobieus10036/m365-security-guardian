@@ -12,8 +12,6 @@
     - Security (MFA, Conditional Access, Privileged Accounts)
     - Compliance (DLP, Retention, Sensitivity Labels) [Disabled in v3.0]
     - Exchange (Email security, SPF/DKIM/DMARC)
-    - SharePoint (External sharing, permissions) [Disabled in v3.0]
-    - Teams (External access, guest policies) [Disabled in v3.0]
     - Licensing (License optimization)
     - All (default - runs all modules)
 
@@ -169,14 +167,6 @@ function Get-DefaultConfiguration {
             DMARCPolicyRequired = $true
             MailboxAuditingEnabled = $true
         }
-        SharePoint = @{
-            ExternalSharingLevel = "ExistingExternalUserSharingOnly"
-            RequireAnonymousLinksExpire = $true
-        }
-        Teams = @{
-            AllowGuestAccess = $true
-            AllowExternalAccess = $true
-        }
         Licensing = @{
             InactiveDaysThreshold = 90
             MinimumLicenseUtilization = 85
@@ -233,12 +223,6 @@ function Connect-M365Services {
         Write-Failure "Failed to connect to Exchange Online: $_"
         Write-Info "Some Exchange checks may be skipped"
     }
-
-    # Teams connection removed for v3.0 (module instability). Skipping.
-    Write-Info "Skipping Microsoft Teams connection (temporarily disabled in this release)"
-
-    # SharePoint connection removed for v3.0 (module instability). Skipping.
-    Write-Info "Skipping SharePoint Online connection (temporarily disabled in this release)"
 }
 
 function Get-ModulesToRun {
@@ -661,8 +645,6 @@ function Disconnect-M365Services {
     try {
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
         Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
-    # Teams disconnect skipped (Teams disabled in v3.0)
-        Disconnect-SPOService -ErrorAction SilentlyContinue | Out-Null
         Write-Success "Disconnected from all services"
     }
     catch {

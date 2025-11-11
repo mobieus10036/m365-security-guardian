@@ -53,9 +53,6 @@ $requiredModules = @(
     @{ Name = 'Microsoft.Graph.Identity.SignIns'; MinVersion = '2.0.0' }
     @{ Name = 'Microsoft.Graph.Groups'; MinVersion = '2.0.0' }
     @{ Name = 'ExchangeOnlineManagement'; MinVersion = '3.0.0' }
-    @{ Name = 'MicrosoftTeams'; MinVersion = '5.0.0' }
-    @{ Name = 'Microsoft.Online.SharePoint.PowerShell'; MinVersion = '16.0.0' }
-    @{ Name = 'PnP.PowerShell'; MinVersion = '2.0.0' }
 )
 
 function Write-ColorOutput {

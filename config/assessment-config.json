@@ -16,21 +16,6 @@
     "DMARCPolicyRequired": true,
     "MailboxAuditingEnabled": true
   },
-  "SharePoint": {
-    "ExternalSharingLevel": "ExternalUserSharingOnly",
-    "RequireAnonymousLinksExpire": true,
-    "AnonymousLinkExpirationDays": 30,
-    "InactiveDaysThreshold": 90,
-    "LegacyAuthAllowed": false,
-    "RequireAcceptingAccountMatch": true,
-    "ShowEveryoneClaim": false,
-    "DisallowInfectedFileDownload": true,
-    "MinOrphanedOneDriveRetentionDays": 365
-  },
-  "Teams": {
-    "AllowGuestAccess": true,
-    "AllowExternalAccess": true
-  },
   "Licensing": {
     "InactiveDaysThreshold": 90,
     "MinimumLicenseUtilization": 85
