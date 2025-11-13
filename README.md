@@ -1,205 +1,188 @@
-# Microsoft 365 Tenant Assessment Toolkit v3.0.0
+# M365 Security Guardian
 
-[![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B%20%7C%207%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Made with GitHub Copilot](https://img.shields.io/badge/Made%20with-GitHub%20Copilot-purple.svg)](https://github.com/features/copilot)
+A PowerShell toolkit for checking Microsoft 365 security settings and configurations.
 
-A comprehensive PowerShell-based assessment toolkit for Microsoft 365 tenants, focused on security, compliance, and best practice validation.
+> **Note**: I'm still learning PowerShell and development. This project was built with heavy assistance from GitHub Copilot, Microsoft documentation, and community examples. If you spot issues or have suggestions, please let me know!
 
-*Created with assistance from GitHub Copilot*
+## What This Does
 
-## 🎯 Overview
+This toolkit checks your Microsoft 365 tenant for common security issues and configuration problems. It generates reports showing what's configured correctly and what needs attention.
 
-This toolkit performs automated assessments across your Microsoft 365 tenant to identify configuration gaps, security risks, and opportunities for optimization based on Microsoft's best practices and security baselines.
+**Main checks include:**
+- MFA (Multi-Factor Authentication) status
+- Conditional Access policies
+- Legacy authentication settings
+- Email security (SPF, DKIM, DMARC)
+- Mailbox auditing
+- License usage
+- Privileged account security
 
-## ✨ Features
+## Getting Started
 
-- **🔒 Security Assessment**: MFA, Conditional Access, privileged accounts, legacy authentication
-- ** Exchange Security**: Anti-spam, anti-malware, SPF/DKIM/DMARC validation
-- **💰 License Optimization**: Identify unused licenses and optimization opportunities
-- **📊 Multiple Report Formats**: HTML, JSON, and CSV outputs
-- **🎨 Color-Coded Results**: Easy-to-read Pass/Fail/Warning indicators
-- **📖 Remediation Guidance**: Direct links to Microsoft documentation
-- **⚙️ Customizable**: Configure thresholds and checks via JSON
+**What you'll need:**
+- Windows PowerShell 5.1 or newer (PowerShell 7 works too)
+- Admin access to your Microsoft 365 tenant
+- Permissions: Global Reader role minimum (see Permissions section below)
 
-## 🚀 Quick Start
+**Steps:**
 
-### Prerequisites
-
-- Windows PowerShell 5.1+ or PowerShell 7+
-- Microsoft 365 tenant with appropriate admin permissions
-- Internet connectivity
-
-### Installation
-
-1. **Clone the repository**:
+1. Download or clone this repository
    ```powershell
    git clone https://github.com/mobieus10036/m365-security-guardian.git
    cd m365-security-guardian
    ```
 
-2. **Install required PowerShell modules**:
+2. Install the required PowerShell modules
    ```powershell
    .\Install-Prerequisites.ps1
    ```
+   This will install the Microsoft Graph and Exchange Online modules needed.
 
-3. **Run the assessment**:
+3. Run the assessment
    ```powershell
    .\Start-M365Assessment.ps1
    ```
+   You'll be prompted to sign in to your M365 tenant.
 
-### Required Permissions
+Reports will be saved to the `reports/` folder.
 
-The account running the assessment needs the following Microsoft 365 admin roles:
-- **Global Reader** (minimum recommended)
-- **Security Reader** (for security assessments)
-- **Compliance Administrator** (for compliance checks)
+## Permissions Needed
 
-Alternatively, **Global Administrator** role provides access to all checks.
+Your account needs one of these roles:
+- **Global Reader** - can run most checks
+- **Security Reader** - needed for security assessments  
+- **Compliance Administrator** - needed for compliance checks
 
-## 📋 Assessment Modules
+Or just use **Global Administrator** if you have it (gives access to everything).
 
-### Security
-- ✅ Multi-Factor Authentication enforcement
-- ✅ Conditional Access policies
-- ✅ Privileged account management
-- ✅ Legacy authentication protocols
-- ✅ Password protection policies
+## What Gets Checked
 
-### Compliance
-- ✅ Data Loss Prevention (DLP) policies
-- ✅ Retention policies and labels
-- ✅ Sensitivity labels
-- ✅ Compliance score analysis
+**Security:**
+- Multi-Factor Authentication (MFA) enforcement
+- Conditional Access policies
+- Privileged accounts configuration
+- Legacy authentication status
 
-### Exchange Online
-- ✅ Anti-spam and anti-malware configuration
-- ✅ Safe Attachments and Safe Links
-- ✅ **SPF, DKIM, and DMARC records** (with automated DNS validation)
-- ✅ Mailbox auditing status
+**Compliance:**
+- Data Loss Prevention (DLP) policies
+- Retention policies
+- Sensitivity labels
 
-### Licensing
-- ✅ License assignment efficiency
-- ✅ Inactive user identification
-- ✅ Optimization recommendations
+**Exchange Online:**
+- Anti-spam/anti-malware settings
+- Safe Attachments and Safe Links
+- SPF, DKIM, and DMARC records (checks actual DNS records)
+- Mailbox auditing
 
-> **Note**: SharePoint and Teams assessment modules are temporarily disabled in v3.0 due to PowerShell module compatibility issues with PowerShell 7+. These will be re-enabled in a future release once module stability is resolved.
+**Licensing:**
+- License assignments
+- Inactive users with licenses
+- Optimization opportunities
 
-## 📊 Sample Reports
+> **Known Issue**: SharePoint and Teams modules are currently disabled due to PowerShell 7 compatibility issues with some Microsoft modules. Working on fixing this.
 
-Reports are generated in the `reports/` folder with timestamps:
-- `M365Guardian_20250107_143022.html` - Interactive HTML report with domain-level DNS details
-- `M365Guardian_20250107_143022.json` - Machine-readable JSON with full assessment data
-- `M365Guardian_20250107_143022.csv` - Spreadsheet-compatible CSV with summary results
-- `M365Guardian_20250107_143022_DomainEmailAuth.csv` - Per-domain SPF/DKIM/DMARC status
-- `M365Guardian_20250107_143022_NonCompliantMailboxes.csv` - Mailboxes without auditing enabled
-- `M365Guardian_20250107_143022_InactiveMailboxes.csv` - Inactive licensed users
+## Understanding the Reports
 
-## ⚙️ Configuration
+After running the assessment, you'll find several files in the `reports/` folder:
 
-Customize assessment thresholds and behaviors by editing `config/assessment-config.json`:
+- **HTML file** - Easy to read in a browser, color-coded results
+- **JSON file** - All the raw data if you need it
+- **CSV file** - Open in Excel for further analysis
+- **DomainEmailAuth CSV** - Shows SPF/DKIM/DMARC status for each domain
+- **NonCompliantMailboxes CSV** - Lists mailboxes without auditing enabled
+- **InactiveMailboxes CSV** - Shows licensed users who haven't signed in recently
+
+## Configuration
+
+You can customize the thresholds and settings by editing `config/assessment-config.json`. For example:
 
 ```json
 {
   "Security": {
     "MFAEnforcementThreshold": 95,
-    "PrivilegedAccountMFARequired": true,
-    "LegacyAuthAllowed": false
+    "PrivilegedAccountMFARequired": true
   },
   "Licensing": {
-    "InactiveDaysThreshold": 90,
-    "MinimumLicenseUtilization": 85
+    "InactiveDaysThreshold": 90
   }
 }
 ```
 
-## 🛠️ Advanced Usage
+## Other Useful Commands
 
-### Run specific modules only:
+Run only specific checks:
 ```powershell
 .\Start-M365Assessment.ps1 -Modules Security,Exchange
 ```
 
-### Export to specific format:
+Generate only HTML output:
 ```powershell
 .\Start-M365Assessment.ps1 -OutputFormat HTML
 ```
 
-### Specify custom config:
+Use a custom config file:
 ```powershell
-.\Start-M365Assessment.ps1 -ConfigPath .\custom-config.json
+.\Start-M365Assessment.ps1 -ConfigPath .\my-config.json
 ```
 
-## 🔧 Remediation Tools
+## Fixing Issues
 
-### Enable Mailbox Auditing for Non-Compliant Mailboxes
+### Enabling Mailbox Auditing
 
-The toolkit includes a remediation script to automatically enable auditing for mailboxes identified in the assessment:
+If the assessment finds mailboxes without auditing enabled, you can fix them using:
 
 ```powershell
-# Preview changes without applying them
+# See what would change (doesn't actually change anything)
 .\Enable-MailboxAuditing.ps1 -WhatIf
 
-# Enable auditing for all non-compliant mailboxes
+# Enable auditing on all non-compliant mailboxes
 .\Enable-MailboxAuditing.ps1
 
-# Skip confirmation prompts
+# Skip confirmations
 .\Enable-MailboxAuditing.ps1 -Force
-
-# Use a specific report file
-.\Enable-MailboxAuditing.ps1 -CsvPath .\reports\M365Guardian_20241109_120000_NonCompliantMailboxes.csv
 ```
 
-The script will:
-- ✅ Read the latest non-compliant mailboxes CSV report
-- ✅ Display mailboxes that need remediation
-- ✅ Enable auditing with confirmation
-- ✅ Provide success/failure summary
-- ✅ Export any errors to a separate CSV file
+The script reads the latest CSV report and enables auditing where needed.
 
-## 📚 Documentation
+## Documentation
 
+More detailed info is in the `docs/` folder:
 - [Best Practices Reference](docs/best-practices-reference.md)
-- [DNS Validation Enhancement](docs/ENHANCEMENT-DNS-VALIDATION.md) - Real SPF/DKIM/DMARC checking
-- [Quick Reference: DNS Validation](docs/QUICK-REFERENCE-DNS-VALIDATION.md) - DNS troubleshooting guide
-- [Mailbox Auditing Enhancement](docs/ENHANCEMENT-MAILBOX-AUDITING.md)
+- [DNS Validation Guide](docs/QUICK-REFERENCE-DNS-VALIDATION.md)
 - [Remediation Guides](docs/remediation-guides/)
-- [Contributing Guidelines](CONTRIBUTING.md)
 
-## 🤝 Contributing
+## Contributing
 
-Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting pull requests.
+I'm learning, so if you see ways to improve the code, please feel free to:
+1. Open an issue
+2. Fork the repo
+3. Make your changes
+4. Submit a pull request
 
-### How to Contribute
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+Check [CONTRIBUTING.md](CONTRIBUTING.md) for more details.
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) file.
 
-## ⚠️ Disclaimer
+## Important Notes
 
-This toolkit performs **read-only** operations and does not make changes to your Microsoft 365 tenant. Always review findings with your security and compliance teams before implementing changes.
+**This tool only reads data** - it doesn't make changes to your Microsoft 365 tenant. You'll need to manually implement any fixes based on the reports.
 
-## 🙏 Acknowledgments
+Always review findings with your IT or security team before making changes to production environments.
 
-- **GitHub Copilot** - AI pair programming assistant that helped create this toolkit
-- Microsoft Security Best Practices & Documentation
-- Microsoft 365 Security & Compliance Community
-- All contributors who help improve this project
+## Help & Support
 
-## 📧 Support
+- **Found a bug?** [Open an issue](https://github.com/mobieus10036/m365-security-guardian/issues)
+- **Have a question?** [Start a discussion](https://github.com/mobieus10036/m365-security-guardian/discussions)
+- **Security concern?** See [SECURITY.md](SECURITY.md)
 
-- **Issues**: [GitHub Issues](https://github.com/mobieus10036/m365-security-guardian/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/mobieus10036/m365-security-guardian/discussions)
-- **Security Issues**: See [SECURITY.md](SECURITY.md)
+## Acknowledgments
 
----
+This project was built with significant help from:
+- **GitHub Copilot** - for code generation and problem-solving
+- Microsoft documentation and security guides
+- The PowerShell community
+- Stack Overflow and various online resources
 
-**Made with ❤️ and GitHub Copilot**
-
-**Made with ❤️ for the Microsoft 365 Community**
+Thanks to everyone who shares knowledge online - it makes learning to code much more accessible!
