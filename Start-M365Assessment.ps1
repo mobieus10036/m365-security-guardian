@@ -111,10 +111,9 @@ function Write-Banner {
 
 ╔══════════════════════════════════════════════════════════════════════╗
 ║                                                                      ║
-║          Microsoft 365 Tenant Assessment Toolkit v3.0.0              ║
+║           Microsoft 365 Assessment Toolkit v3.0.0                    ║
 ║                                                                      ║
-║          Comprehensive Security & Best Practice Assessment           ║
-║                    Created with GitHub Copilot                       ║
+║              Security & Best Practice Assessment                     ║
 ║                                                                      ║
 ╚══════════════════════════════════════════════════════════════════════╝
 
