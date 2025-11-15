@@ -90,9 +90,48 @@ After running the assessment, you'll find several files in the `reports/` folder
 - **NonCompliantMailboxes CSV** - Lists mailboxes without auditing enabled
 - **InactiveMailboxes CSV** - Shows licensed users who haven't signed in recently
 
-## Configuration
+## Advanced Usage
 
-You can customize the thresholds and settings by editing `config/assessment-config.json`. For example:
+### Run Specific Modules
+
+You can run only the checks you need:
+
+```powershell
+# Run only Security checks
+.\Start-M365Assessment.ps1 -Modules Security
+
+# Run Security and Exchange checks
+.\Start-M365Assessment.ps1 -Modules Security,Exchange
+
+# Run only Licensing checks
+.\Start-M365Assessment.ps1 -Modules Licensing
+
+# Run all checks (default)
+.\Start-M365Assessment.ps1
+```
+
+**Available Modules:**
+- `Security` - MFA, Conditional Access, Privileged Accounts, Legacy Auth
+- `Exchange` - Email security, SPF/DKIM/DMARC, Mailbox Auditing
+- `Licensing` - License optimization and inactive users
+- `All` - Runs all modules (default)
+
+### Customize Output Format
+
+```powershell
+# Generate only HTML report
+.\Start-M365Assessment.ps1 -OutputFormat HTML
+
+# Generate only CSV files
+.\Start-M365Assessment.ps1 -OutputFormat CSV
+
+# Generate all formats (default)
+.\Start-M365Assessment.ps1 -OutputFormat All
+```
+
+### Custom Configuration
+
+You can customize thresholds and settings by editing `config/assessment-config.json`:
 
 ```json
 {
@@ -106,19 +145,7 @@ You can customize the thresholds and settings by editing `config/assessment-conf
 }
 ```
 
-## Other Useful Commands
-
-Run only specific checks:
-```powershell
-.\Start-M365Assessment.ps1 -Modules Security,Exchange
-```
-
-Generate only HTML output:
-```powershell
-.\Start-M365Assessment.ps1 -OutputFormat HTML
-```
-
-Use a custom config file:
+Or specify a custom config file:
 ```powershell
 .\Start-M365Assessment.ps1 -ConfigPath .\my-config.json
 ```
