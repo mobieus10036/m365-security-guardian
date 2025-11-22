@@ -45,3 +45,6 @@ TestResults/
 # Package managers
 packages/
 node_modules/
+# Personal workflow notes
+docs/dev-workflow.md
+
