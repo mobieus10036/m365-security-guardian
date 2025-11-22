@@ -54,4 +54,4 @@ MIT License
 
 ---
 
-_Mobieus Rapid Assessment Suite — Accelerate your Azure security and cost insights._
+Mobieus Rapid Assessment Suite — Accelerate your Azure security and cost insights.
