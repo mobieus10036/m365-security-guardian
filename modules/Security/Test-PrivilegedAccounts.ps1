@@ -159,7 +159,8 @@ function Test-PrivilegedAccounts {
         # Check if total privileged account count exceeds threshold
         if ($totalPrivilegedUsers -gt $maxPrivilegedAccounts) {
             if ($status -eq "Pass") { $status = "Warning" }
-            if ($severity -eq "Low") { $severity = "Medium" }
+            # Only escalate severity if it's currently lower than Medium
+            if ($severity -in @("Low", "Info")) { $severity = "Medium" }
             $issues += "Total privileged account count ($totalPrivilegedUsers) exceeds recommended maximum ($maxPrivilegedAccounts)"
         }
 
@@ -169,7 +170,8 @@ function Test-PrivilegedAccounts {
 
         if ($globalAdminCount -gt 5) {
             if ($status -eq "Pass") { $status = "Warning" }
-            if ($severity -eq "Low") { $severity = "Medium" }
+            # Only escalate severity if it's currently lower than Medium
+            if ($severity -in @("Low", "Info")) { $severity = "Medium" }
             $issues += "Excessive Global Administrators ($globalAdminCount). Recommended: 2-5"
         }
 
