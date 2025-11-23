@@ -111,7 +111,7 @@ function Write-Banner {
 
 ╔══════════════════════════════════════════════════════════════════════╗
 ║                                                                      ║
-║           Microsoft 365 Assessment Toolkit v3.0.0                    ║
+║           Microsoft 365 Assessment Toolkit v3.0.1                    ║
 ║                                                                      ║
 ║              Security & Best Practice Assessment                     ║
 ║                                                                      ║

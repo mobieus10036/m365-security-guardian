@@ -4,7 +4,9 @@
     "PrivilegedAccountMFARequired": true,
     "MaxPrivilegedAccounts": 3,
     "LegacyAuthAllowed": false,
-    "MinConditionalAccessPolicies": 1
+    "MinConditionalAccessPolicies": 1,
+    "ReportOnlyStaleDays": 30,
+    "BreakGlassAccounts": []
   },
   "Compliance": {
     "DLPPoliciesRequired": true,
