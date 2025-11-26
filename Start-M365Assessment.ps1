@@ -269,6 +269,35 @@ function Get-ModulesToRun {
     return $Modules
 }function Invoke-AssessmentModules {
     $modulesToRun = Get-ModulesToRun
+
+    $cachedAuthDetails = $null
+    $cachedCaPolicies = $null
+
+    if ($modulesToRun -contains 'Security') {
+        try {
+            $preloadTimer = [System.Diagnostics.Stopwatch]::StartNew()
+            Write-Information "  -> Preloading Conditional Access policies..." -InformationAction Continue
+            $cachedCaPolicies = Get-MgIdentityConditionalAccessPolicy -All -ErrorAction Stop
+            $preloadTimer.Stop()
+            $elapsed = '{0:mm\:ss\.fff}' -f $preloadTimer.Elapsed
+            Write-Information "  -> Cached $($cachedCaPolicies.Count) Conditional Access policies in $elapsed" -InformationAction Continue
+        }
+        catch {
+            Write-Warning "  Could not preload Conditional Access policies: $_"
+        }
+
+        try {
+            $preloadTimer = [System.Diagnostics.Stopwatch]::StartNew()
+            Write-Information "  -> Preloading authentication registration details..." -InformationAction Continue
+            $cachedAuthDetails = Get-AuthRegistrationDetails
+            $preloadTimer.Stop()
+            $elapsed = '{0:mm\:ss\.fff}' -f $preloadTimer.Elapsed
+            Write-Information "  -> Cached $($cachedAuthDetails.Count) authentication registrations in $elapsed" -InformationAction Continue
+        }
+        catch {
+            Write-Warning "  Could not preload authentication registration details: $_"
+        }
+    }
     
     Write-Step "Running assessment modules: $($modulesToRun -join ', ')"
     
@@ -290,8 +319,9 @@ function Get-ModulesToRun {
     }
 
     foreach ($module in $modulesToRun) {
-        $separator = "─" * (50 - $module.Length)
-        Write-Information "`n  ┌─ $module Assessment $separator" -InformationAction Continue
+        $moduleTimer = [System.Diagnostics.Stopwatch]::StartNew()
+        $separator = '------' * [math]::Max(1, [math]::Ceiling((50 - $module.Length) / 6))
+        Write-Information "`n  -- $module Assessment $separator" -InformationAction Continue
 
         if ($moduleScripts.ContainsKey($module)) {
             foreach ($scriptFile in $moduleScripts[$module]) {
@@ -299,12 +329,24 @@ function Get-ModulesToRun {
                 
                 if (Test-Path $scriptPath) {
                     try {
+                        $scriptTimer = [System.Diagnostics.Stopwatch]::StartNew()
                         $scriptName = [System.IO.Path]::GetFileNameWithoutExtension($scriptFile)
-                        Write-Information "    → Running $scriptName..." -InformationAction Continue
+                        Write-Information "    -> Running $scriptName..." -InformationAction Continue
                         . $scriptPath
                         $functionName = [System.IO.Path]::GetFileNameWithoutExtension($scriptFile)
-                        $result = & $functionName -Config $script:Config
+
+                        $scriptParams = @{ Config = $script:Config }
+                        if ($functionName -in @('Test-MFAConfiguration','Test-PrivilegedAccounts')) {
+                            $scriptParams['AuthRegistrationDetails'] = $cachedAuthDetails
+                        }
+                        if ($functionName -in @('Test-ConditionalAccess','Test-LegacyAuth')) {
+                            $scriptParams['ConditionalAccessPolicies'] = $cachedCaPolicies
+                        }
+
+                        $result = & $functionName @scriptParams
                         $script:AssessmentResults += $result
+                        $scriptTimer.Stop()
+                        $scriptElapsed = '{0:mm\:ss\.fff}' -f $scriptTimer.Elapsed
                         
                         # Display result
                         $statusMessage = "      [$($result.Status)] $($result.Message)"
@@ -313,6 +355,7 @@ function Get-ModulesToRun {
                         } else {
                             Write-Information $statusMessage -InformationAction Continue
                         }
+                        Write-Information "      $scriptName completed in $scriptElapsed" -InformationAction Continue
                     }
                     catch {
                         Write-Failure "Error running $scriptFile : $_"
@@ -321,7 +364,10 @@ function Get-ModulesToRun {
             }
         }
         
-        Write-Information "  $('─' * 67)" -InformationAction Continue
+        $moduleTimer.Stop()
+        $elapsed = '{0:mm\:ss\.fff}' -f $moduleTimer.Elapsed
+        Write-Information "  Module $module completed in $elapsed" -InformationAction Continue
+        Write-Information "  $(('-' * 6) * 11)" -InformationAction Continue
     }
 }
 
