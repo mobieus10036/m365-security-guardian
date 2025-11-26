@@ -1,4 +1,4 @@
-# M365 Security Guardian 🛡️
+# M365 Security Assessment 🛡️
 
 **Official GitHub repository:** [https://github.com/mobieus10036/m365-security-assessment](https://github.com/mobieus10036/m365-security-assessment)
 
@@ -25,14 +25,6 @@ git clone https://github.com/mobieus10036/m365-security-guardian.git
 cd m365-security-guardian
 ./m365-security-assessment.ps1
 ```
-
----
-
-## Output Samples
-
-![HTML Report Screenshot](./Reports/sample-report.png)
-
----
 
 ## Methodology
 
