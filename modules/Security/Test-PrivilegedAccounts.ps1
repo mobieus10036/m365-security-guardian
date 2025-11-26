@@ -24,7 +24,10 @@ function Test-PrivilegedAccounts {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
-        [PSCustomObject]$Config
+        [PSCustomObject]$Config,
+
+        [Parameter(Mandatory = $false)]
+        [array]$AuthRegistrationDetails
     )
 
     try {
@@ -101,39 +104,47 @@ function Test-PrivilegedAccounts {
             }
         }
 
+        # Resolve authentication registration details (cached if provided)
+        $registrationDetails = $AuthRegistrationDetails
+        if (-not $registrationDetails) {
+            try {
+                $registrationDetails = Get-AuthRegistrationDetails
+            }
+            catch {
+                Write-Verbose "Could not retrieve authentication registration details: $_"
+                $registrationDetails = @()
+            }
+        }
+
+        $registrationLookup = @{}
+        foreach ($detail in $registrationDetails) {
+            if ($detail.UserPrincipalName) {
+                $registrationLookup[$detail.UserPrincipalName.ToLower()] = $detail
+            }
+        }
+
         # Check MFA status for privileged users
         $privUsersWithoutMFA = @()
         
         foreach ($upn in $allPrivilegedUsers) {
-            try {
-                $user = Get-MgUser -Filter "userPrincipalName eq '$upn'" -ErrorAction SilentlyContinue
-                
-                if ($user) {
-                    $authMethods = Get-MgUserAuthenticationMethod -UserId $user.Id -ErrorAction SilentlyContinue
-                    
-                    $hasMFA = $authMethods | Where-Object {
-                        $_.AdditionalProperties.'@odata.type' -in @(
-                            '#microsoft.graph.phoneAuthenticationMethod',
-                            '#microsoft.graph.fido2AuthenticationMethod',
-                            '#microsoft.graph.microsoftAuthenticatorAuthenticationMethod',
-                            '#microsoft.graph.softwareOathAuthenticationMethod',
-                            '#microsoft.graph.windowsHelloForBusinessAuthenticationMethod'
-                        )
-                    }
-
-                    # Update the privileged account details with MFA status
-                    $accountDetail = $privilegedAccountDetails | Where-Object { $_.UserPrincipalName -eq $upn }
-                    if ($accountDetail) {
-                        $accountDetail.HasMFA = ($null -ne $hasMFA -and $hasMFA.Count -gt 0)
-                    }
-
-                    if (-not $hasMFA) {
-                        $privUsersWithoutMFA += $upn
-                    }
+            $key = $upn.ToLower()
+            $detail = if ($registrationLookup.ContainsKey($key)) { $registrationLookup[$key] } else { $null }
+            $hasMFA = $false
+            if ($detail) {
+                $methods = @($detail.MethodsRegistered)
+                if ($detail.IsMfaRegistered -or ($methods -and $methods.Count -gt 0)) {
+                    $hasMFA = $true
                 }
             }
-            catch {
-                Write-Verbose "Could not check MFA for privileged user: $upn"
+
+            # Update the privileged account details with MFA status
+            $accountDetail = $privilegedAccountDetails | Where-Object { $_.UserPrincipalName -eq $upn }
+            if ($accountDetail) {
+                $accountDetail.HasMFA = $hasMFA
+            }
+
+            if (-not $hasMFA) {
+                $privUsersWithoutMFA += $upn
             }
         }
 
@@ -149,7 +160,6 @@ function Test-PrivilegedAccounts {
         $status = "Pass"
         $severity = "Low"
         $issues = @()
-        $maxPrivilegedAccounts = 3
 
         if ($requireMFA -and $privUsersWithoutMFA.Count -gt 0) {
             $status = "Fail"
@@ -204,6 +214,8 @@ function Test-PrivilegedAccounts {
                 GlobalAdminCount = $globalAdminCount
                 RoleBreakdown = $roleDetails
                 UsersWithoutMFA = $privUsersWithoutMFA
+                RegistrationDetailsCount = $registrationDetails.Count
+                RegistrationDetailsSource = if ($AuthRegistrationDetails) { 'Cached' } else { 'Live' }
             }
             PrivilegedAccounts = $privilegedAccountDetails
             Recommendation = if ($status -ne "Pass") {

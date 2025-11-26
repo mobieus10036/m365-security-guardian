@@ -24,7 +24,10 @@ function Test-MFAConfiguration {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
-        [PSCustomObject]$Config
+        [PSCustomObject]$Config,
+
+        [Parameter(Mandatory = $false)]
+        [array]$AuthRegistrationDetails
     )
 
     try {
@@ -50,61 +53,51 @@ function Test-MFAConfiguration {
             }
         }
 
-        # Get MFA authentication methods for users
-        # Use batching to improve performance for large tenants
+        # Resolve authentication registration details (cached if provided)
+        $registrationDetails = $AuthRegistrationDetails
+        if (-not $registrationDetails) {
+            try {
+                $registrationDetails = Get-AuthRegistrationDetails
+            }
+            catch {
+                Write-Verbose "Could not retrieve authentication registration details: $_"
+                $registrationDetails = @()
+            }
+        }
+
+        # Build lookup for fast per-user checks
+        $registrationLookup = @{}
+        foreach ($detail in $registrationDetails) {
+            if ($detail.UserPrincipalName) {
+                $registrationLookup[$detail.UserPrincipalName.ToLower()] = $detail
+            }
+        }
+
         $usersWithMFA = 0
         $usersWithoutMFA = @()
-        $batchSize = 100
-        $processedCount = 0
 
-        Write-Verbose "Checking MFA status for $totalUsers users..."
+        Write-Verbose "Checking MFA status for $totalUsers users via registration detail cache..."
+        foreach ($user in $allUsers) {
+            $userKey = $user.UserPrincipalName.ToLower()
+            $detail = if ($registrationLookup.ContainsKey($userKey)) { $registrationLookup[$userKey] } else { $null }
 
-        for ($i = 0; $i -lt $totalUsers; $i += $batchSize) {
-            $batchEnd = [Math]::Min($i + $batchSize, $totalUsers)
-            $batch = $allUsers[$i..($batchEnd - 1)]
-            
-            # Progress reporting for large tenants
-            if ($totalUsers -gt 100) {
-                $percentComplete = [Math]::Round(($processedCount / $totalUsers) * 100, 0)
-                Write-Verbose "  Progress: $processedCount/$totalUsers users ($percentComplete%)"
+            $hasMFA = $false
+            if ($detail) {
+                $methods = @($detail.MethodsRegistered)
+                if ($detail.IsMfaRegistered -or ($methods -and $methods.Count -gt 0)) {
+                    $hasMFA = $true
+                }
             }
 
-            foreach ($user in $batch) {
-                try {
-                    $authMethods = Get-MgUserAuthenticationMethod -UserId $user.Id -ErrorAction SilentlyContinue
-                    
-                    # Check for MFA-capable methods (Phone, FIDO2, Authenticator App, etc.)
-                    $hasMFA = $authMethods | Where-Object {
-                        $_.AdditionalProperties.'@odata.type' -in @(
-                            '#microsoft.graph.phoneAuthenticationMethod',
-                            '#microsoft.graph.fido2AuthenticationMethod',
-                            '#microsoft.graph.microsoftAuthenticatorAuthenticationMethod',
-                            '#microsoft.graph.softwareOathAuthenticationMethod',
-                            '#microsoft.graph.windowsHelloForBusinessAuthenticationMethod'
-                        )
-                    }
-
-                    if ($hasMFA) {
-                        $usersWithMFA++
-                    }
-                    else {
-                        $usersWithoutMFA += [PSCustomObject]@{
-                            UserPrincipalName = $user.UserPrincipalName
-                            DisplayName = $user.DisplayName
-                            UserId = $user.Id
-                        }
-                    }
-                }
-                catch {
-                    Write-Verbose "Could not check MFA for user: $($user.UserPrincipalName) - $_"
-                }
-                
-                $processedCount++
+            if ($hasMFA) {
+                $usersWithMFA++
             }
-            
-            # Add small delay between batches to avoid throttling
-            if ($i + $batchSize -lt $totalUsers) {
-                Start-Sleep -Milliseconds 100
+            else {
+                $usersWithoutMFA += [PSCustomObject]@{
+                    UserPrincipalName = $user.UserPrincipalName
+                    DisplayName = $user.DisplayName
+                    UserId = $user.Id
+                }
             }
         }
 
@@ -148,6 +141,8 @@ function Test-MFAConfiguration {
                 UsersWithoutMFA = $usersWithoutMFA.Count
                 CompliancePercentage = $mfaPercentage
                 Threshold = $threshold
+                RegistrationDetailsCount = $registrationDetails.Count
+                RegistrationDetailsSource = if ($AuthRegistrationDetails) { 'Cached' } else { 'Live' }
             }
             UsersWithoutMFA = $usersWithoutMFA
             Recommendation = if ($status -ne "Pass") {

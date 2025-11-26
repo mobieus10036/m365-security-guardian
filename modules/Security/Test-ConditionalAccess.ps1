@@ -24,14 +24,22 @@ function Test-ConditionalAccess {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
-        [PSCustomObject]$Config
+        [PSCustomObject]$Config,
+
+        [Parameter(Mandatory = $false)]
+        [array]$ConditionalAccessPolicies
     )
 
     try {
         Write-Verbose "Analyzing Conditional Access policies..."
 
         # Get all Conditional Access policies
-        $caPolicies = Get-MgIdentityConditionalAccessPolicy -All
+        $caPolicies = if ($ConditionalAccessPolicies) {
+            $ConditionalAccessPolicies
+        }
+        else {
+            Get-MgIdentityConditionalAccessPolicy -All
+        }
 
         $totalPolicies = $caPolicies.Count
         $enabledPolicies = ($caPolicies | Where-Object { $_.State -eq 'enabled' }).Count

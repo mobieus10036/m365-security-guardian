@@ -91,6 +91,7 @@ try {
     Import-Module Microsoft.Graph.Identity.DirectoryManagement -ErrorAction Stop
     Import-Module Microsoft.Graph.Identity.SignIns -ErrorAction Stop
     Import-Module Microsoft.Graph.Groups -ErrorAction Stop
+    Import-Module Microsoft.Graph.Reports -ErrorAction Stop
 }
 catch {
     Write-Error "Failed to load Microsoft Graph modules. Please run .\Install-Prerequisites.ps1"
@@ -164,6 +165,23 @@ function ConvertTo-HtmlSafe {
     return [System.Web.HttpUtility]::HtmlEncode($Text)
 }
 
+function Get-AuthRegistrationDetails {
+    $cmdOptions = @(
+        'Get-MgReportAuthenticationMethodUserRegistrationDetail',      # common name
+        'Get-MgReportAuthenticationMethodsUserRegistrationDetail',     # alternate plural name
+        'Get-MgReportCredentialUserRegistrationDetail'                 # older Graph version
+    )
+
+    foreach ($cmd in $cmdOptions) {
+        $command = Get-Command -Name $cmd -ErrorAction SilentlyContinue
+        if ($command) {
+            return & $cmd -All -ErrorAction Stop
+        }
+    }
+
+    throw "Authentication registration detail cmdlet not available. Install or update Microsoft.Graph.Reports."
+}
+
 function Load-Configuration {
     Write-Step "Loading configuration..."
     
@@ -218,17 +236,19 @@ function Connect-M365Services {
     }
 
     Write-Step "Connecting to Microsoft 365 services..."
+    $modulesToRun = Get-ModulesToRun
 
     # Microsoft Graph
     try {
-        Write-Information "  → Connecting to Microsoft Graph..." -InformationAction Continue
+        Write-Information "  -> Connecting to Microsoft Graph..." -InformationAction Continue
         $graphScopes = @(
             'User.Read.All',
             'Directory.Read.All',
             'Policy.Read.All',
             'Organization.Read.All',
             'AuditLog.Read.All',
-            'UserAuthenticationMethod.Read.All'
+            'UserAuthenticationMethod.Read.All',
+            'Reports.Read.All'
         )
         
         if ($TenantId) {
@@ -251,14 +271,16 @@ function Connect-M365Services {
     }
 
     # Exchange Online (optional - some checks)
-    try {
-        Write-Information "  → Connecting to Exchange Online..." -InformationAction Continue
-        Connect-ExchangeOnline -ShowBanner:$false -ErrorAction Stop
-        Write-Success "Connected to Exchange Online"
-    }
-    catch {
-        Write-Failure "Failed to connect to Exchange Online: $_"
-        Write-Info "Some Exchange checks may be skipped"
+    if ($modulesToRun -contains 'Exchange') {
+        try {
+            Write-Information "  -> Connecting to Exchange Online..." -InformationAction Continue
+            Connect-ExchangeOnline -ShowBanner:$false -ErrorAction Stop
+            Write-Success "Connected to Exchange Online"
+        }
+        catch {
+            Write-Failure "Failed to connect to Exchange Online: $_"
+            Write-Info "Some Exchange checks may be skipped"
+        }
     }
 }
 
@@ -267,8 +289,33 @@ function Get-ModulesToRun {
         return @('Security', 'Exchange', 'Licensing')
     }
     return $Modules
-}function Invoke-AssessmentModules {
+}
+
+function Invoke-AssessmentModules {
     $modulesToRun = Get-ModulesToRun
+
+    $cachedAuthDetails = $null
+    $cachedCaPolicies = $null
+
+    if ($modulesToRun -contains 'Security') {
+        try {
+            Write-Information "  -> Preloading Conditional Access policies..." -InformationAction Continue
+            $cachedCaPolicies = Get-MgIdentityConditionalAccessPolicy -All -ErrorAction Stop
+            Write-Information "  -> Cached $($cachedCaPolicies.Count) Conditional Access policies" -InformationAction Continue
+        }
+        catch {
+            Write-Warning "  Could not preload Conditional Access policies: $_"
+        }
+
+        try {
+            Write-Information "  -> Preloading authentication registration details..." -InformationAction Continue
+            $cachedAuthDetails = Get-AuthRegistrationDetails
+            Write-Information "  -> Cached $($cachedAuthDetails.Count) authentication registrations" -InformationAction Continue
+        }
+        catch {
+            Write-Warning "  Could not preload authentication registration details: $_"
+        }
+    }
     
     Write-Step "Running assessment modules: $($modulesToRun -join ', ')"
     
@@ -290,8 +337,9 @@ function Get-ModulesToRun {
     }
 
     foreach ($module in $modulesToRun) {
-        $separator = "─" * (50 - $module.Length)
-        Write-Information "`n  ┌─ $module Assessment $separator" -InformationAction Continue
+        $moduleTimer = [System.Diagnostics.Stopwatch]::StartNew()
+        $separator = "------" * [math]::Max(1, [math]::Ceiling((50 - $module.Length) / 6))
+        Write-Information "`n  -- $module Assessment $separator" -InformationAction Continue
 
         if ($moduleScripts.ContainsKey($module)) {
             foreach ($scriptFile in $moduleScripts[$module]) {
@@ -300,10 +348,19 @@ function Get-ModulesToRun {
                 if (Test-Path $scriptPath) {
                     try {
                         $scriptName = [System.IO.Path]::GetFileNameWithoutExtension($scriptFile)
-                        Write-Information "    → Running $scriptName..." -InformationAction Continue
+                        Write-Information "    -> Running $scriptName..." -InformationAction Continue
                         . $scriptPath
                         $functionName = [System.IO.Path]::GetFileNameWithoutExtension($scriptFile)
-                        $result = & $functionName -Config $script:Config
+
+                        $scriptParams = @{ Config = $script:Config }
+                        if ($functionName -in @('Test-MFAConfiguration','Test-PrivilegedAccounts')) {
+                            $scriptParams['AuthRegistrationDetails'] = $cachedAuthDetails
+                        }
+                        if ($functionName -in @('Test-ConditionalAccess','Test-LegacyAuth')) {
+                            $scriptParams['ConditionalAccessPolicies'] = $cachedCaPolicies
+                        }
+
+                        $result = & $functionName @scriptParams
                         $script:AssessmentResults += $result
                         
                         # Display result
@@ -321,7 +378,10 @@ function Get-ModulesToRun {
             }
         }
         
-        Write-Information "  $('─' * 67)" -InformationAction Continue
+        $moduleTimer.Stop()
+        $elapsed = '{0:mm\:ss\.fff}' -f $moduleTimer.Elapsed
+        Write-Information "  Module $module completed in $elapsed" -InformationAction Continue
+        Write-Information "  $(('-' * 6) * 11)" -InformationAction Continue
     }
 }
 
@@ -530,14 +590,17 @@ function Export-HTMLReport {
                 $dmarcSafe = ConvertTo-HtmlSafe $domain.DMARC
                 
                 $spfIcon = switch -Regex ($domain.SPF) {
-                    "^Valid" { "✅" }
+                    "^Valid" { "�
+" }
                     "^Missing" { "❌" }
                     "^Invalid" { "⚠️" }
                     default { "❓" }
                 }
-                $dkimIcon = if ($domain.DKIM -eq "Enabled") { "✅" } else { "❌" }
+                $dkimIcon = if ($domain.DKIM -eq "Enabled") { "�
+" } else { "❌" }
                 $dmarcIcon = switch -Regex ($domain.DMARC) {
-                    "^Valid" { "✅" }
+                    "^Valid" { "�
+" }
                     "^Missing" { "❌" }
                     "^Weak" { "⚠️" }
                     default { "❓" }
@@ -574,7 +637,8 @@ function Export-HTMLReport {
             $findingContent += "<tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>User Principal Name</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Roles</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>MFA Status</td></tr>"
             foreach ($account in $result.PrivilegedAccounts) {
                 $accountUpnSafe = ConvertTo-HtmlSafe $account.UserPrincipalName
-                $mfaIcon = if ($account.HasMFA) { "✅ Enabled" } else { "❌ Not Enabled" }
+                $mfaIcon = if ($account.HasMFA) { "�
+ Enabled" } else { "❌ Not Enabled" }
                 $mfaColor = if ($account.HasMFA) { 'var(--success-color)' } else { 'var(--danger-color)' }
                 $rolesSafe = ($account.Roles | ForEach-Object { ConvertTo-HtmlSafe $_ }) -join ', '
                 $findingContent += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'><code>$accountUpnSafe</code></td>"

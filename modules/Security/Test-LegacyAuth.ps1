@@ -24,14 +24,22 @@ function Test-LegacyAuth {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
-        [PSCustomObject]$Config
+        [PSCustomObject]$Config,
+
+        [Parameter(Mandatory = $false)]
+        [array]$ConditionalAccessPolicies
     )
 
     try {
         Write-Verbose "Analyzing legacy authentication configuration..."
 
         # Check Conditional Access policies for legacy auth blocking
-        $caPolicies = Get-MgIdentityConditionalAccessPolicy -All
+        $caPolicies = if ($ConditionalAccessPolicies) {
+            $ConditionalAccessPolicies
+        }
+        else {
+            Get-MgIdentityConditionalAccessPolicy -All
+        }
 
         $legacyAuthBlockPolicies = $caPolicies | Where-Object {
             $_.State -eq 'enabled' -and (
