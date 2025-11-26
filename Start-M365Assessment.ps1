@@ -164,6 +164,23 @@ function ConvertTo-HtmlSafe {
     return [System.Web.HttpUtility]::HtmlEncode($Text)
 }
 
+function Get-AuthRegistrationDetails {
+    $cmdOptions = @(
+        'Get-MgReportAuthenticationMethodUserRegistrationDetail',
+        'Get-MgReportAuthenticationMethodsUserRegistrationDetail',
+        'Get-MgReportCredentialUserRegistrationDetail'
+    )
+
+    foreach ($cmd in $cmdOptions) {
+        $command = Get-Command -Name $cmd -ErrorAction SilentlyContinue
+        if ($command) {
+            return & $cmd -All -ErrorAction Stop
+        }
+    }
+
+    throw "Authentication registration detail cmdlet not available. Install or update Microsoft.Graph.Reports."
+}
+
 function Load-Configuration {
     Write-Step "Loading configuration..."
     
