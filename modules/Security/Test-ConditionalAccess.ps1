@@ -73,9 +73,9 @@ function Test-ConditionalAccess {
             }
         }
 
-        # Per-policy analysis for risks and improvement opportunities (additive; does not alter existing checks)
+        # Per-policy analysis for risks and improvement opportunities (skip disabled policies)
         $policyFindings = @()
-        foreach ($policy in $caPolicies) {
+        foreach ($policy in ($caPolicies | Where-Object { $_.State -ne 'disabled' })) {
             $policyFindings += _analyzePolicy $policy $breakGlass $adminAppIds $staleReportOnlyDays $longStaleReportOnlyDays $maxExclusions
         }
         $policyFindingsSummary = _collapseFindingsByMessage $policyFindings
