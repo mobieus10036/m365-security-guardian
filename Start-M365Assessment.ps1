@@ -260,6 +260,20 @@ function Connect-M365Services {
         
         Write-Success "Connected to Microsoft Graph"
         
+        # Show connection context so user knows which identity/tenant is being used
+        $mgContext = Get-MgContext
+        Write-Info "Connected as: $($mgContext.Account)"
+        Write-Info "Tenant ID: $($mgContext.TenantId)"
+        
+        # Validate that requested scopes were granted (helps troubleshooting)
+        $grantedScopes = $mgContext.Scopes
+        $missingScopes = $graphScopes | Where-Object { $grantedScopes -notcontains $_ }
+        if ($missingScopes.Count -gt 0) {
+            Write-Warning "  ⚠ Some permissions were not granted: $($missingScopes -join ', ')"
+            Write-Warning "  ⚠ Certain checks may fail or return incomplete data"
+            Write-Warning "  ⚠ Re-consent may be required if checks fail unexpectedly"
+        }
+        
         # Get tenant info
         $script:TenantInfo = Get-MgOrganization
         Write-Info "Tenant: $($script:TenantInfo.DisplayName)"
@@ -273,7 +287,13 @@ function Connect-M365Services {
     # Exchange Online (optional - some checks)
     try {
         Write-Information "  → Connecting to Exchange Online..." -InformationAction Continue
-        Connect-ExchangeOnline -ShowBanner:$false -ErrorAction Stop
+        # Use -Organization for multi-tenant scenarios (e.g., assessing client tenants)
+        if ($TenantId) {
+            Connect-ExchangeOnline -Organization $TenantId -ShowBanner:$false -ErrorAction Stop
+        }
+        else {
+            Connect-ExchangeOnline -ShowBanner:$false -ErrorAction Stop
+        }
         Write-Success "Connected to Exchange Online"
     }
     catch {
