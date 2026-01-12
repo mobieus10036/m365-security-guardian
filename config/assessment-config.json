@@ -8,7 +8,10 @@
     "ReportOnlyStaleDays": 30,
     "LongStaleReportOnlyDays": 90,
     "MaxConditionalAccessExclusions": null,
-    "BreakGlassAccounts": []
+    "BreakGlassAccounts": [],
+    "MaxStandingGlobalAdmins": 2,
+    "RequirePIMForAdmins": true,
+    "ServiceAccountExclusions": []
   },
   "Compliance": {
     "DLPPoliciesRequired": true,

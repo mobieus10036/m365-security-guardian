@@ -90,6 +90,7 @@ try {
     Import-Module Microsoft.Graph.Users -ErrorAction Stop
     Import-Module Microsoft.Graph.Identity.DirectoryManagement -ErrorAction Stop
     Import-Module Microsoft.Graph.Identity.SignIns -ErrorAction Stop
+    Import-Module Microsoft.Graph.Identity.Governance -ErrorAction Stop
     Import-Module Microsoft.Graph.Groups -ErrorAction Stop
 }
 catch {
@@ -252,7 +253,10 @@ function Connect-M365Services {
             'SecurityEvents.Read.All',           # For Secure Score
             'Application.Read.All',              # For App Permissions audit
             'DelegatedPermissionGrant.Read.All', # For OAuth2 permission grants
-            'SharePointTenantSettings.Read.All'  # For External Sharing settings
+            'SharePointTenantSettings.Read.All', # For External Sharing settings
+            'RoleManagement.Read.All',           # For PIM role assignments
+            'RoleManagement.Read.Directory',     # For PIM directory roles
+            'AccessReview.Read.All'              # For PIM access reviews
         )
         
         if ($TenantId) {
@@ -351,6 +355,7 @@ function Get-ModulesToRun {
             'Security\Test-MFAConfiguration.ps1',
             'Security\Test-ConditionalAccess.ps1',
             'Security\Test-PrivilegedAccounts.ps1',
+            'Security\Test-PIMConfiguration.ps1',
             'Security\Test-LegacyAuth.ps1',
             'Security\Test-AppPermissions.ps1',
             'Security\Test-ExternalSharing.ps1'
