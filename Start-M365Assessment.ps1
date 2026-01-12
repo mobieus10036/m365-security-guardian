@@ -92,6 +92,9 @@ try {
     Import-Module Microsoft.Graph.Identity.SignIns -ErrorAction Stop
     Import-Module Microsoft.Graph.Identity.Governance -ErrorAction Stop
     Import-Module Microsoft.Graph.Groups -ErrorAction Stop
+    Import-Module Microsoft.Graph.Security -ErrorAction Stop
+    Import-Module Microsoft.Graph.Applications -ErrorAction Stop
+    Import-Module Microsoft.Graph.Reports -ErrorAction Stop
 }
 catch {
     Write-Error "Failed to load Microsoft Graph modules. Please run .\Install-Prerequisites.ps1"

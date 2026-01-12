@@ -53,6 +53,9 @@ $requiredModules = @(
     @{ Name = 'Microsoft.Graph.Identity.SignIns'; MinVersion = '2.0.0' }
     @{ Name = 'Microsoft.Graph.Identity.Governance'; MinVersion = '2.0.0' }
     @{ Name = 'Microsoft.Graph.Groups'; MinVersion = '2.0.0' }
+    @{ Name = 'Microsoft.Graph.Security'; MinVersion = '2.0.0' }
+    @{ Name = 'Microsoft.Graph.Applications'; MinVersion = '2.0.0' }
+    @{ Name = 'Microsoft.Graph.Reports'; MinVersion = '2.0.0' }
     @{ Name = 'ExchangeOnlineManagement'; MinVersion = '3.0.0' }
 )
 
