@@ -128,6 +128,10 @@ param(
 
 #Requires -Version 5.1
 
+# Disable WAM broker BEFORE loading modules to prevent token caching issues
+# This fixes "Object reference not set" errors in embedded terminals (VS Code, etc.)
+$env:AZURE_IDENTITY_DISABLE_BROKER = "true"
+
 # Import required modules
 Write-Verbose "Loading Microsoft Graph modules..."
 try {
@@ -294,6 +298,11 @@ function Connect-M365Services {
     try {
         Write-Information "  → Connecting to Microsoft Graph..." -InformationAction Continue
         
+        # Disconnect any existing sessions to ensure clean auth
+        try {
+            Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
+        } catch { }
+        
         # Scopes for delegated (user) authentication
         $graphScopes = @(
             'User.Read.All',
@@ -418,13 +427,31 @@ function Connect-M365Services {
     # Exchange Online (optional - some checks)
     try {
         Write-Information "  → Connecting to Exchange Online..." -InformationAction Continue
-        # Use -Organization for multi-tenant scenarios (e.g., assessing client tenants)
+        
+        # Build Exchange connection parameters
+        $exoParams = @{
+            ShowBanner = $false
+            ErrorAction = 'Stop'
+        }
+        
         if ($TenantId) {
-            Connect-ExchangeOnline -Organization $TenantId -ShowBanner:$false -ErrorAction Stop
+            $exoParams['Organization'] = $TenantId
         }
-        else {
-            Connect-ExchangeOnline -ShowBanner:$false -ErrorAction Stop
+        
+        # Always use device authentication to avoid WAM broker issues in VS Code/terminal
+        # WAM broker can fail in non-standard terminal environments
+        # For ManagedIdentity, use the -ManagedIdentity flag instead
+        if ($AuthMethod -eq 'ManagedIdentity') {
+            $exoParams['ManagedIdentity'] = $true
+            if ($ClientId) {
+                $exoParams['ManagedIdentityAccountId'] = $ClientId
+            }
+        } else {
+            # Device code works reliably in all terminal environments
+            $exoParams['Device'] = $true
         }
+        
+        Connect-ExchangeOnline @exoParams
         Write-Success "Connected to Exchange Online"
     }
     catch {

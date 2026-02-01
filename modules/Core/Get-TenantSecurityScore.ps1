@@ -64,11 +64,19 @@ function Get-TenantSecurityScore {
         "License Optimization" = 5
     }
 
-    # Use configured weights or defaults
-    $weights = if ($Config.Scoring.RiskWeights) {
-        $Config.Scoring.RiskWeights
-    } else {
-        $defaultWeights
+    # Use configured weights or defaults (convert PSCustomObject to hashtable if needed)
+    $weights = $defaultWeights
+    if ($Config -and $Config.Scoring -and $Config.Scoring.RiskWeights) {
+        $configWeights = $Config.Scoring.RiskWeights
+        # Convert PSCustomObject to hashtable if necessary
+        if ($configWeights -is [System.Management.Automation.PSCustomObject]) {
+            $weights = @{}
+            $configWeights.PSObject.Properties | ForEach-Object {
+                $weights[$_.Name] = $_.Value
+            }
+        } elseif ($configWeights -is [hashtable]) {
+            $weights = $configWeights
+        }
     }
 
     # Severity multipliers (how much a failure impacts the score)

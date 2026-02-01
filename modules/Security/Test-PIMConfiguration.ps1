@@ -532,6 +532,3 @@ function Test-PIMConfiguration {
         }
     }
 }
-
-# Export the function
-Export-ModuleMember -Function Test-PIMConfiguration
