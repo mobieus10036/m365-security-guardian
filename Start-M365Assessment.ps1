@@ -34,6 +34,26 @@
     Optionally specify the tenant ID to assess.
     If not provided, will use the authenticated user's tenant.
 
+.PARAMETER AuthMethod
+    Authentication method to use. Valid values:
+    - DeviceCode (default) - Best for terminal/console use, shows code to enter at microsoft.com/devicelogin
+    - Interactive - Opens browser window (may have WAM issues on Windows)
+    - Certificate - For automation with app registration and certificate
+    - ClientSecret - For automation with app registration and client secret
+    - ManagedIdentity - For Azure-hosted automation (Azure VMs, Functions, etc.)
+
+.PARAMETER ClientId
+    Application (client) ID for Certificate, ClientSecret, or ManagedIdentity auth.
+    Required for non-interactive authentication methods.
+
+.PARAMETER CertificateThumbprint
+    Certificate thumbprint for Certificate-based authentication.
+    Certificate must be installed in CurrentUser\My store.
+
+.PARAMETER ClientSecret
+    Client secret as SecureString for ClientSecret authentication.
+    Use: -ClientSecret (ConvertTo-SecureString 'secret' -AsPlainText -Force)
+
 .PARAMETER NoAuth
     Skip authentication (useful if already connected in the same session).
 
@@ -49,11 +69,23 @@
     .\Start-M365Assessment.ps1 -OutputPath C:\Reports\
     Runs full assessment with custom output location.
 
+.EXAMPLE
+    .\Start-M365Assessment.ps1 -AuthMethod DeviceCode -TenantId "contoso.onmicrosoft.com"
+    Uses device code flow for multi-tenant assessment (recommended for consultants).
+
+.EXAMPLE
+    .\Start-M365Assessment.ps1 -AuthMethod Certificate -ClientId "app-id" -TenantId "tenant-id" -CertificateThumbprint "thumbprint"
+    Uses certificate-based auth for automated/scheduled assessments.
+
+.EXAMPLE
+    .\Start-M365Assessment.ps1 -AuthMethod ManagedIdentity -ClientId "managed-identity-client-id"
+    Uses managed identity when running from Azure VM or Azure Functions.
+
 .NOTES
     Project: M365 Assessment Toolkit
     Repository: https://github.com/mobieus10036/m365-security-guardian
     Author: mobieus10036
-    Version: 3.0.0
+    Version: 3.1.0
     Created with assistance from GitHub Copilot
     Requires: PowerShell 5.1+, Microsoft Graph, Exchange Online modules
 #>
@@ -76,6 +108,19 @@ param(
 
     [Parameter(Mandatory = $false)]
     [string]$TenantId,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateSet('Interactive', 'DeviceCode', 'Certificate', 'ClientSecret', 'ManagedIdentity')]
+    [string]$AuthMethod = 'DeviceCode',
+
+    [Parameter(Mandatory = $false)]
+    [string]$ClientId,
+
+    [Parameter(Mandatory = $false)]
+    [string]$CertificateThumbprint,
+
+    [Parameter(Mandatory = $false)]
+    [securestring]$ClientSecret,
 
     [Parameter(Mandatory = $false)]
     [switch]$NoAuth
@@ -107,6 +152,7 @@ $script:StartTime = Get-Date
 $script:AssessmentResults = @()
 $script:Config = $null
 $script:TenantInfo = $null
+$script:SecurityScore = $null
 
 #region Helper Functions
 
@@ -115,7 +161,7 @@ function Write-Banner {
 
 ╔══════════════════════════════════════════════════════════════════════╗
 ║                                                                      ║
-║           Microsoft 365 Assessment Toolkit v3.0.1                    ║
+║           Microsoft 365 Assessment Toolkit v3.1.0                    ║
 ║                                                                      ║
 ║              Security & Best Practice Assessment                     ║
 ║                                                                      ║
@@ -242,10 +288,13 @@ function Connect-M365Services {
     }
 
     Write-Step "Connecting to Microsoft 365 services..."
+    Write-Info "Authentication method: $AuthMethod"
 
     # Microsoft Graph
     try {
         Write-Information "  → Connecting to Microsoft Graph..." -InformationAction Continue
+        
+        # Scopes for delegated (user) authentication
         $graphScopes = @(
             'User.Read.All',
             'Directory.Read.All',
@@ -262,12 +311,78 @@ function Connect-M365Services {
             'AccessReview.Read.All'              # For PIM access reviews
         )
         
+        # Build connection parameters based on auth method
+        $connectParams = @{
+            NoWelcome = $true
+            ErrorAction = 'Stop'
+        }
+        
         if ($TenantId) {
-            Connect-MgGraph -Scopes $graphScopes -TenantId $TenantId -NoWelcome -ErrorAction Stop
+            $connectParams['TenantId'] = $TenantId
         }
-        else {
-            Connect-MgGraph -Scopes $graphScopes -NoWelcome -ErrorAction Stop
+        
+        switch ($AuthMethod) {
+            'DeviceCode' {
+                # Device code flow - best for terminal/console use
+                # User sees a code and URL, authenticates in any browser
+                Write-Info "Using Device Code flow - follow the prompts below"
+                $connectParams['UseDeviceCode'] = $true
+                $connectParams['Scopes'] = $graphScopes
+            }
+            
+            'Interactive' {
+                # Interactive browser - may trigger WAM on Windows
+                Write-Info "Using Interactive browser authentication"
+                $connectParams['Scopes'] = $graphScopes
+            }
+            
+            'Certificate' {
+                # Certificate-based auth for automation
+                if (-not $ClientId) {
+                    throw "ClientId is required for Certificate authentication"
+                }
+                if (-not $CertificateThumbprint) {
+                    throw "CertificateThumbprint is required for Certificate authentication"
+                }
+                if (-not $TenantId) {
+                    throw "TenantId is required for Certificate authentication"
+                }
+                Write-Info "Using Certificate-based authentication (App-only)"
+                $connectParams['ClientId'] = $ClientId
+                $connectParams['CertificateThumbprint'] = $CertificateThumbprint
+            }
+            
+            'ClientSecret' {
+                # Client secret auth for automation
+                if (-not $ClientId) {
+                    throw "ClientId is required for ClientSecret authentication"
+                }
+                if (-not $ClientSecret) {
+                    throw "ClientSecret is required for ClientSecret authentication"
+                }
+                if (-not $TenantId) {
+                    throw "TenantId is required for ClientSecret authentication"
+                }
+                Write-Info "Using Client Secret authentication (App-only)"
+                $connectParams['ClientId'] = $ClientId
+                $connectParams['ClientSecretCredential'] = (New-Object System.Management.Automation.PSCredential($ClientId, $ClientSecret))
+            }
+            
+            'ManagedIdentity' {
+                # Managed Identity for Azure-hosted workloads
+                Write-Info "Using Managed Identity authentication"
+                $connectParams['Identity'] = $true
+                if ($ClientId) {
+                    # User-assigned managed identity
+                    $connectParams['ClientId'] = $ClientId
+                    Write-Info "Using User-Assigned Managed Identity: $ClientId"
+                } else {
+                    Write-Info "Using System-Assigned Managed Identity"
+                }
+            }
         }
+        
+        Connect-MgGraph @connectParams
         
         Write-Success "Connected to Microsoft Graph"
         
@@ -275,14 +390,19 @@ function Connect-M365Services {
         $mgContext = Get-MgContext
         Write-Info "Connected as: $($mgContext.Account)"
         Write-Info "Tenant ID: $($mgContext.TenantId)"
+        Write-Info "Auth Type: $($mgContext.AuthType)"
         
-        # Validate that requested scopes were granted (helps troubleshooting)
-        $grantedScopes = $mgContext.Scopes
-        $missingScopes = $graphScopes | Where-Object { $grantedScopes -notcontains $_ }
-        if ($missingScopes.Count -gt 0) {
-            Write-Warning "  ⚠ Some permissions were not granted: $($missingScopes -join ', ')"
-            Write-Warning "  ⚠ Certain checks may fail or return incomplete data"
-            Write-Warning "  ⚠ Re-consent may be required if checks fail unexpectedly"
+        # Validate that requested scopes were granted (for delegated auth only)
+        if ($AuthMethod -in @('DeviceCode', 'Interactive')) {
+            $grantedScopes = $mgContext.Scopes
+            $missingScopes = $graphScopes | Where-Object { $grantedScopes -notcontains $_ }
+            if ($missingScopes.Count -gt 0) {
+                Write-Warning "  ⚠ Some permissions were not granted: $($missingScopes -join ', ')"
+                Write-Warning "  ⚠ Certain checks may fail or return incomplete data"
+                Write-Warning "  ⚠ Re-consent may be required if checks fail unexpectedly"
+            }
+        } elseif ($AuthMethod -in @('Certificate', 'ClientSecret', 'ManagedIdentity')) {
+            Write-Info "App-only auth: Ensure the app registration has required API permissions with admin consent"
         }
         
         # Get tenant info
@@ -437,11 +557,39 @@ function Export-Results {
     $timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
     $baseFileName = "M365Guardian_$timestamp"
 
-    # JSON Export
+    # JSON Export (includes security score)
     if ($OutputFormat -in @('All', 'JSON')) {
         $jsonPath = Join-Path $OutputPath "$baseFileName.json"
-        $script:AssessmentResults | ConvertTo-Json -Depth 10 | Out-File $jsonPath -Encoding UTF8
+        
+        # Build comprehensive export object with score
+        $exportData = @{
+            AssessmentDate = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+            TenantId = if ($script:TenantInfo) { $script:TenantInfo.Id } else { (Get-MgContext).TenantId }
+            TenantName = if ($script:TenantInfo) { $script:TenantInfo.DisplayName } else { "Unknown" }
+            SecurityScore = if ($script:SecurityScore) {
+                @{
+                    OverallScore = $script:SecurityScore.OverallScore
+                    LetterGrade = $script:SecurityScore.LetterGrade
+                    GradeDescription = $script:SecurityScore.GradeDescription
+                    PotentialScore = $script:SecurityScore.PotentialScore
+                    CategoryBreakdown = $script:SecurityScore.CategoryBreakdown
+                    TopPriorities = $script:SecurityScore.TopPriorities
+                    QuickWins = $script:SecurityScore.QuickWins
+                    Summary = $script:SecurityScore.Summary
+                }
+            } else { $null }
+            Findings = $script:AssessmentResults
+        }
+        
+        $exportData | ConvertTo-Json -Depth 15 | Out-File $jsonPath -Encoding UTF8
         Write-Success "JSON report: $jsonPath"
+        
+        # Export security score summary to separate file
+        if ($script:SecurityScore) {
+            $scorePath = Join-Path $OutputPath "$($baseFileName)_SecurityScore.json"
+            $script:SecurityScore | ConvertTo-Json -Depth 10 | Out-File $scorePath -Encoding UTF8
+            Write-Success "Security Score details: $scorePath"
+        }
     }
 
     # CSV Export
@@ -1071,6 +1219,88 @@ function Export-HTMLReport {
     $tenantName = if ($script:TenantInfo) { $script:TenantInfo.DisplayName } else { "Not Connected" }
     $tenantNameSafe = ConvertTo-HtmlSafe $tenantName
     
+    # Build security score HTML section
+    $securityScoreHtml = ""
+    if ($script:SecurityScore) {
+        $score = $script:SecurityScore
+        $gradeClass = switch ($score.LetterGrade) {
+            "A" { "grade-a" }
+            "B" { "grade-b" }
+            "C" { "grade-c" }
+            "D" { "grade-d" }
+            default { "grade-f" }
+        }
+        
+        # Build category breakdown
+        $categoryHtml = ""
+        foreach ($cat in $score.CategoryBreakdown) {
+            $catGradeClass = switch ($cat.Grade) {
+                "A" { "grade-a" }
+                "B" { "grade-b" }
+                "C" { "grade-c" }
+                "D" { "grade-d" }
+                default { "grade-f" }
+            }
+            $categoryHtml += @"
+            <div class="score-category">
+                <div class="score-category-name">$(ConvertTo-HtmlSafe $cat.Category)</div>
+                <div class="score-category-bar">
+                    <div class="score-category-fill $catGradeClass" style="width: $($cat.Score)%"></div>
+                </div>
+                <div class="score-category-value">$($cat.Score)%</div>
+            </div>
+"@
+        }
+        
+        # Build priorities list
+        $prioritiesHtml = ""
+        if ($score.TopPriorities.Count -gt 0) {
+            $prioritiesHtml = "<div class='priorities-section'><h4>🎯 Top Priorities</h4><ul>"
+            foreach ($priority in $score.TopPriorities) {
+                $prioritiesHtml += "<li><span class='priority-severity $($priority.Severity.ToLower())'>$($priority.Severity)</span> $(ConvertTo-HtmlSafe $priority.CheckName) <span class='priority-gain'>+$($priority.PotentialGain) pts</span></li>"
+            }
+            $prioritiesHtml += "</ul></div>"
+        }
+        
+        # Build quick wins list
+        $quickWinsHtml = ""
+        if ($score.QuickWins.Count -gt 0) {
+            $quickWinsHtml = "<div class='quickwins-section'><h4>⚡ Quick Wins</h4><ul>"
+            foreach ($win in $score.QuickWins) {
+                $quickWinsHtml += "<li>$(ConvertTo-HtmlSafe $win.CheckName) <span class='priority-gain'>+$($win.PotentialGain) pts</span></li>"
+            }
+            $quickWinsHtml += "</ul></div>"
+        }
+        
+        $securityScoreHtml = @"
+        <div class="security-score-dashboard">
+            <h2 class="summary-title">🛡️ Tenant Security Score</h2>
+            <div class="score-main-display">
+                <div class="score-circle $gradeClass">
+                    <div class="score-value">$($score.OverallScore)%</div>
+                    <div class="score-grade">Grade: $($score.LetterGrade)</div>
+                </div>
+                <div class="score-details">
+                    <div class="score-description">$(ConvertTo-HtmlSafe $score.GradeDescription)</div>
+                    <div class="score-potential">
+                        <span class="potential-label">Potential Score:</span>
+                        <span class="potential-value">$($score.PotentialScore)%</span>
+                        <span class="potential-gain">(+$($score.PotentialImprovement) pts available)</span>
+                    </div>
+                </div>
+            </div>
+            <div class="score-categories">
+                <h3>Category Breakdown</h3>
+                $categoryHtml
+            </div>
+            <div class="score-actions-grid">
+                $prioritiesHtml
+                $quickWinsHtml
+            </div>
+        </div>
+"@
+    }
+    
     $html = $html -replace '{{TENANT_NAME}}', $tenantNameSafe
     $html = $html -replace '{{ASSESSMENT_DATE}}', (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
     $html = $html -replace '{{TOTAL_CHECKS}}', $totalChecks
@@ -1081,6 +1311,7 @@ function Export-HTMLReport {
     $html = $html -replace '{{PASS_PERCENTAGE}}', $passPercentage
     $html = $html -replace '{{SEVERITY_LABELS}}', $severityLabelsJson
     $html = $html -replace '{{SEVERITY_COUNTS}}', $severityValuesJson
+    $html = $html -replace '{{SECURITY_SCORE_SECTION}}', $securityScoreHtml
     $html = $html -replace '{{RESULTS_CARDS}}', $resultsHtml
 
     $html | Out-File $OutputPath -Encoding UTF8
@@ -1523,6 +1754,206 @@ function Get-HTMLTemplate {
             .charts-grid { grid-template-columns: 1fr; }
             .results-section { padding: 24px; }
             .controls { padding: 20px; }
+            .score-main-display { flex-direction: column; text-align: center; }
+            .score-actions-grid { grid-template-columns: 1fr; }
+        }
+        
+        /* Security Score Dashboard Styles */
+        .security-score-dashboard {
+            padding: 40px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-bottom: 1px solid var(--gray-200);
+        }
+        
+        .score-main-display {
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            margin-bottom: 30px;
+        }
+        
+        .score-circle {
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-lg);
+            flex-shrink: 0;
+        }
+        
+        .score-circle.grade-a { background: linear-gradient(135deg, #107c10, #0b5c0b); color: white; }
+        .score-circle.grade-b { background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; }
+        .score-circle.grade-c { background: linear-gradient(135deg, #f39c12, #d68910); color: white; }
+        .score-circle.grade-d { background: linear-gradient(135deg, #e67e22, #d35400); color: white; }
+        .score-circle.grade-f { background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; }
+        
+        .score-value {
+            font-size: 36px;
+            font-weight: 700;
+            line-height: 1;
+        }
+        
+        .score-grade {
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 8px;
+            opacity: 0.9;
+        }
+        
+        .score-details {
+            flex: 1;
+        }
+        
+        .score-description {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 16px;
+        }
+        
+        .score-potential {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .potential-label {
+            font-weight: 600;
+            color: var(--gray-700);
+        }
+        
+        .potential-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        
+        .potential-gain {
+            background: #e8f5e9;
+            color: #107c10;
+            padding: 4px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .score-categories {
+            margin-bottom: 30px;
+        }
+        
+        .score-categories h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--gray-900);
+        }
+        
+        .score-category {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+        
+        .score-category-name {
+            width: 180px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+        
+        .score-category-bar {
+            flex: 1;
+            height: 24px;
+            background: var(--gray-200);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+        }
+        
+        .score-category-fill {
+            height: 100%;
+            border-radius: var(--radius-md);
+            transition: width 0.5s ease;
+        }
+        
+        .score-category-fill.grade-a { background: linear-gradient(90deg, #107c10, #2ecc71); }
+        .score-category-fill.grade-b { background: linear-gradient(90deg, #27ae60, #58d68d); }
+        .score-category-fill.grade-c { background: linear-gradient(90deg, #f39c12, #f7dc6f); }
+        .score-category-fill.grade-d { background: linear-gradient(90deg, #e67e22, #f5b041); }
+        .score-category-fill.grade-f { background: linear-gradient(90deg, #e74c3c, #ec7063); }
+        
+        .score-category-value {
+            width: 60px;
+            text-align: right;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+        
+        .score-actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+        
+        .priorities-section, .quickwins-section {
+            background: white;
+            padding: 24px;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .priorities-section h4, .quickwins-section h4 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--gray-900);
+        }
+        
+        .priorities-section ul, .quickwins-section ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .priorities-section li, .quickwins-section li {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--gray-100);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .priorities-section li:last-child, .quickwins-section li:last-child {
+            border-bottom: none;
+        }
+        
+        .priority-severity {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .priority-severity.critical { background: #d13438; color: white; }
+        .priority-severity.high { background: #ff8c00; color: white; }
+        .priority-severity.medium { background: #ffd700; color: #333; }
+        .priority-severity.low { background: #90ee90; color: #333; }
+        
+        .priority-gain {
+            margin-left: auto;
+            background: #e8f5e9;
+            color: #107c10;
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 600;
         }
     </style>
 </head>
@@ -1589,6 +2020,8 @@ function Get-HTMLTemplate {
                 </div>
             </div>
         </div>
+        
+        {{SECURITY_SCORE_SECTION}}
         
         <div class="controls">
             <div class="search-box">
@@ -1721,8 +2154,50 @@ function Disconnect-M365Services {
     }
 }
 
+function Invoke-SecurityScoring {
+    Write-Step "Calculating Tenant Security Score..."
+    
+    # Load the scoring module
+    $scoringModulePath = Join-Path $PSScriptRoot "modules\Core\Get-TenantSecurityScore.ps1"
+    
+    if (Test-Path $scoringModulePath) {
+        try {
+            . $scoringModulePath
+            
+            $script:SecurityScore = Get-TenantSecurityScore -AssessmentResults $script:AssessmentResults -Config $script:Config
+            
+            # Display score in console if enabled
+            $displayScore = if ($null -ne $script:Config.Scoring.DisplayInConsole) { 
+                $script:Config.Scoring.DisplayInConsole 
+            } else { $true }
+            
+            if ($displayScore) {
+                Format-SecurityScoreDisplay -ScoreData $script:SecurityScore
+            }
+            
+            Write-Success "Security Score calculated: $($script:SecurityScore.OverallScore)% (Grade: $($script:SecurityScore.LetterGrade))"
+        }
+        catch {
+            Write-Warning "Could not calculate security score: $_"
+        }
+    }
+    else {
+        Write-Info "Security scoring module not found. Skipping score calculation."
+    }
+}
+
 function Show-Summary {
     $duration = (Get-Date) - $script:StartTime
+    
+    # Build score summary if available
+    $scoreInfo = ""
+    if ($script:SecurityScore) {
+        $scoreInfo = @"
+
+Security Score: $($script:SecurityScore.OverallScore)% | Grade: $($script:SecurityScore.LetterGrade)
+$($script:SecurityScore.GradeDescription)
+"@
+    }
     
     $summary = @"
 
@@ -1731,7 +2206,7 @@ function Show-Summary {
 ╚══════════════════════════════════════════════════════════════════════╝
 
 Execution Time: $($duration.Minutes)m $($duration.Seconds)s
-Total Checks: $($script:AssessmentResults.Count)
+Total Checks: $($script:AssessmentResults.Count)$scoreInfo
 
 "@
     Write-Information $summary -InformationAction Continue
@@ -1746,6 +2221,7 @@ try {
     Load-Configuration
     Connect-M365Services
     Invoke-AssessmentModules
+    Invoke-SecurityScoring
     Export-Results
     Show-Summary
 }

@@ -13,6 +13,30 @@
     "RequirePIMForAdmins": true,
     "ServiceAccountExclusions": []
   },
+  "Scoring": {
+    "Enabled": true,
+    "DisplayInConsole": true,
+    "RiskWeights": {
+      "MFA Enforcement": 12,
+      "Privileged Account Security": 10,
+      "Privileged Identity Management (PIM)": 8,
+      "Legacy Authentication": 5,
+      "Conditional Access Policies": 15,
+      "External Sharing Configuration": 10,
+      "Application Permission Audit": 12,
+      "Microsoft Secure Score": 8,
+      "Email Authentication (SPF/DKIM/DMARC)": 8,
+      "Mailbox Auditing": 4,
+      "Email Security Configuration": 3,
+      "License Optimization": 5
+    },
+    "GradeThresholds": {
+      "A": 90,
+      "B": 80,
+      "C": 70,
+      "D": 60
+    }
+  },
   "Compliance": {
     "DLPPoliciesRequired": true,
     "RetentionPoliciesRequired": true,
