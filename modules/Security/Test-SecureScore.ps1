@@ -31,7 +31,13 @@ function Test-SecureScore {
         Write-Verbose "Retrieving Microsoft Secure Score..."
 
         # Get the latest Secure Score
-        $secureScores = Get-MgSecuritySecureScore -Top 1 -ErrorAction Stop
+        # Use SilentlyContinue to suppress verbose HTTP errors, then check for null
+        $secureScores = Get-MgSecuritySecureScore -Top 1 -ErrorAction SilentlyContinue -ErrorVariable secureScoreError
+        
+        # If we have an error, throw it to the catch block with a clean message
+        if ($secureScoreError) {
+            throw $secureScoreError[0].Exception
+        }
 
         if ($null -eq $secureScores -or @($secureScores).Count -eq 0) {
             return [PSCustomObject]@{
@@ -197,14 +203,33 @@ function Test-SecureScore {
         }
     }
     catch {
+        # Check if this is a licensing issue (403) vs actual permission problem
+        $errorMsg = $_.Exception.Message
+        $isLicenseIssue = $errorMsg -match "403|Forbidden|not have valid roles"
+        
+        $message = if ($isLicenseIssue) {
+            "Secure Score API requires Microsoft 365 E5 or E5 Security license"
+        } else {
+            "Unable to retrieve Secure Score: $($_.Exception.Message)"
+        }
+        
+        $recommendation = if ($isLicenseIssue) {
+            "Microsoft Secure Score API is only available with E5 licensing. Your custom Tenant Security Score provides similar insights."
+        } else {
+            "Verify Microsoft Graph permissions: SecurityEvents.Read.All, SecurityActions.Read.All"
+        }
+        
         return [PSCustomObject]@{
             CheckName = "Microsoft Secure Score"
             Category = "Security"
             Status = "Info"
             Severity = "Info"
-            Message = "Unable to retrieve Secure Score: $_"
-            Details = @{ Error = $_.Exception.Message }
-            Recommendation = "Verify Microsoft Graph permissions: SecurityEvents.Read.All"
+            Message = $message
+            Details = @{ 
+                Error = $_.Exception.Message
+                LicenseRequired = $isLicenseIssue
+            }
+            Recommendation = $recommendation
             DocumentationUrl = "https://learn.microsoft.com/microsoft-365/security/defender/microsoft-secure-score"
             RemediationSteps = @()
         }

@@ -298,11 +298,6 @@ function Connect-M365Services {
     try {
         Write-Information "  → Connecting to Microsoft Graph..." -InformationAction Continue
         
-        # Disconnect any existing sessions to ensure clean auth
-        try {
-            Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        } catch { }
-        
         # Scopes for delegated (user) authentication
         $graphScopes = @(
             'User.Read.All',
@@ -575,6 +570,12 @@ function Get-ModulesToRun {
 
 function Export-Results {
     Write-Step "Generating assessment reports..."
+    
+    # Load CIS compliance module for export functions
+    $cisModulePath = Join-Path $PSScriptRoot "modules\Core\Get-CISCompliance.ps1"
+    if (Test-Path $cisModulePath) {
+        . $cisModulePath
+    }
 
     # Ensure output directory exists
     if (-not (Test-Path $OutputPath)) {
@@ -737,6 +738,13 @@ function Export-Results {
                 Export-Csv -Path $secureScoreCsvPath -NoTypeInformation -Encoding UTF8
             Write-Success "Secure Score actions CSV: $secureScoreCsvPath"
             Write-Info "  → $($secureScoreResult.TopActions.Count) improvement action(s) exported"
+        }
+        
+        # Export CIS Compliance reports
+        if ($script:CISCompliance) {
+            $cisBasePath = Join-Path $OutputPath $baseFileName
+            Export-CISComplianceReport -ComplianceSummary $script:CISCompliance -OutputPath $cisBasePath -Format @('JSON', 'CSV')
+            Write-Info "  → $($script:CISCompliance.TotalControls) CIS controls assessed"
         }
     }
 
@@ -2213,6 +2221,47 @@ function Invoke-SecurityScoring {
     }
 }
 
+function Invoke-CISCompliance {
+    Write-Step "Mapping findings to CIS Microsoft 365 Benchmark..."
+    
+    # Load the CIS compliance module
+    $cisModulePath = Join-Path $PSScriptRoot "modules\Core\Get-CISCompliance.ps1"
+    
+    if (Test-Path $cisModulePath) {
+        try {
+            . $cisModulePath
+            
+            # Initialize the benchmark mapping
+            $cisConfigPath = Join-Path $PSScriptRoot "config\cis-benchmark-mapping.json"
+            Initialize-CISBenchmark -ConfigPath $cisConfigPath | Out-Null
+            
+            # Generate compliance summary
+            $script:CISCompliance = Get-CISComplianceSummary -AssessmentResults $script:AssessmentResults
+            
+            if ($script:CISCompliance) {
+                # Display compliance summary in console
+                $displayCIS = if ($null -ne $script:Config.CISBenchmark.DisplayInConsole) { 
+                    $script:Config.CISBenchmark.DisplayInConsole 
+                } else { $true }
+                
+                if ($displayCIS) {
+                    $complianceDisplay = Format-CISComplianceReport -ComplianceSummary $script:CISCompliance
+                    Write-Information $complianceDisplay -InformationAction Continue
+                }
+                
+                Write-Success "CIS Compliance: Level 1 = $($script:CISCompliance.Level1.Percentage)%, Level 2 = $($script:CISCompliance.Level2.Percentage)%"
+            }
+        }
+        catch {
+            Write-Warning "Could not generate CIS compliance mapping: $_"
+            Write-Verbose $_.ScriptStackTrace
+        }
+    }
+    else {
+        Write-Info "CIS compliance module not found. Skipping benchmark mapping."
+    }
+}
+
 function Show-Summary {
     $duration = (Get-Date) - $script:StartTime
     
@@ -2226,6 +2275,15 @@ $($script:SecurityScore.GradeDescription)
 "@
     }
     
+    # Build CIS compliance summary if available
+    $cisInfo = ""
+    if ($script:CISCompliance) {
+        $cisInfo = @"
+
+CIS Benchmark: Level 1 = $($script:CISCompliance.Level1.Percentage)% | Level 2 = $($script:CISCompliance.Level2.Percentage)%
+"@
+    }
+    
     $summary = @"
 
 ╔══════════════════════════════════════════════════════════════════════╗
@@ -2233,7 +2291,7 @@ $($script:SecurityScore.GradeDescription)
 ╚══════════════════════════════════════════════════════════════════════╝
 
 Execution Time: $($duration.Minutes)m $($duration.Seconds)s
-Total Checks: $($script:AssessmentResults.Count)$scoreInfo
+Total Checks: $($script:AssessmentResults.Count)$scoreInfo$cisInfo
 
 "@
     Write-Information $summary -InformationAction Continue
@@ -2243,12 +2301,45 @@ Total Checks: $($script:AssessmentResults.Count)$scoreInfo
 
 #region Main Execution
 
+# Clean up any existing connections to ensure fresh start
+function Clear-ExistingConnections {
+    Write-Information "`n[$(Get-Date -Format 'HH:mm:ss')] Clearing existing connections..." -InformationAction Continue
+    
+    # Disconnect Microsoft Graph
+    try {
+        $graphContext = Get-MgContext -ErrorAction SilentlyContinue
+        if ($graphContext) {
+            Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
+            Write-Information "  ✓ Disconnected from Microsoft Graph ($($graphContext.Account))" -InformationAction Continue
+        }
+    } catch { }
+    
+    # Disconnect Exchange Online
+    try {
+        $exoSession = Get-PSSession | Where-Object { $_.ConfigurationName -eq 'Microsoft.Exchange' -or $_.Name -like '*ExchangeOnline*' }
+        if ($exoSession) {
+            Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+            Write-Information "  ✓ Disconnected from Exchange Online" -InformationAction Continue
+        }
+    } catch { }
+    
+    # Also remove any stale Exchange PS sessions
+    try {
+        Get-PSSession | Where-Object { $_.ConfigurationName -eq 'Microsoft.Exchange' } | Remove-PSSession -ErrorAction SilentlyContinue
+    } catch { }
+    
+    Write-Information "  ✓ Ready for fresh connection" -InformationAction Continue
+}
+
+Clear-ExistingConnections
+
 try {
     Write-Banner
     Load-Configuration
     Connect-M365Services
     Invoke-AssessmentModules
     Invoke-SecurityScoring
+    Invoke-CISCompliance
     Export-Results
     Show-Summary
 }

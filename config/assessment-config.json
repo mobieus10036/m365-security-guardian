@@ -51,5 +51,12 @@
   "Licensing": {
     "InactiveDaysThreshold": 90,
     "MinimumLicenseUtilization": 85
+  },
+  "CISBenchmark": {
+    "Enabled": true,
+    "DisplayInConsole": true,
+    "Version": "3.1.0",
+    "IncludeLevels": [1, 2],
+    "FailOnNonCompliant": false
   }
 }
