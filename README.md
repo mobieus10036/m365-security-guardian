@@ -4,94 +4,172 @@
 
 **Rapid, actionable Microsoft 365 security assessment for modern enterprises.**
 
-![Build Status](https://img.shields.io/github/workflow/status/mobieus10036/m365-security-guardian/CI)
-![License](https://img.shields.io/github/license/mobieus10036/m365-security-guardian)
+![Version](https://img.shields.io/badge/version-3.1.0-blue)
+![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue)
+![License](https://img.shields.io/github/license/mobieus10036/m365-security-assessment)
+
+---
+
+## ✨ What's New in v3.1.0
+
+- **🏛️ CIS Benchmark Mapping** - Maps findings to CIS Microsoft 365 Foundations Benchmark v3.1.0
+- **🎯 MITRE ATT&CK Integration** - Each CIS control includes relevant MITRE technique IDs
+- **📊 Dual Compliance Levels** - Separate compliance percentages for CIS Level 1 (Essential) and Level 2 (Enhanced)
+- **🔐 Certificate Auth Auto-Load** - Save auth config once, run without parameters
+- **🧹 Connection Cleanup** - Automatically clears stale connections before each run
+- **📈 Enhanced Reporting** - CIS compliance exported to JSON and CSV for audit/GRC tools
 
 ---
 
 ## Features
 
-- **🎯 Tenant Security Score** - Overall security posture score (0-100) with letter grade (A-F)
-- Assesses Microsoft 365 security posture across Identity, Conditional Access, Applications, and Email
-- Identifies critical risks and misconfigurations with severity-based prioritization
+### 🎯 Tenant Security Score
+- Overall security posture score (0-100) with letter grade (A-F)
+- Category breakdown: Identity & Access, Conditional Access, Application Security, Email Security, Governance
 - **Top Priorities** - Highest impact remediation items ranked by potential score improvement
 - **Quick Wins** - Low-effort, high-impact fixes for immediate security gains
-- Category breakdown showing scores for Identity & Access, Conditional Access, App Security, and more
-- Generates professional HTML, JSON, and CSV reports
-- Easy to run, modular PowerShell code
+- Weighted scoring based on actual security impact
+
+### 🏛️ CIS Microsoft 365 Benchmark Compliance
+- Maps all findings to **CIS Microsoft 365 Foundations Benchmark v3.1.0**
+- Separate compliance tracking for **Level 1 (Essential)** and **Level 2 (Enhanced)** controls
+- 24 CIS controls assessed across 5 security domains
+- **MITRE ATT&CK technique mappings** for each control
+- Audit-ready reports for compliance frameworks (SOC 2, ISO 27001, etc.)
+
+### 🔍 Security Assessments
+| Module | Checks |
+|--------|--------|
+| **Identity** | MFA adoption, Privileged accounts, PIM configuration, Legacy auth |
+| **Conditional Access** | Policy coverage, Risk-based policies, Device compliance, Location controls |
+| **Applications** | High-risk permissions, Credential expiry, Multi-tenant apps, OAuth grants |
+| **Email** | SPF/DKIM/DMARC validation, Mailbox auditing, Anti-spam/malware policies |
+| **Licensing** | Inactive license detection, Optimization opportunities |
+
+### 📄 Report Outputs
+- **HTML** - Interactive dashboard with filtering and export
+- **JSON** - Machine-readable for automation and SIEM integration
+- **CSV** - Spreadsheet-compatible for analysis and sharing
+- **CIS Compliance** - Dedicated JSON/CSV exports for audit tools
 
 ---
 
 ## Quickstart
 
 ```powershell
-git clone https://github.com/mobieus10036/m365-security-guardian.git
-cd m365-security-guardian
-./Start-M365Assessment.ps1
+git clone https://github.com/mobieus10036/m365-security-assessment.git
+cd m365-security-assessment
+.\Install-Prerequisites.ps1
+.\Start-M365Assessment.ps1
 ```
+
+---
 
 ## Authentication
 
-The tool supports multiple authentication methods for different scenarios:
+The tool supports multiple authentication methods:
 
 | Method | Best For | Command |
 |--------|----------|---------|
-| **DeviceCode** (default) | Terminal/console use, multi-tenant | `./Start-M365Assessment.ps1` |
-| **Interactive** | Quick runs with browser | `./Start-M365Assessment.ps1 -AuthMethod Interactive` |
-| **Certificate** | Scheduled automation | `./Start-M365Assessment.ps1 -AuthMethod Certificate -ClientId "..." -TenantId "..." -CertificateThumbprint "..."` |
-| **ManagedIdentity** | Azure-hosted (VMs, Functions) | `./Start-M365Assessment.ps1 -AuthMethod ManagedIdentity` |
+| **Certificate** ⭐ | Recommended - Reliable & automated | `.\Start-M365Assessment.ps1` (after setup) |
+| **DeviceCode** | Terminal use, multi-tenant | `.\Start-M365Assessment.ps1 -AuthMethod DeviceCode` |
+| **Interactive** | Quick browser-based runs | `.\Start-M365Assessment.ps1 -AuthMethod Interactive` |
+| **ManagedIdentity** | Azure-hosted (VMs, Functions) | `.\Start-M365Assessment.ps1 -AuthMethod ManagedIdentity` |
+
+### 🔐 Certificate Authentication Setup (Recommended)
+
+Certificate auth provides the most reliable experience, especially in VS Code or embedded terminals.
+
+```powershell
+# Run the setup script to create app registration with certificate
+.\Setup-AppRegistration-CLI.ps1
+
+# After setup, simply run without parameters - auth config auto-loads
+.\Start-M365Assessment.ps1
+```
+
+The setup creates:
+- Entra ID App Registration with required permissions
+- Self-signed certificate (valid 1 year)
+- `.auth-config.ps1` file with saved credentials
 
 ### Multi-Tenant Assessments (Consultants)
 
 ```powershell
-# Assess a specific tenant using device code flow
-./Start-M365Assessment.ps1 -TenantId "contoso.onmicrosoft.com" -AuthMethod DeviceCode
+# Assess a specific tenant
+.\Start-M365Assessment.ps1 -TenantId "contoso.onmicrosoft.com" -AuthMethod DeviceCode
 ```
 
-### Automated/Scheduled Assessments
+### Required Microsoft Graph Permissions
 
-For unattended runs, create an App Registration with the required API permissions:
+For app-only (Certificate/ManagedIdentity) authentication:
 
-**Required Microsoft Graph Application Permissions:**
-- `User.Read.All`
-- `Directory.Read.All`
-- `Policy.Read.All`
-- `Organization.Read.All`
-- `AuditLog.Read.All`
-- `SecurityEvents.Read.All`
-- `Application.Read.All`
-- `RoleManagement.Read.All`
+| Permission | Purpose |
+|------------|---------|
+| `User.Read.All` | MFA status, user enumeration |
+| `Directory.Read.All` | Privileged roles, group membership |
+| `Policy.Read.All` | Conditional Access policies |
+| `Organization.Read.All` | Tenant information |
+| `AuditLog.Read.All` | Sign-in logs for license optimization |
+| `SecurityEvents.Read.All` | Microsoft Secure Score (E5 only) |
+| `Application.Read.All` | App permissions audit |
+| `RoleManagement.Read.All` | PIM configuration |
 
-```powershell
-# Certificate-based authentication
-./Start-M365Assessment.ps1 -AuthMethod Certificate `
-    -ClientId "your-app-id" `
-    -TenantId "your-tenant-id" `
-    -CertificateThumbprint "your-cert-thumbprint"
-```
+---
 
 ## Security Score
 
-The assessment now calculates an **overall Tenant Security Score** providing:
+The assessment calculates an **overall Tenant Security Score**:
 
 | Grade | Score Range | Description |
 |-------|-------------|-------------|
-| A | 90-100% | Excellent - Your tenant follows security best practices |
-| B | 80-89% | Good - Minor improvements recommended |
-| C | 70-79% | Fair - Several security gaps should be addressed |
-| D | 60-69% | Poor - Significant security risks require attention |
-| F | 0-59% | Critical - Immediate action required |
+| **A** | 90-100% | Excellent - Your tenant follows security best practices |
+| **B** | 80-89% | Good - Minor improvements recommended |
+| **C** | 70-79% | Fair - Several security gaps should be addressed |
+| **D** | 60-69% | Poor - Significant security risks require attention |
+| **F** | 0-59% | Critical - Immediate action required |
 
-### Category Breakdown
-- **Identity & Access** - MFA, Privileged Accounts, PIM, Legacy Auth
-- **Conditional Access** - CA Policies, External Sharing
-- **Application Security** - App Permissions, Microsoft Secure Score
-- **Email Security** - SPF/DKIM/DMARC, Mailbox Auditing
-- **Governance** - License Optimization
+### Category Weights
+| Category | Weight | Key Checks |
+|----------|--------|------------|
+| Identity & Access | 30% | MFA, Privileged Accounts, PIM, Legacy Auth |
+| Conditional Access | 25% | CA Policies, External Sharing |
+| Application Security | 20% | App Permissions, Secure Score |
+| Email Security | 15% | SPF/DKIM/DMARC, Mailbox Auditing |
+| Governance | 10% | License Optimization |
 
-### Configuration
+---
 
-Customize scoring weights in `config/assessment-config.json`:
+## CIS Benchmark Mapping
+
+All findings are mapped to the **CIS Microsoft 365 Foundations Benchmark v3.1.0**:
+
+```
+╔══════════════════════════════════════════════════════════════════════╗
+║            CIS Microsoft 365 Foundations Benchmark                   ║
+║                    Compliance Assessment                             ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+  Level 1 (Essential):  [███░░░░░░░░░░░░░░░░░] 19% (4/21)
+  Level 2 (Enhanced):   [██████░░░░░░░░░░░░░░] 33.3% (1/3)
+
+  ⚠ Non-Compliant Controls:
+    [L1] 1.2.1: MFA for administrative roles - MITRE: T1078, T1110
+    [L1] 5.1.1.1: Block legacy authentication - MITRE: T1110.003
+```
+
+### Sections Covered
+- **Section 1** - Account/Authentication (MFA, Password Policies)
+- **Section 2** - Application Permissions (OAuth, Consent Workflow)
+- **Section 5** - Conditional Access (Risk Policies, Device Compliance)
+- **Section 6** - Exchange Online (Email Auth, Auditing)
+- **Section 7** - SharePoint and OneDrive (External Sharing)
+
+---
+
+## Configuration
+
+Customize the assessment in `config/assessment-config.json`:
 
 ```json
 {
@@ -100,31 +178,91 @@ Customize scoring weights in `config/assessment-config.json`:
     "DisplayInConsole": true,
     "RiskWeights": {
       "MFA Enforcement": 12,
-      "Conditional Access Policies": 15
+      "Conditional Access Policies": 15,
+      "Email Authentication": 6
     }
+  },
+  "CISBenchmark": {
+    "Enabled": true,
+    "DisplayInConsole": true,
+    "Version": "3.1.0",
+    "IncludeLevels": ["Level1", "Level2"]
   }
 }
 ```
 
-## Methodology
+---
 
-- Enumerates resources via Microsoft Graph and PowerShell
-- Evaluates against Microsoft 365 security best practices
-- Weighted scoring based on security impact
-- Actionable findings with remediation guidance
+## Output Files
+
+Each assessment generates timestamped reports:
+
+| File | Description |
+|------|-------------|
+| `M365Guardian_*.html` | Interactive HTML dashboard |
+| `M365Guardian_*.json` | Full assessment data |
+| `M365Guardian_*.csv` | All findings for spreadsheets |
+| `*_SecurityScore.json` | Detailed scoring breakdown |
+| `*_CISCompliance.json` | CIS benchmark mapping |
+| `*_CISCompliance.csv` | CIS controls for audit tools |
+| `*_UsersWithoutMFA.csv` | Users requiring MFA enrollment |
+| `*_PrivilegedAccounts.csv` | Privileged account inventory |
+| `*_ConditionalAccessPolicies.csv` | CA policy details |
+| `*_DomainEmailAuth.csv` | SPF/DKIM/DMARC per domain |
+
+---
+
+## Requirements
+
+- **PowerShell 5.1+** (Windows PowerShell or PowerShell 7)
+- **Microsoft Graph PowerShell SDK** v2.x
+- **ExchangeOnlineManagement** module v3.x
+- **Azure CLI** (for app registration setup only)
+
+Install prerequisites:
+```powershell
+.\Install-Prerequisites.ps1
+```
+
+---
+
+## Troubleshooting
+
+### "DeviceCodeCredential authentication failed" errors
+Use certificate authentication instead of device code:
+```powershell
+.\Setup-AppRegistration-CLI.ps1  # Run once
+.\Start-M365Assessment.ps1       # Auto-uses certificate
+```
+
+### "Secure Score API requires E5 license"
+Microsoft Secure Score API is only available with E5 licensing. The custom Tenant Security Score provides similar insights without E5.
+
+### Exchange Online connection issues
+The tool automatically uses device code flow for Exchange to avoid WAM broker issues in VS Code terminals.
 
 ---
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
 ## License
 
-MIT License
+MIT License - see [LICENSE](LICENSE)
 
 ---
 
-Mobieus Rapid Assessment Suite — Accelerate your Azure security and cost insights.
+## Roadmap
+
+- [ ] Remediation Script Generation
+- [ ] Identity Protection Integration
+- [ ] Defender for Office 365 Checks
+- [ ] Power Platform Security Assessment
+- [ ] Teams Security Assessment
+
+---
+
+**Mobieus Rapid Assessment Suite** — Accelerate your Microsoft 365 security insights.

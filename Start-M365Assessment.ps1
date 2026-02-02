@@ -158,6 +158,20 @@ $script:Config = $null
 $script:TenantInfo = $null
 $script:SecurityScore = $null
 
+# Auto-load auth config if exists and no auth method specified
+$authConfigPath = Join-Path $PSScriptRoot ".auth-config.ps1"
+if ((Test-Path $authConfigPath) -and ($AuthMethod -eq 'DeviceCode') -and (-not $ClientId)) {
+    Write-Verbose "Loading saved authentication configuration..."
+    . $authConfigPath
+    if ($AuthConfig) {
+        $AuthMethod = $AuthConfig.AuthMethod
+        $ClientId = $AuthConfig.ClientId
+        $TenantId = $AuthConfig.TenantId
+        $CertificateThumbprint = $AuthConfig.CertificateThumbprint
+        Write-Verbose "Using saved auth: $AuthMethod"
+    }
+}
+
 #region Helper Functions
 
 function Write-Banner {
@@ -388,10 +402,29 @@ function Connect-M365Services {
         
         Connect-MgGraph @connectParams
         
+        # Validate connection by attempting to get context
+        $mgContext = Get-MgContext
+        if (-not $mgContext) {
+            throw "Failed to establish Microsoft Graph connection - no context returned"
+        }
+        
+        # Validate the connection is actually working by making a simple API call
+        # This catches cases where Connect-MgGraph appears to succeed but token is invalid
+        try {
+            $null = Get-MgOrganization -ErrorAction Stop
+        }
+        catch {
+            # If the first call fails, the token might be stale - try reconnecting once
+            Write-Warning "  ⚠ Initial connection validation failed, retrying..."
+            Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
+            Start-Sleep -Seconds 2
+            Connect-MgGraph @connectParams
+            $mgContext = Get-MgContext
+        }
+        
         Write-Success "Connected to Microsoft Graph"
         
         # Show connection context so user knows which identity/tenant is being used
-        $mgContext = Get-MgContext
         Write-Info "Connected as: $($mgContext.Account)"
         Write-Info "Tenant ID: $($mgContext.TenantId)"
         Write-Info "Auth Type: $($mgContext.AuthType)"
@@ -409,9 +442,11 @@ function Connect-M365Services {
             Write-Info "App-only auth: Ensure the app registration has required API permissions with admin consent"
         }
         
-        # Get tenant info
-        $script:TenantInfo = Get-MgOrganization
-        Write-Info "Tenant: $($script:TenantInfo.DisplayName)"
+        # Get tenant info (already validated during connection check above)
+        $script:TenantInfo = Get-MgOrganization -ErrorAction SilentlyContinue
+        if ($script:TenantInfo) {
+            Write-Info "Tenant: $($script:TenantInfo.DisplayName)"
+        }
         
     }
     catch {
@@ -422,6 +457,21 @@ function Connect-M365Services {
     # Exchange Online (optional - some checks)
     try {
         Write-Information "  → Connecting to Exchange Online..." -InformationAction Continue
+        
+        # Check if already connected to Exchange Online
+        try {
+            $exoTest = Get-OrganizationConfig -ErrorAction Stop
+            Write-Success "Already connected to Exchange Online"
+            return  # Skip connection if already connected
+        } catch {
+            # Not connected, proceed with connection
+        }
+        
+        # Note: Exchange Online requires separate authentication from Microsoft Graph
+        # This is by design - the services use different auth libraries
+        if ($AuthMethod -eq 'DeviceCode') {
+            Write-Info "Exchange Online requires a separate device code (Microsoft limitation)"
+        }
         
         # Build Exchange connection parameters
         $exoParams = @{

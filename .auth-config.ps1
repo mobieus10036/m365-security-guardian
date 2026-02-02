@@ -1,5 +1,13 @@
 # M365 Security Assessment - Auth Config
 # Generated: 2026-02-01 16:08:51
+# Updated: 2026-02-01 - Set as default authentication
+#
+# This file is auto-loaded by Start-M365Assessment.ps1 when no auth parameters are specified.
+# Simply run: .\Start-M365Assessment.ps1
+#
+# To use different auth, specify parameters explicitly:
+#   .\Start-M365Assessment.ps1 -AuthMethod DeviceCode
+#   .\Start-M365Assessment.ps1 -AuthMethod Interactive
 
 $AuthConfig = @{
     AuthMethod = 'Certificate'
@@ -8,4 +16,5 @@ $AuthConfig = @{
     CertificateThumbprint = '393FF2160C5AC28674E41F30C760D9EA14513342'
 }
 
-# Usage: . .\.auth-config.ps1; .\Start-M365Assessment.ps1 @AuthConfig
+# Manual usage (if auto-load disabled): 
+# . .\.auth-config.ps1; .\Start-M365Assessment.ps1 @AuthConfig
