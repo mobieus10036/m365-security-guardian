@@ -100,20 +100,27 @@ The setup creates:
 .\Start-M365Assessment.ps1 -TenantId "contoso.onmicrosoft.com" -AuthMethod DeviceCode
 ```
 
-### Required Microsoft Graph Permissions
+### Required API Permissions
 
 For app-only (Certificate/ManagedIdentity) authentication:
 
+**Microsoft Graph (Application)**
 | Permission | Purpose |
 |------------|---------|
 | `User.Read.All` | MFA status, user enumeration |
 | `Directory.Read.All` | Privileged roles, group membership |
 | `Policy.Read.All` | Conditional Access policies |
 | `Organization.Read.All` | Tenant information |
-| `AuditLog.Read.All` | Sign-in logs for license optimization |
+| `AuditLog.Read.All` | Sign-in logs, last sign-in dates |
 | `SecurityEvents.Read.All` | Microsoft Secure Score (E5 only) |
 | `Application.Read.All` | App permissions audit |
 | `RoleManagement.Read.All` | PIM configuration |
+| `RoleManagement.Read.Directory` | Directory role assignments |
+
+**SharePoint Online (Application)**
+| Permission | Purpose |
+|------------|---------|
+| `Sites.FullControl.All` | External sharing configuration |
 
 ---
 
