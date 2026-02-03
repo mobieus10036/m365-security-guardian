@@ -101,23 +101,129 @@ The setup creates:
 .\Start-M365Assessment.ps1 -TenantId "contoso.onmicrosoft.com" -AuthMethod DeviceCode
 ```
 
-### Required API Permissions
+---
 
-For app-only (Certificate/ManagedIdentity) authentication:
+## 🔐 Required Permissions
 
-**Microsoft Graph (Application)**
-| Permission | Purpose |
-|------------|---------|
-| `User.Read.All` | MFA status, user enumeration |
-| `Directory.Read.All` | Privileged roles, group membership |
-| `Policy.Read.All` | Conditional Access policies |
-| `Organization.Read.All` | Tenant information |
-| `AuditLog.Read.All` | Sign-in logs, last sign-in dates |
-| `SecurityEvents.Read.All` | Microsoft Secure Score (E5 only) |
-| `Application.Read.All` | App permissions audit |
-| `RoleManagement.Read.All` | PIM configuration |
-| `RoleManagement.Read.Directory` | Directory role assignments |
-| `SharePointTenantSettings.Read.All` | External sharing configuration |
+This tool requires specific permissions in Microsoft Entra ID and Exchange Online. **You do NOT need Global Administrator** - the permissions below are sufficient for a complete assessment.
+
+### Quick Setup (Recommended)
+
+Run the setup script to automatically create an App Registration with all required permissions:
+
+```powershell
+.\Setup-AppRegistration-CLI.ps1
+```
+
+This creates an Entra ID App Registration with certificate authentication and grants all necessary permissions with admin consent.
+
+### Microsoft Graph API Permissions (Application)
+
+These permissions are required for the App Registration (app-only authentication):
+
+| Permission | Permission ID | Purpose | Checks Enabled |
+|------------|---------------|---------|----------------|
+| `User.Read.All` | `df021288-bdef-4463-88db-98f22de89214` | Read all users' profiles | MFA status, user enumeration, license optimization |
+| `Directory.Read.All` | `7ab1d382-f21e-4acd-a863-ba3e13f7da61` | Read directory data | Privileged roles, group membership, directory objects |
+| `Policy.Read.All` | `246dd0d5-5bd0-4def-940b-0421030a5b68` | Read all policies | Conditional Access policies, authentication methods |
+| `Organization.Read.All` | `498476ce-e0fe-48b0-b801-37ba7e2685c6` | Read organization info | Tenant information, display name |
+| `AuditLog.Read.All` | `b0afded3-3588-46d8-8b3d-9842eff778da` | Read audit logs | Sign-in logs, last sign-in dates, legacy auth detection |
+| `SecurityEvents.Read.All` | `38d9df27-64da-44fd-b7c5-a6fbac20248f` | Read security events | Microsoft Secure Score (requires E5 license) |
+| `Application.Read.All` | `9a5d68dd-52b0-4cc2-bd40-abcf44ac3a30` | Read all applications | App permissions audit, credential expiry, risky apps |
+| `RoleManagement.Read.All` | `d5fe8ce8-684c-4c83-a52c-46e882ce4be1` | Read role management data | PIM configuration, role assignments |
+| `RoleManagement.Read.Directory` | `483bed4a-2ad3-4361-a73b-c83ccdbdc53c` | Read directory role data | Privileged account enumeration |
+| `SharePointTenantSettings.Read.All` | `83d4163d-a2d8-4d3b-9695-4ae3ca98f888` | Read SharePoint settings | External sharing configuration |
+
+### Exchange Online Permissions
+
+Exchange Online uses role-based access control (RBAC). The user authenticating to Exchange Online needs **one of the following roles**:
+
+| Role | Scope | Checks Enabled |
+|------|-------|----------------|
+| **View-Only Organization Management** | Read-only access to Exchange | All Exchange checks (recommended minimum) |
+| **Security Reader** | Read security settings | Email security, auditing |
+| **Compliance Management** | Read compliance settings | DLP, Retention, Sensitivity Labels |
+| **Global Reader** | Read-only across M365 | All checks |
+
+**Exchange Online Cmdlets Used:**
+| Cmdlet | Purpose | Required Role |
+|--------|---------|---------------|
+| `Get-EXOMailbox` | Mailbox auditing status | View-Only Organization Management |
+| `Get-AcceptedDomain` | Domain list for SPF/DKIM/DMARC | View-Only Organization Management |
+| `Get-DkimSigningConfig` | DKIM configuration | View-Only Organization Management |
+| `Get-MalwareFilterPolicy` | Malware protection settings | Security Reader |
+| `Get-SafeAttachmentPolicy` | Safe Attachments (Defender for O365) | Security Reader |
+| `Get-SafeLinksPolicy` | Safe Links (Defender for O365) | Security Reader |
+| `Get-RetentionCompliancePolicy` | Retention policies | Compliance Management |
+| `Get-DlpCompliancePolicy` | DLP policies | Compliance Management |
+| `Get-Label` | Sensitivity labels | Compliance Management |
+
+### Minimum Viable Permissions Setup
+
+For organizations with strict permission policies, here's the minimum set to run the core security checks:
+
+**Graph API (must have):**
+- `User.Read.All` - Required for MFA check
+- `Directory.Read.All` - Required for privileged accounts
+- `Policy.Read.All` - Required for Conditional Access
+- `AuditLog.Read.All` - Required for sign-in analysis
+
+**Graph API (optional but recommended):**
+- `Application.Read.All` - App permissions audit
+- `SharePointTenantSettings.Read.All` - External sharing
+- `SecurityEvents.Read.All` - Secure Score (E5 only)
+- `RoleManagement.Read.All` - PIM (P2 only)
+
+**Exchange Online:**
+- Assign **View-Only Organization Management** role to the user running the assessment
+
+### Granting Admin Consent
+
+After creating the App Registration, an administrator must grant consent for the application permissions:
+
+1. **Via Azure Portal:**
+   - Navigate to **Entra ID** → **App registrations** → Select your app
+   - Go to **API permissions**
+   - Click **Grant admin consent for [Tenant]**
+
+2. **Via PowerShell (Azure CLI):**
+   ```powershell
+   az ad app permission admin-consent --id <app-id>
+   ```
+
+3. **Via URL:**
+   ```
+   https://login.microsoftonline.com/{tenant-id}/adminconsent?client_id={app-id}
+   ```
+
+### Assigning Exchange Online Roles
+
+To assign the View-Only Organization Management role:
+
+**Via Exchange Admin Center:**
+1. Go to https://admin.exchange.microsoft.com
+2. Navigate to **Roles** → **Admin roles**
+3. Select **View-Only Organization Management**
+4. Click **Assigned** → **Add**
+5. Add the user who will run the assessment
+
+**Via PowerShell:**
+```powershell
+Add-RoleGroupMember -Identity "View-Only Organization Management" -Member "user@domain.com"
+```
+
+### What Happens Without Certain Permissions?
+
+The tool gracefully handles missing permissions - checks will show as "Info" with guidance:
+
+| Missing Permission | Result |
+|--------------------|--------|
+| `SecurityEvents.Read.All` | Secure Score check shows "E5 license required" |
+| `RoleManagement.Read.All` | PIM check shows "P2 license required" |
+| `SharePointTenantSettings.Read.All` | External sharing check skipped |
+| Exchange role not assigned | Exchange checks show connection error |
+
+> 📋 **For complete permission details, cmdlet mappings, and troubleshooting, see [PERMISSIONS.md](PERMISSIONS.md)**
 
 ---
 
