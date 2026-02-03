@@ -229,6 +229,185 @@ function Test-ConditionalAccess {
             $issues += [PSCustomObject]@{ Message = "Coverage gaps identified: $($coverageGaps -join '; ')"; Severity = "Medium" }
         }
 
+        # ============================================
+        # Per-Policy Gap Analysis
+        # ============================================
+        # Analyze each enabled policy for risks and improvement opportunities
+        $policyFindings = @()
+        $riskAggregation = @{}      # Key = Message, Value = @{ Count; Severity }
+        $opportunityAggregation = @{} # Key = Message, Value = @{ Count; Severity }
+
+        foreach ($policy in ($caPolicies | Where-Object { $_.State -ne 'disabled' })) {
+            $policyRisks = @()
+            $policyOpportunities = @()
+            
+            # === RISK DETECTION ===
+            
+            # 1. Overbroad Exclusions
+            if (_overbroadExclusions $policy $breakGlass) {
+                $policyRisks += [PSCustomObject]@{ 
+                    Message = "Excludes users beyond break-glass accounts, creating coverage gaps"
+                    Severity = "High" 
+                }
+            }
+            
+            # 2. No Grant Controls
+            if (-not (_hasGrantControls $policy)) {
+                $policyRisks += [PSCustomObject]@{ 
+                    Message = "No grant controls defined (MFA, block, compliance, etc.)"
+                    Severity = "Critical" 
+                }
+            }
+            
+            # 3. Legacy Auth Not Blocked (if legacy clients targeted)
+            $clientApps = @($policy.Conditions.ClientAppTypes | ForEach-Object { $_.ToLower() })
+            $targetsLegacy = ($clientApps -contains 'exchangeactivesync') -or ($clientApps -contains 'other')
+            if ($targetsLegacy -and -not (_blocksAccess $policy)) {
+                $policyRisks += [PSCustomObject]@{ 
+                    Message = "Targets legacy auth clients but does not block access"
+                    Severity = "High" 
+                }
+            }
+            
+            # 4. Stale Report-Only Policy
+            if (_isReportOnlyStale $policy $longStaleReportOnlyDays) {
+                $policyRisks += [PSCustomObject]@{ 
+                    Message = "Report-only mode for $longStaleReportOnlyDays+ days without enforcement"
+                    Severity = "Medium" 
+                }
+            }
+            elseif (_isReportOnlyStale $policy $staleReportOnlyDays) {
+                $policyRisks += [PSCustomObject]@{ 
+                    Message = "Report-only mode for $staleReportOnlyDays+ days; consider enforcing or retiring"
+                    Severity = "Low" 
+                }
+            }
+            
+            # 5. All Users + All Apps without MFA or Block
+            $allUsers = (_coversAllUsers $policy $breakGlass)
+            $allApps = (_includesAllApps $policy)
+            $hasMfaOrBlock = (_enforcesMfa $policy) -or (_blocksAccess $policy)
+            if ($allUsers -and $allApps -and -not $hasMfaOrBlock -and -not (_requiresDeviceCompliance $policy)) {
+                $policyRisks += [PSCustomObject]@{ 
+                    Message = "Broad scope (all users/apps) without strong controls (MFA, block, or device compliance)"
+                    Severity = "High" 
+                }
+            }
+            
+            # 6. Targets Admins Without Strong Auth
+            if ((_targetsAdmins $policy) -and -not (_enforcesMfa $policy) -and -not (_hasAuthStrength $policy) -and -not (_blocksAccess $policy)) {
+                $policyRisks += [PSCustomObject]@{ 
+                    Message = "Targets privileged roles/groups without MFA or authentication strength requirement"
+                    Severity = "Critical" 
+                }
+            }
+            
+            # 7. Risk-based policy without appropriate response
+            $signInRisks = @($policy.Conditions.SignInRiskLevels | ForEach-Object { $_.ToLower() })
+            $userRisks = @($policy.Conditions.UserRiskLevels | ForEach-Object { $_.ToLower() })
+            $hasRiskConditions = ($signInRisks.Count -gt 0) -or ($userRisks.Count -gt 0)
+            if ($hasRiskConditions -and -not $hasMfaOrBlock -and -not (_hasAuthStrength $policy)) {
+                $policyRisks += [PSCustomObject]@{ 
+                    Message = "Has risk conditions but no strong response (MFA, block, or auth strength)"
+                    Severity = "High" 
+                }
+            }
+            
+            # === OPPORTUNITY DETECTION ===
+            
+            # 1. Could use Authentication Strength (phishing-resistant)
+            if ((_enforcesMfa $policy) -and -not (_hasAuthStrength $policy)) {
+                $policyOpportunities += [PSCustomObject]@{ 
+                    Message = "Consider upgrading from MFA to Authentication Strength for phishing-resistant auth"
+                    Severity = "Low" 
+                }
+            }
+            
+            # 2. Missing Session Controls for sensitive apps
+            if ((_coversAdminApps $policy $adminAppIds) -and -not (_hasSessionControls $policy)) {
+                $policyOpportunities += [PSCustomObject]@{ 
+                    Message = "Covers admin apps but lacks session controls (sign-in frequency, persistent browser)"
+                    Severity = "Medium" 
+                }
+            }
+            
+            # 3. All Users but no Device Compliance
+            if ($allUsers -and -not (_requiresDeviceCompliance $policy) -and -not (_blocksAccess $policy)) {
+                $policyOpportunities += [PSCustomObject]@{ 
+                    Message = "Consider adding device compliance requirements for Zero Trust posture"
+                    Severity = "Low" 
+                }
+            }
+            
+            # 4. No Location Controls
+            if ($allUsers -and $allApps -and -not (_hasLocationControls $policy) -and -not (_blocksAccess $policy)) {
+                $policyOpportunities += [PSCustomObject]@{ 
+                    Message = "Could benefit from location-based controls (trusted networks, geo-blocking)"
+                    Severity = "Low" 
+                }
+            }
+            
+            # 5. Missing Token Protection for critical apps
+            if ((_coversAdminApps $policy $adminAppIds) -and -not (_hasTokenProtection $policy)) {
+                $policyOpportunities += [PSCustomObject]@{ 
+                    Message = "Critical apps could benefit from token protection against token theft"
+                    Severity = "Medium" 
+                }
+            }
+            
+            # 6. User Risk Not Addressed
+            $hasSignInRisk = $signInRisks.Count -gt 0
+            if ($hasSignInRisk -and $userRisks.Count -eq 0 -and $allUsers) {
+                $policyOpportunities += [PSCustomObject]@{ 
+                    Message = "Addresses sign-in risk but not user risk; consider adding user risk conditions"
+                    Severity = "Low" 
+                }
+            }
+            
+            # Build policy finding object
+            $policyFindings += [PSCustomObject]@{
+                DisplayName   = $policy.DisplayName
+                State         = $policy.State
+                Id            = $policy.Id
+                Risks         = $policyRisks
+                Opportunities = $policyOpportunities
+            }
+            
+            # Aggregate for summary
+            foreach ($risk in $policyRisks) {
+                $key = $risk.Message
+                if (-not $riskAggregation.ContainsKey($key)) {
+                    $riskAggregation[$key] = @{ Count = 0; Severity = $risk.Severity }
+                }
+                $riskAggregation[$key].Count++
+            }
+            foreach ($opp in $policyOpportunities) {
+                $key = $opp.Message
+                if (-not $opportunityAggregation.ContainsKey($key)) {
+                    $opportunityAggregation[$key] = @{ Count = 0; Severity = $opp.Severity }
+                }
+                $opportunityAggregation[$key].Count++
+            }
+        }
+        
+        # Build summary object
+        $policyFindingsSummary = [PSCustomObject]@{
+            Risks = @($riskAggregation.Keys | ForEach-Object {
+                [PSCustomObject]@{
+                    Message  = $_
+                    Severity = $riskAggregation[$_].Severity
+                    Count    = $riskAggregation[$_].Count
+                }
+            })
+            Opportunities = @($opportunityAggregation.Keys | ForEach-Object {
+                [PSCustomObject]@{
+                    Message  = $_
+                    Severity = $opportunityAggregation[$_].Severity
+                    Count    = $opportunityAggregation[$_].Count
+                }
+            })
+        }
+
         $message = "$enabledPolicies enabled policies found"
         $policiesWithRisks = ($policyFindings | Where-Object { $_.Risks.Count -gt 0 }).Count
         $policiesConsidered = $policyFindings.Count
