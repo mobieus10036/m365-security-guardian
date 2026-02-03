@@ -133,9 +133,6 @@ Write-Host "`n[5/6] Adding Microsoft Graph API permissions..." -ForegroundColor 
 # Microsoft Graph App ID
 $graphAppId = "00000003-0000-0000-c000-000000000000"
 
-# SharePoint Online App ID
-$spoAppId = "00000003-0000-0ff1-ce00-000000000000"
-
 # Required Microsoft Graph permissions (Application permissions)
 $graphPermissions = @(
     "df021288-bdef-4463-88db-98f22de89214"  # User.Read.All
@@ -147,22 +144,13 @@ $graphPermissions = @(
     "9a5d68dd-52b0-4cc2-bd40-abcf44ac3a30"  # Application.Read.All
     "d5fe8ce8-684c-4c83-a52c-46e882ce4be1"  # RoleManagement.Read.All
     "483bed4a-2ad3-4361-a73b-c83ccdbdc53c"  # RoleManagement.Read.Directory
-)
-
-# Required SharePoint permissions (Application permissions)
-$spoPermissions = @(
-    "678536fe-1083-478a-9c59-b99265e6b0d3"  # Sites.FullControl.All (for external sharing settings)
+    "83d4163d-a2d8-4d3b-9695-4ae3ca98f888"  # SharePointTenantSettings.Read.All
 )
 
 foreach ($permId in $graphPermissions) {
     az ad app permission add --id $appId --api $graphAppId --api-permissions "$permId=Role" --output none 2>$null
 }
 Write-Host "  ✓ Microsoft Graph permissions added" -ForegroundColor Green
-
-foreach ($permId in $spoPermissions) {
-    az ad app permission add --id $appId --api $spoAppId --api-permissions "$permId=Role" --output none 2>$null
-}
-Write-Host "  ✓ SharePoint Online permissions added" -ForegroundColor Green
 #endregion
 
 #region Grant Admin Consent

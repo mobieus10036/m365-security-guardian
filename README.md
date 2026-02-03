@@ -116,11 +116,7 @@ For app-only (Certificate/ManagedIdentity) authentication:
 | `Application.Read.All` | App permissions audit |
 | `RoleManagement.Read.All` | PIM configuration |
 | `RoleManagement.Read.Directory` | Directory role assignments |
-
-**SharePoint Online (Application)**
-| Permission | Purpose |
-|------------|---------|
-| `Sites.FullControl.All` | External sharing configuration |
+| `SharePointTenantSettings.Read.All` | External sharing configuration |
 
 ---
 
