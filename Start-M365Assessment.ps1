@@ -707,15 +707,29 @@ function Export-Results {
             Write-Info "  → $($emailAuthResult.DomainDetails.Count) domain(s) with SPF/DKIM/DMARC details exported"
         }
 
-        # Export privileged accounts to separate CSV
+        # Export privileged accounts to separate CSV with full risk context
         $privAccountResult = $script:AssessmentResults | Where-Object { $_.CheckName -eq "Privileged Account Security" -and $_.PrivilegedAccounts }
         if ($privAccountResult -and $privAccountResult.PrivilegedAccounts.Count -gt 0) {
             $privAccountsCsvPath = Join-Path $OutputPath "$($baseFileName)_PrivilegedAccounts.csv"
-            # Flatten the roles array for CSV export
-            $privAccountResult.PrivilegedAccounts | Select-Object UserPrincipalName, @{Name='Roles';Expression={$_.Roles -join '; '}}, @{Name='HasMFA';Expression={if($_.HasMFA){'Yes'}else{'No'}}} | 
+            # Export with all risk context fields
+            $privAccountResult.PrivilegedAccounts | Select-Object `
+                UserPrincipalName, `
+                DisplayName, `
+                RiskLevel, `
+                RiskScore, `
+                HighestRiskRole, `
+                Roles, `
+                RoleCount, `
+                @{Name='HasMFA';Expression={if($_.HasMFA){'Yes'}else{'No'}}}, `
+                LastSignIn, `
+                LastSignInDaysAgo, `
+                @{Name='IsStale';Expression={if($_.IsStale){'Yes'}else{'No'}}}, `
+                AccountType, `
+                RiskFactors, `
+                RiskFactorCount | 
                 Export-Csv -Path $privAccountsCsvPath -NoTypeInformation -Encoding UTF8
             Write-Success "Privileged accounts CSV: $privAccountsCsvPath"
-            Write-Info "  → $($privAccountResult.PrivilegedAccounts.Count) privileged account(s) exported"
+            Write-Info "  → $($privAccountResult.PrivilegedAccounts.Count) privileged account(s) with risk context exported"
         }
 
         # Export enabled Conditional Access policies to separate CSV

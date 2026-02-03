@@ -257,11 +257,14 @@ MIT License - see [LICENSE](LICENSE)
 
 ## Roadmap
 
-- [ ] Remediation Script Generation
+- [ ] Historical Trend Tracking (compare assessments over time)
 - [ ] Identity Protection Integration
 - [ ] Defender for Office 365 Checks
 - [ ] Power Platform Security Assessment
 - [ ] Teams Security Assessment
+- [ ] Multi-Tenant Summary Dashboard
+
+> **Note:** This tool is intentionally **assessment-only**. It identifies and prioritizes security gaps but does not make changes to your tenant. Remediation must be performed manually by qualified administrators who understand the business impact of each change.
 
 ---
 
