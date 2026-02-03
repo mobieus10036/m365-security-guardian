@@ -123,7 +123,20 @@ param(
     [securestring]$ClientSecret,
 
     [Parameter(Mandatory = $false)]
-    [switch]$NoAuth
+    [switch]$NoAuth,
+
+    # Baseline comparison parameters
+    [Parameter(Mandatory = $false)]
+    [switch]$SaveBaseline,
+
+    [Parameter(Mandatory = $false)]
+    [string]$BaselineName = "Baseline",
+
+    [Parameter(Mandatory = $false)]
+    [string]$CompareToBaseline,
+
+    [Parameter(Mandatory = $false)]
+    [string]$BaselinePath = (Join-Path $PSScriptRoot 'baselines')
 )
 
 #Requires -Version 5.1
@@ -1419,6 +1432,146 @@ function Export-HTMLReport {
 "@
     }
     
+    # Build baseline comparison HTML section
+    $baselineComparisonHtml = ""
+    if ($script:BaselineComparison) {
+        $comparison = $script:BaselineComparison
+        
+        # Determine trend styling
+        $trendClass = switch ($comparison.OverallTrend) {
+            "Improving" { "improving" }
+            "Declining" { "declining" }
+            default { "stable" }
+        }
+        $trendIcon = switch ($comparison.OverallTrend) {
+            "Improving" { "📈" }
+            "Declining" { "📉" }
+            default { "➡️" }
+        }
+        
+        # Format baseline date - use correct property names from comparison object
+        $baselineDate = if ($comparison.BaselineDate) {
+            try { [datetime]::Parse($comparison.BaselineDate).ToString("yyyy-MM-dd HH:mm") } catch { $comparison.BaselineDate }
+        } else { "Unknown" }
+        $baselineName = if ($comparison.BaselineName) { ConvertTo-HtmlSafe $comparison.BaselineName } else { "Baseline" }
+        
+        # Score delta formatting - use SecurityScoreComparison
+        $scoreDelta = if ($comparison.SecurityScoreComparison) { $comparison.SecurityScoreComparison.Delta } else { 0 }
+        $scoreDeltaClass = if ($scoreDelta -gt 0) { "positive" } elseif ($scoreDelta -lt 0) { "negative" } else { "neutral" }
+        $scoreDeltaSign = if ($scoreDelta -gt 0) { "+" } else { "" }
+        
+        $currentScore = if ($comparison.SecurityScoreComparison -and $null -ne $comparison.SecurityScoreComparison.CurrentScore) { "$($comparison.SecurityScoreComparison.CurrentScore)%" } else { "N/A" }
+        $baselineScore = if ($comparison.SecurityScoreComparison -and $null -ne $comparison.SecurityScoreComparison.BaselineScore) { "$($comparison.SecurityScoreComparison.BaselineScore)%" } else { "N/A" }
+        
+        # CIS compliance deltas - use CISComplianceComparison
+        $cisL1Delta = if ($comparison.CISComplianceComparison -and $comparison.CISComplianceComparison.Level1) { $comparison.CISComplianceComparison.Level1.Delta } else { 0 }
+        $cisL2Delta = if ($comparison.CISComplianceComparison -and $comparison.CISComplianceComparison.Level2) { $comparison.CISComplianceComparison.Level2.Delta } else { 0 }
+        $cisL1DeltaClass = if ($cisL1Delta -gt 0) { "positive" } elseif ($cisL1Delta -lt 0) { "negative" } else { "neutral" }
+        $cisL2DeltaClass = if ($cisL2Delta -gt 0) { "positive" } elseif ($cisL2Delta -lt 0) { "negative" } else { "neutral" }
+        $cisL1DeltaSign = if ($cisL1Delta -gt 0) { "+" } else { "" }
+        $cisL2DeltaSign = if ($cisL2Delta -gt 0) { "+" } else { "" }
+        
+        $currentL1 = if ($comparison.CISComplianceComparison -and $comparison.CISComplianceComparison.Level1 -and $null -ne $comparison.CISComplianceComparison.Level1.Current) { "$($comparison.CISComplianceComparison.Level1.Current)%" } else { "N/A" }
+        $currentL2 = if ($comparison.CISComplianceComparison -and $comparison.CISComplianceComparison.Level2 -and $null -ne $comparison.CISComplianceComparison.Level2.Current) { "$($comparison.CISComplianceComparison.Level2.Current)%" } else { "N/A" }
+        
+        # Build improvements list - use PreviousStatus instead of BaselineStatus
+        $improvementsHtml = ""
+        if ($comparison.Improvements -and $comparison.Improvements.Count -gt 0) {
+            $improvementsHtml = "<ul class='baseline-change-list'>"
+            foreach ($imp in $comparison.Improvements) {
+                $checkNameSafe = ConvertTo-HtmlSafe $imp.CheckName
+                $improvementsHtml += @"
+                <li class='baseline-change-item'>
+                    <span class='baseline-change-name'>$checkNameSafe</span>
+                    <span class='baseline-change-status'>
+                        <span style='color: #d13438;'>$($imp.PreviousStatus)</span>
+                        →
+                        <span style='color: #107c10;'>$($imp.CurrentStatus)</span>
+                    </span>
+                </li>
+"@
+            }
+            $improvementsHtml += "</ul>"
+        } else {
+            $improvementsHtml = "<div class='baseline-empty'>No improvements detected</div>"
+        }
+        
+        # Build regressions list - use PreviousStatus instead of BaselineStatus
+        $regressionsHtml = ""
+        if ($comparison.Regressions -and $comparison.Regressions.Count -gt 0) {
+            $regressionsHtml = "<ul class='baseline-change-list'>"
+            foreach ($reg in $comparison.Regressions) {
+                $checkNameSafe = ConvertTo-HtmlSafe $reg.CheckName
+                $regressionsHtml += @"
+                <li class='baseline-change-item'>
+                    <span class='baseline-change-name'>$checkNameSafe</span>
+                    <span class='baseline-change-status'>
+                        <span style='color: #107c10;'>$($reg.PreviousStatus)</span>
+                        →
+                        <span style='color: #d13438;'>$($reg.CurrentStatus)</span>
+                    </span>
+                </li>
+"@
+            }
+            $regressionsHtml += "</ul>"
+        } else {
+            $regressionsHtml = "<div class='baseline-empty'>No regressions detected</div>"
+        }
+        
+        $baselineComparisonHtml = @"
+        <div class="baseline-comparison-section">
+            <div class="baseline-header">
+                <div>
+                    <h2 class="baseline-title">📊 Baseline Comparison</h2>
+                    <div class="baseline-meta">Comparing to: <strong>$baselineName</strong> (saved $baselineDate)</div>
+                </div>
+                <div class="baseline-trend $trendClass">
+                    <span class="baseline-trend-icon">$trendIcon</span>
+                    <span>$($comparison.OverallTrend)</span>
+                </div>
+            </div>
+            
+            <div class="baseline-score-comparison">
+                <div class="baseline-score-card">
+                    <div class="baseline-score-label">Security Score</div>
+                    <div class="baseline-score-value">$currentScore</div>
+                    <div class="baseline-score-delta $scoreDeltaClass">$scoreDeltaSign$scoreDelta pts vs baseline</div>
+                </div>
+                <div class="baseline-score-card">
+                    <div class="baseline-score-label">CIS Level 1</div>
+                    <div class="baseline-score-value">$currentL1</div>
+                    <div class="baseline-score-delta $cisL1DeltaClass">$cisL1DeltaSign$cisL1Delta% vs baseline</div>
+                </div>
+                <div class="baseline-score-card">
+                    <div class="baseline-score-label">CIS Level 2</div>
+                    <div class="baseline-score-value">$currentL2</div>
+                    <div class="baseline-score-delta $cisL2DeltaClass">$cisL2DeltaSign$cisL2Delta% vs baseline</div>
+                </div>
+                <div class="baseline-score-card">
+                    <div class="baseline-score-label">Checks Changed</div>
+                    <div class="baseline-score-value">$($comparison.Summary.TotalChanges)</div>
+                    <div class="baseline-score-delta neutral">of $($comparison.Summary.TotalChecksCompared) total</div>
+                </div>
+            </div>
+            
+            <div class="baseline-changes-grid">
+                <div class="baseline-change-card">
+                    <div class="baseline-change-header improvements">
+                        ✅ Improvements ($($comparison.Summary.TotalImprovements))
+                    </div>
+                    $improvementsHtml
+                </div>
+                <div class="baseline-change-card">
+                    <div class="baseline-change-header regressions">
+                        ❌ Regressions ($($comparison.Summary.TotalRegressions))
+                    </div>
+                    $regressionsHtml
+                </div>
+            </div>
+        </div>
+"@
+    }
+    
     $html = $html -replace '{{TENANT_NAME}}', $tenantNameSafe
     $html = $html -replace '{{ASSESSMENT_DATE}}', (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
     $html = $html -replace '{{TOTAL_CHECKS}}', $totalChecks
@@ -1430,6 +1583,7 @@ function Export-HTMLReport {
     $html = $html -replace '{{SEVERITY_LABELS}}', $severityLabelsJson
     $html = $html -replace '{{SEVERITY_COUNTS}}', $severityValuesJson
     $html = $html -replace '{{SECURITY_SCORE_SECTION}}', $securityScoreHtml
+    $html = $html -replace '{{BASELINE_COMPARISON_SECTION}}', $baselineComparisonHtml
     $html = $html -replace '{{RESULTS_CARDS}}', $resultsHtml
 
     $html | Out-File $OutputPath -Encoding UTF8
@@ -2073,6 +2227,169 @@ function Get-HTMLTemplate {
             font-size: 12px;
             font-weight: 600;
         }
+        
+        /* Baseline Comparison Styles */
+        .baseline-comparison-section {
+            padding: 30px 40px;
+            background: linear-gradient(135deg, #f0f7ff 0%, #e8f4f8 100%);
+            border-bottom: 1px solid var(--gray-200);
+        }
+        
+        .baseline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 24px;
+        }
+        
+        .baseline-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 8px;
+        }
+        
+        .baseline-meta {
+            font-size: 14px;
+            color: var(--gray-700);
+        }
+        
+        .baseline-trend {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            border-radius: var(--radius-md);
+            font-size: 18px;
+            font-weight: 700;
+        }
+        
+        .baseline-trend.improving {
+            background: #dff6dd;
+            color: #107c10;
+        }
+        
+        .baseline-trend.declining {
+            background: #fde7e9;
+            color: #d13438;
+        }
+        
+        .baseline-trend.stable {
+            background: #fff4ce;
+            color: #8a4600;
+        }
+        
+        .baseline-trend-icon {
+            font-size: 24px;
+        }
+        
+        .baseline-score-comparison {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .baseline-score-card {
+            background: white;
+            padding: 20px;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+            text-align: center;
+        }
+        
+        .baseline-score-label {
+            font-size: 13px;
+            color: var(--gray-700);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        
+        .baseline-score-value {
+            font-size: 32px;
+            font-weight: 700;
+        }
+        
+        .baseline-score-delta {
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+        
+        .baseline-score-delta.positive { color: #107c10; }
+        .baseline-score-delta.negative { color: #d13438; }
+        .baseline-score-delta.neutral { color: var(--gray-700); }
+        
+        .baseline-changes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .baseline-change-card {
+            background: white;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+        }
+        
+        .baseline-change-header {
+            padding: 16px 20px;
+            font-weight: 600;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .baseline-change-header.improvements {
+            background: #dff6dd;
+            color: #107c10;
+        }
+        
+        .baseline-change-header.regressions {
+            background: #fde7e9;
+            color: #d13438;
+        }
+        
+        .baseline-change-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .baseline-change-item {
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--gray-100);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .baseline-change-item:last-child {
+            border-bottom: none;
+        }
+        
+        .baseline-change-name {
+            font-weight: 500;
+        }
+        
+        .baseline-change-status {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+        }
+        
+        .baseline-empty {
+            padding: 20px;
+            text-align: center;
+            color: var(--gray-700);
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -2140,6 +2457,8 @@ function Get-HTMLTemplate {
         </div>
         
         {{SECURITY_SCORE_SECTION}}
+        
+        {{BASELINE_COMPARISON_SECTION}}
         
         <div class="controls">
             <div class="search-box">
@@ -2345,6 +2664,163 @@ function Invoke-CISCompliance {
     }
 }
 
+function Invoke-BaselineComparison {
+    # Load the baseline comparison module
+    $baselineModulePath = Join-Path $PSScriptRoot "modules\Core\Compare-Baseline.ps1"
+    
+    if (-not (Test-Path $baselineModulePath)) {
+        Write-Info "Baseline comparison module not found."
+        return
+    }
+    
+    try {
+        . $baselineModulePath
+        
+        # Ensure baselines directory exists
+        if (-not (Test-Path $BaselinePath)) {
+            New-Item -ItemType Directory -Path $BaselinePath -Force | Out-Null
+        }
+        
+        # Save baseline if requested
+        if ($SaveBaseline) {
+            Write-Step "Saving assessment as baseline..."
+            
+            $baselineFilePath = Join-Path $BaselinePath "$($BaselineName -replace '[^\w\-]', '_')_$(Get-Date -Format 'yyyyMMdd_HHmmss').json"
+            
+            # Build CIS compliance object for baseline
+            $cisForBaseline = $null
+            if ($script:CISCompliance) {
+                $cisForBaseline = [PSCustomObject]@{
+                    Level1Percentage = $script:CISCompliance.Level1.Percentage
+                    Level2Percentage = $script:CISCompliance.Level2.Percentage
+                    Level1Compliant = $script:CISCompliance.Level1.Compliant
+                    Level1Total = $script:CISCompliance.Level1.Total
+                    Level2Compliant = $script:CISCompliance.Level2.Compliant
+                    Level2Total = $script:CISCompliance.Level2.Total
+                }
+            }
+            
+            # Build security score object for baseline
+            $scoreForBaseline = $null
+            if ($script:SecurityScore) {
+                $scoreForBaseline = [PSCustomObject]@{
+                    Score = $script:SecurityScore.OverallScore
+                    Grade = $script:SecurityScore.LetterGrade
+                    CategoryScores = $script:SecurityScore.CategoryDetails | ForEach-Object {
+                        [PSCustomObject]@{
+                            Category = $_.Category
+                            Score = $_.Score
+                            Weight = $_.Weight
+                        }
+                    }
+                }
+            }
+            
+            $saveResult = Save-AssessmentBaseline `
+                -Results $script:AssessmentResults `
+                -SecurityScore $scoreForBaseline `
+                -CISCompliance $cisForBaseline `
+                -BaselinePath $baselineFilePath `
+                -BaselineName $BaselineName
+            
+            if ($saveResult.Success) {
+                Write-Success "Baseline saved: $($saveResult.Path)"
+                Write-Info "  → $($saveResult.CheckCount) checks saved"
+                $script:BaselineSaved = $true
+                $script:BaselineSavePath = $saveResult.Path
+            }
+            else {
+                Write-Warning "Failed to save baseline: $($saveResult.Error)"
+            }
+        }
+        
+        # Compare to baseline if specified
+        if ($CompareToBaseline) {
+            Write-Step "Comparing to baseline..."
+            
+            # If path is just a name, look in baselines folder
+            $baselineToLoad = $CompareToBaseline
+            if (-not (Test-Path $baselineToLoad)) {
+                # Try to find in baselines folder
+                $possiblePaths = @(
+                    (Join-Path $BaselinePath $CompareToBaseline),
+                    (Join-Path $BaselinePath "$CompareToBaseline.json"),
+                    (Get-ChildItem -Path $BaselinePath -Filter "*$CompareToBaseline*.json" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName)
+                )
+                
+                foreach ($path in $possiblePaths) {
+                    if ($path -and (Test-Path $path)) {
+                        $baselineToLoad = $path
+                        break
+                    }
+                }
+            }
+            
+            if (-not (Test-Path $baselineToLoad)) {
+                Write-Warning "Baseline not found: $CompareToBaseline"
+                Write-Info "  Available baselines:"
+                Get-ChildItem -Path $BaselinePath -Filter "*.json" -ErrorAction SilentlyContinue | ForEach-Object {
+                    Write-Info "    → $($_.Name)"
+                }
+                return
+            }
+            
+            $baselineResult = Get-AssessmentBaseline -BaselinePath $baselineToLoad
+            
+            if (-not $baselineResult.Success) {
+                Write-Warning "Failed to load baseline: $($baselineResult.Error)"
+                return
+            }
+            
+            # Build current CIS compliance for comparison
+            $currentCIS = $null
+            if ($script:CISCompliance) {
+                $currentCIS = [PSCustomObject]@{
+                    Level1Percentage = $script:CISCompliance.Level1.Percentage
+                    Level2Percentage = $script:CISCompliance.Level2.Percentage
+                }
+            }
+            
+            # Build current security score for comparison
+            $currentScore = $null
+            if ($script:SecurityScore) {
+                $currentScore = [PSCustomObject]@{
+                    Score = $script:SecurityScore.OverallScore
+                    Grade = $script:SecurityScore.LetterGrade
+                    CategoryScores = $script:SecurityScore.CategoryDetails | ForEach-Object {
+                        [PSCustomObject]@{
+                            Category = $_.Category
+                            Score = $_.Score
+                        }
+                    }
+                }
+            }
+            
+            $script:BaselineComparison = Compare-AssessmentToBaseline `
+                -CurrentResults $script:AssessmentResults `
+                -CurrentSecurityScore $currentScore `
+                -CurrentCISCompliance $currentCIS `
+                -Baseline $baselineResult.Baseline
+            
+            # Display comparison
+            $comparisonDisplay = Format-BaselineComparison -Comparison $script:BaselineComparison
+            Write-Information $comparisonDisplay -InformationAction Continue
+            
+            # Summary line
+            $trendIcon = switch ($script:BaselineComparison.OverallTrend) {
+                "Improving" { "↑" }
+                "Declining" { "↓" }
+                default { "→" }
+            }
+            Write-Success "Baseline comparison complete: $trendIcon $($script:BaselineComparison.OverallTrend) ($($script:BaselineComparison.Summary.TotalImprovements) improvements, $($script:BaselineComparison.Summary.TotalRegressions) regressions)"
+        }
+    }
+    catch {
+        Write-Warning "Baseline comparison error: $_"
+        Write-Verbose $_.ScriptStackTrace
+    }
+}
+
 function Show-Summary {
     $duration = (Get-Date) - $script:StartTime
     
@@ -2423,6 +2899,7 @@ try {
     Invoke-AssessmentModules
     Invoke-SecurityScoring
     Invoke-CISCompliance
+    Invoke-BaselineComparison
     Export-Results
     Show-Summary
 }

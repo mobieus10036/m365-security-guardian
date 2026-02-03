@@ -1,0 +1,131 @@
+{
+  "Version": "1.0",
+  "Name": "Initial-Baseline",
+  "CreatedAt": "2026-02-03 17:43:15",
+  "CreatedAtUtc": "2026-02-03T22:43:15Z",
+  "TenantId": "25cfe2b5-4780-4220-babb-8b90f37b2c53",
+  "Summary": {
+    "TotalChecks": 12,
+    "PassedCount": 3,
+    "WarningCount": 5,
+    "FailCount": 3,
+    "InfoCount": 1,
+    "CriticalCount": 1,
+    "HighCount": 4
+  },
+  "SecurityScore": {
+    "Score": 35.6,
+    "Grade": "F",
+    "Categories": {
+      "Category": null,
+      "Score": null,
+      "Weight": null
+    }
+  },
+  "CISCompliance": {
+    "Level1Percentage": 19.0,
+    "Level2Percentage": 33.3,
+    "Level1Compliant": 4,
+    "Level1Total": 21,
+    "Level2Compliant": 1,
+    "Level2Total": 3
+  },
+  "Checks": [
+    {
+      "CheckName": "Microsoft Secure Score",
+      "Category": "Security",
+      "Status": "Info",
+      "Severity": "Info",
+      "Message": "Secure Score API requires Microsoft 365 E5 or E5 Security license",
+      "CheckHash": "051F263401257869"
+    },
+    {
+      "CheckName": "MFA Enforcement",
+      "Category": "Security",
+      "Status": "Fail",
+      "Severity": "Critical",
+      "Message": "MFA adoption: 44.1% (119/270 users). 151 users without MFA",
+      "CheckHash": "459107F2A48562AD"
+    },
+    {
+      "CheckName": "Conditional Access Policies",
+      "Category": "Security",
+      "Status": "Warning",
+      "Severity": "High",
+      "Message": "7 enabled policies found. 12 security gaps found (3 high, 8 medium)",
+      "CheckHash": "E312217379AF2E10"
+    },
+    {
+      "CheckName": "Privileged Account Security",
+      "Category": "Security",
+      "Status": "Warning",
+      "Severity": "Medium",
+      "Message": "4 privileged accounts found (Critical: 3, High: 1). Issues: Total privileged account count (4) exceeds recommended maximum (3); Privileged accounts exceed recommended maximum of 3 (found 4); 1 stale privileged account(s) (no sign-in in 30+ days)",
+      "CheckHash": "204DDFF1DD16E10E"
+    },
+    {
+      "CheckName": "Privileged Identity Management (PIM)",
+      "Category": "Security",
+      "Status": "Warning",
+      "Severity": "High",
+      "Message": "PIM not available - Entra ID P2 license required for Just-In-Time privileged access",
+      "CheckHash": "C2AFB7FAE6234863"
+    },
+    {
+      "CheckName": "Legacy Authentication Blocking",
+      "Category": "Security",
+      "Status": "Pass",
+      "Severity": "Low",
+      "Message": "Legacy authentication is blocked (2 policies found)",
+      "CheckHash": "18BAB0B614BD4BFA"
+    },
+    {
+      "CheckName": "Application Permissions Audit",
+      "Category": "Security",
+      "Status": "Fail",
+      "Severity": "High",
+      "Message": "Analyzed 486 enterprise apps. Issues: 3 app(s) with high-risk permissions; 1 app(s) with expired or critically expiring credentials; 475 multi-tenant apps configured",
+      "CheckHash": "E4F4AB84FC130076"
+    },
+    {
+      "CheckName": "External Sharing Configuration",
+      "Category": "Security",
+      "Status": "Warning",
+      "Severity": "Medium",
+      "Message": "External sharing analysis complete. Issues: External users can reshare content No domain restrictions on external sharing (any domain can receive shares)",
+      "CheckHash": "7A63A2DB8599E588"
+    },
+    {
+      "CheckName": "Email Security Configuration",
+      "Category": "Exchange",
+      "Status": "Pass",
+      "Severity": "Low",
+      "Message": "Email security: Anti-spam=True, Malware=True, Safe Attachments=True, Safe Links=True",
+      "CheckHash": "6E38CFAA78D5F1A8"
+    },
+    {
+      "CheckName": "Email Authentication (SPF/DKIM/DMARC)",
+      "Category": "Exchange",
+      "Status": "Fail",
+      "Severity": "High",
+      "Message": "Email Authentication Status: SPF Valid: 11/12 (91.7%), DKIM Enabled: 6/12 (50%), DMARC Enforced: 2/12 (16.7%) | 1 domain(s) have invalid SPF | 9 domain(s) missing DMARC | 1 domain(s) have weak DMARC policy",
+      "CheckHash": "92D8E69642151C52"
+    },
+    {
+      "CheckName": "Mailbox Auditing",
+      "Category": "Exchange",
+      "Status": "Warning",
+      "Severity": "Medium",
+      "Message": "Mailbox auditing: 87.5% enabled (sampled 8 mailboxes, 1 without auditing). Non-compliant: DiscoverySearchMailbox{D919BA05-46A6-415f-80AD-7E09334BB852}@MobieusLabs.onmicrosoft.com",
+      "CheckHash": "9FBED093179B2DDD"
+    },
+    {
+      "CheckName": "License Optimization",
+      "Category": "Licensing",
+      "Status": "Pass",
+      "Severity": "Low",
+      "Message": "0 inactive licensed users (0%) - not signed in for 90+ days",
+      "CheckHash": "316B316247D43044"
+    }
+  ]
+}

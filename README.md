@@ -12,12 +12,13 @@
 
 ## ✨ What's New in v3.1.0
 
+- **📊 Baseline Comparison** - Track security progress over time by comparing against saved baselines
 - **🏛️ CIS Benchmark Mapping** - Maps findings to CIS Microsoft 365 Foundations Benchmark v3.1.0
 - **🎯 MITRE ATT&CK Integration** - Each CIS control includes relevant MITRE technique IDs
-- **📊 Dual Compliance Levels** - Separate compliance percentages for CIS Level 1 (Essential) and Level 2 (Enhanced)
+- **📈 Dual Compliance Levels** - Separate compliance percentages for CIS Level 1 (Essential) and Level 2 (Enhanced)
 - **🔐 Certificate Auth Auto-Load** - Save auth config once, run without parameters
 - **🧹 Connection Cleanup** - Automatically clears stale connections before each run
-- **📈 Enhanced Reporting** - CIS compliance exported to JSON and CSV for audit/GRC tools
+- **📈 Enhanced Reporting** - CIS compliance and baseline comparison in HTML reports
 
 ---
 
@@ -167,6 +168,72 @@ All findings are mapped to the **CIS Microsoft 365 Foundations Benchmark v3.1.0*
 - **Section 5** - Conditional Access (Risk Policies, Device Compliance)
 - **Section 6** - Exchange Online (Email Auth, Auditing)
 - **Section 7** - SharePoint and OneDrive (External Sharing)
+
+---
+
+## 📊 Baseline Comparison
+
+Track security progress over time by comparing assessments against saved baselines:
+
+### Saving a Baseline
+
+```powershell
+# Save current assessment as baseline
+.\Start-M365Assessment.ps1 -SaveBaseline
+
+# Save with a custom name (e.g., before a security project)
+.\Start-M365Assessment.ps1 -SaveBaseline -BaselineName "Pre-ZeroTrust"
+
+# Baselines are saved to the 'baselines' folder by default
+```
+
+### Comparing to a Baseline
+
+```powershell
+# Compare current state to a baseline
+.\Start-M365Assessment.ps1 -CompareToBaseline "Pre-ZeroTrust"
+
+# Or use the full path
+.\Start-M365Assessment.ps1 -CompareToBaseline ".\baselines\Pre-ZeroTrust_20250201_100000.json"
+```
+
+### Comparison Output
+
+The comparison shows:
+- **Overall Trend** - Improving, Declining, or Stable
+- **Score Deltas** - Changes in Security Score and CIS compliance percentages
+- **Improvements** - Checks that moved from Fail/Warning to Pass
+- **Regressions** - Checks that worsened since baseline
+
+```
+╔══════════════════════════════════════════════════════════════════════╗
+║                    Baseline Comparison                               ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+  📊 Comparing to: Pre-ZeroTrust (2025-02-01 10:00)
+  
+  Overall Trend: ↑ IMPROVING
+  
+  Security Score: 35.6% → 52.3% (+16.7 pts)
+  CIS Level 1:    19%   → 38%   (+19%)
+  CIS Level 2:    33%   → 50%   (+17%)
+  
+  ✅ Improvements (3):
+     • MFA Configuration: Fail → Pass
+     • Legacy Authentication: Warning → Pass
+     • Conditional Access Policies: Fail → Warning
+  
+  ❌ Regressions (0): None
+```
+
+### Baseline Parameters
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `-SaveBaseline` | Save current results as baseline | `.\Start-M365Assessment.ps1 -SaveBaseline` |
+| `-BaselineName` | Custom label for the baseline | `-BaselineName "Q1-2025"` |
+| `-CompareToBaseline` | Path or name of baseline to compare | `-CompareToBaseline "Q1-2025"` |
+| `-BaselinePath` | Directory for baseline files | `-BaselinePath "C:\Audits\Baselines"` |
 
 ---
 
