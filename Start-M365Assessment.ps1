@@ -878,6 +878,65 @@ function Export-HTMLReport {
         # Build detailed findings content
         $findingContent = $messageSafe
         
+        # For Conditional Access, show the issues table at the top before policy list
+        if ($result.CheckName -eq "Conditional Access Policies" -and $result.Findings -and $result.Findings.Count -gt 0) {
+            # Override the message with a cleaner summary
+            $findingContent = "<strong>$($result.Details.EnabledPolicies) enabled policies analyzed.</strong>"
+            
+            # Show posture score if available
+            if ($null -ne $result.ConditionalAccessScore) {
+                $findingContent += " CA Posture Score: <strong>$($result.ConditionalAccessScore)%</strong> of policies have no flagged risks."
+            }
+            
+            # Count by severity
+            $criticalCount = ($result.Findings | Where-Object { $_.Severity -eq 'Critical' }).Count
+            $highCount = ($result.Findings | Where-Object { $_.Severity -eq 'High' }).Count
+            $mediumCount = ($result.Findings | Where-Object { $_.Severity -eq 'Medium' }).Count
+            
+            $findingContent += "<br><br><div style='background: #fdf6ec; border-left: 4px solid #ffb900; padding: 12px; margin: 10px 0; border-radius: 4px;'>"
+            $findingContent += "<strong style='font-size: 14px;'>⚠ $($result.Findings.Count) Security Gaps Identified</strong>"
+            if ($criticalCount -gt 0 -or $highCount -gt 0) {
+                $findingContent += "<span style='margin-left: 15px;'>"
+                if ($criticalCount -gt 0) { $findingContent += "<span style='color: #a4262c; font-weight: 600;'>$criticalCount Critical</span> " }
+                if ($highCount -gt 0) { $findingContent += "<span style='color: #d13438; font-weight: 600;'>$highCount High</span> " }
+                if ($mediumCount -gt 0) { $findingContent += "<span style='color: #8a6b0f; font-weight: 600;'>$mediumCount Medium</span>" }
+                $findingContent += "</span>"
+            }
+            $findingContent += "</div>"
+            
+            # Issues table
+            $findingContent += "<table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'>"
+            $findingContent += "<tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300); width: 90px;'>Severity</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Security Gap</td></tr>"
+            
+            # Sort by severity (Critical > High > Medium > Low)
+            $severityOrder = @{ 'Critical' = 1; 'High' = 2; 'Medium' = 3; 'Low' = 4 }
+            $sortedFindings = $result.Findings | Sort-Object { $severityOrder[$_.Severity] }
+            
+            foreach ($finding in $sortedFindings) {
+                $findingMsgSafe = ConvertTo-HtmlSafe $finding.Message
+                $findingSeveritySafe = ConvertTo-HtmlSafe $finding.Severity
+                $severityColor = switch ($finding.Severity) {
+                    'Critical' { '#a4262c' }
+                    'High' { '#d13438' }
+                    'Medium' { '#8a6b0f' }
+                    'Low' { '#0078d4' }
+                    default { 'var(--gray-700)' }
+                }
+                $severityBg = switch ($finding.Severity) {
+                    'Critical' { '#fde7e9' }
+                    'High' { '#fed9cc' }
+                    'Medium' { '#fff4ce' }
+                    'Low' { '#deecf9' }
+                    default { 'var(--gray-100)' }
+                }
+                $findingContent += "<tr>"
+                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300); background: $severityBg; color: $severityColor; font-weight: 600; text-align: center;'>$findingSeveritySafe</td>"
+                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300);'>$findingMsgSafe</td>"
+                $findingContent += "</tr>"
+            }
+            $findingContent += "</table>"
+        }
+        
         # Handle inactive mailboxes from License Optimization
         if ($result.InactiveMailboxes -and $result.InactiveMailboxes.Count -gt 0) {
             $findingContent += "<br><br><strong>Inactive Licensed Users ($($result.InactiveMailboxes.Count)):</strong><br>"
@@ -974,48 +1033,8 @@ function Export-HTMLReport {
             $findingContent += "</ul>"
         }
 
-        # Show Conditional Access posture score when available
-        if ($result.CheckName -eq "Conditional Access Policies" -and $null -ne $result.ConditionalAccessScore) {
-            $scoreSafe = ConvertTo-HtmlSafe $result.ConditionalAccessScore
-            $findingContent += "<br><br><strong>Conditional Access Posture Score:</strong> $scoreSafe% of policies have no flagged risks"
-        }
-
-        # Handle structured Conditional Access Findings (security posture issues)
-        if ($result.CheckName -eq "Conditional Access Policies" -and $result.Findings -and $result.Findings.Count -gt 0) {
-            $findingContent += "<br><br><strong>Security Posture Issues ($($result.Findings.Count)):</strong>"
-            $findingContent += "<table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'>"
-            $findingContent += "<tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300); width: 100px;'>Severity</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Issue</td></tr>"
-            
-            # Sort by severity (Critical > High > Medium > Low)
-            $severityOrder = @{ 'Critical' = 1; 'High' = 2; 'Medium' = 3; 'Low' = 4 }
-            $sortedFindings = $result.Findings | Sort-Object { $severityOrder[$_.Severity] }
-            
-            foreach ($finding in $sortedFindings) {
-                $findingMsgSafe = ConvertTo-HtmlSafe $finding.Message
-                $findingSeveritySafe = ConvertTo-HtmlSafe $finding.Severity
-                $severityColor = switch ($finding.Severity) {
-                    'Critical' { 'var(--danger-color)' }
-                    'High' { '#d13438' }
-                    'Medium' { '#ffb900' }
-                    'Low' { '#0078d4' }
-                    default { 'var(--gray-700)' }
-                }
-                $severityBg = switch ($finding.Severity) {
-                    'Critical' { '#fde7e9' }
-                    'High' { '#fde7e9' }
-                    'Medium' { '#fff4ce' }
-                    'Low' { '#deecf9' }
-                    default { 'var(--gray-100)' }
-                }
-                $findingContent += "<tr>"
-                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300); background: $severityBg; color: $severityColor; font-weight: 600; text-align: center;'>$findingSeveritySafe</td>"
-                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300);'>$findingMsgSafe</td>"
-                $findingContent += "</tr>"
-            }
-            $findingContent += "</table>"
-        }
-
         # Handle per-policy Conditional Access analysis (risks/opportunities)
+        # Note: Security gaps table is already shown at the top for CA findings
         if ($result.PolicyFindings -and $result.PolicyFindings.Count -gt 0) {
             $severityColors = @{
                 critical = 'var(--danger-color)'

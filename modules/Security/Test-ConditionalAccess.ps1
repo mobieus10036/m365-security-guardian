@@ -235,11 +235,23 @@ function Test-ConditionalAccess {
         $caScore = if ($policiesConsidered -gt 0) {
             [math]::Round((($policiesConsidered - $policiesWithRisks) / $policiesConsidered) * 100, 1)
         } else { 0 }
-        if ($policiesConsidered -gt 0) {
-            $message += " | CA posture score: $caScore% of policies have no flagged risks"
-        }
+        
+        # Build a concise summary message for console/CSV
         if ($issues.Count -gt 0) {
-            $message += ". Issues: $($issues.Message -join '; ')"
+            # Count issues by severity
+            $criticalCount = ($issues | Where-Object { $_.Severity -eq 'Critical' }).Count
+            $highCount = ($issues | Where-Object { $_.Severity -eq 'High' }).Count
+            $mediumCount = ($issues | Where-Object { $_.Severity -eq 'Medium' }).Count
+            
+            $severitySummary = @()
+            if ($criticalCount -gt 0) { $severitySummary += "$criticalCount critical" }
+            if ($highCount -gt 0) { $severitySummary += "$highCount high" }
+            if ($mediumCount -gt 0) { $severitySummary += "$mediumCount medium" }
+            
+            $message += ". $($issues.Count) security gaps found"
+            if ($severitySummary.Count -gt 0) {
+                $message += " ($($severitySummary -join ', '))"
+            }
         }
 
         $recommendations = @()
