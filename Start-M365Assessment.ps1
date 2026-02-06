@@ -758,7 +758,8 @@ function Invoke-BaselineComparison {
                 -SecurityScore $scoreForBaseline `
                 -CISCompliance $cisForBaseline `
                 -BaselinePath $baselineFilePath `
-                -BaselineName $BaselineName
+                -BaselineName $BaselineName `
+                -TenantId $script:TenantId
             
             if ($saveResult.Success) {
                 Write-Success "Baseline saved: $($saveResult.Path)"

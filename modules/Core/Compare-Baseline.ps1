@@ -62,6 +62,9 @@ function Save-AssessmentBaseline {
     
     .PARAMETER BaselineName
         Optional name/label for the baseline.
+    
+    .PARAMETER TenantId
+        The tenant ID for the baseline. If not provided, uses $script:TenantId from parent scope.
     #>
     [CmdletBinding()]
     param(
@@ -78,7 +81,10 @@ function Save-AssessmentBaseline {
         [string]$BaselinePath,
         
         [Parameter(Mandatory = $false)]
-        [string]$BaselineName = "Baseline"
+        [string]$BaselineName = "Baseline",
+        
+        [Parameter(Mandatory = $false)]
+        [string]$TenantId = $script:TenantId
     )
     
     try {
@@ -87,7 +93,7 @@ function Save-AssessmentBaseline {
             Name = $BaselineName
             CreatedAt = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
             CreatedAtUtc = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-            TenantId = $script:TenantId
+            TenantId = $TenantId
             
             # Summary metrics
             Summary = [PSCustomObject]@{
