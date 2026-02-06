@@ -313,209 +313,30 @@ function Get-DefaultConfiguration {
 }
 
 function Connect-M365Services {
-    if ($NoAuth) {
-        Write-Step "Skipping authentication (NoAuth specified)"
-        return
+    <#
+    .SYNOPSIS
+        Connects to Microsoft 365 services using the connection module.
+    .DESCRIPTION
+        Loads the Connect-Services module and orchestrates connection to
+        Microsoft Graph and Exchange Online.
+    #>
+    
+    # Load connection module
+    $connectionModulePath = Join-Path $PSScriptRoot "modules\Core\Connect-Services.ps1"
+    if (Test-Path $connectionModulePath) {
+        . $connectionModulePath
+    } else {
+        Write-Warning "Connection module not found at: $connectionModulePath"
+        throw "Required module not found: Connect-Services.ps1"
     }
-
-    Write-Step "Connecting to Microsoft 365 services..."
-    Write-Info "Authentication method: $AuthMethod"
-
-    # Microsoft Graph
-    try {
-        Write-Information "  → Connecting to Microsoft Graph..." -InformationAction Continue
-        
-        # Scopes for delegated (user) authentication
-        $graphScopes = @(
-            'User.Read.All',
-            'Directory.Read.All',
-            'Policy.Read.All',
-            'Organization.Read.All',
-            'AuditLog.Read.All',
-            'UserAuthenticationMethod.Read.All',
-            'SecurityEvents.Read.All',           # For Secure Score
-            'Application.Read.All',              # For App Permissions audit
-            'DelegatedPermissionGrant.Read.All', # For OAuth2 permission grants
-            'SharePointTenantSettings.Read.All', # For External Sharing settings
-            'RoleManagement.Read.All',           # For PIM role assignments
-            'RoleManagement.Read.Directory',     # For PIM directory roles
-            'AccessReview.Read.All'              # For PIM access reviews
-        )
-        
-        # Build connection parameters based on auth method
-        $connectParams = @{
-            NoWelcome = $true
-            ErrorAction = 'Stop'
-        }
-        
-        if ($TenantId) {
-            $connectParams['TenantId'] = $TenantId
-        }
-        
-        switch ($AuthMethod) {
-            'DeviceCode' {
-                # Device code flow - best for terminal/console use
-                # User sees a code and URL, authenticates in any browser
-                Write-Info "Using Device Code flow - follow the prompts below"
-                $connectParams['UseDeviceCode'] = $true
-                $connectParams['Scopes'] = $graphScopes
-            }
-            
-            'Interactive' {
-                # Interactive browser - may trigger WAM on Windows
-                Write-Info "Using Interactive browser authentication"
-                $connectParams['Scopes'] = $graphScopes
-            }
-            
-            'Certificate' {
-                # Certificate-based auth for automation
-                if (-not $ClientId) {
-                    throw "ClientId is required for Certificate authentication"
-                }
-                if (-not $CertificateThumbprint) {
-                    throw "CertificateThumbprint is required for Certificate authentication"
-                }
-                if (-not $TenantId) {
-                    throw "TenantId is required for Certificate authentication"
-                }
-                Write-Info "Using Certificate-based authentication (App-only)"
-                $connectParams['ClientId'] = $ClientId
-                $connectParams['CertificateThumbprint'] = $CertificateThumbprint
-            }
-            
-            'ClientSecret' {
-                # Client secret auth for automation
-                if (-not $ClientId) {
-                    throw "ClientId is required for ClientSecret authentication"
-                }
-                if (-not $ClientSecret) {
-                    throw "ClientSecret is required for ClientSecret authentication"
-                }
-                if (-not $TenantId) {
-                    throw "TenantId is required for ClientSecret authentication"
-                }
-                Write-Info "Using Client Secret authentication (App-only)"
-                $connectParams['ClientId'] = $ClientId
-                $connectParams['ClientSecretCredential'] = (New-Object System.Management.Automation.PSCredential($ClientId, $ClientSecret))
-            }
-            
-            'ManagedIdentity' {
-                # Managed Identity for Azure-hosted workloads
-                Write-Info "Using Managed Identity authentication"
-                $connectParams['Identity'] = $true
-                if ($ClientId) {
-                    # User-assigned managed identity
-                    $connectParams['ClientId'] = $ClientId
-                    Write-Info "Using User-Assigned Managed Identity: $ClientId"
-                } else {
-                    Write-Info "Using System-Assigned Managed Identity"
-                }
-            }
-        }
-        
-        Connect-MgGraph @connectParams
-        
-        # Validate connection by attempting to get context
-        $mgContext = Get-MgContext
-        if (-not $mgContext) {
-            throw "Failed to establish Microsoft Graph connection - no context returned"
-        }
-        
-        # Validate the connection is actually working by making a simple API call
-        # This catches cases where Connect-MgGraph appears to succeed but token is invalid
-        try {
-            $null = Get-MgOrganization -ErrorAction Stop
-        }
-        catch {
-            # If the first call fails, the token might be stale - try reconnecting once
-            Write-Warning "  ⚠ Initial connection validation failed, retrying..."
-            Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-            Start-Sleep -Seconds 2
-            Connect-MgGraph @connectParams
-            $mgContext = Get-MgContext
-        }
-        
-        Write-Success "Connected to Microsoft Graph"
-        
-        # Show connection context so user knows which identity/tenant is being used
-        Write-Info "Connected as: $($mgContext.Account)"
-        Write-Info "Tenant ID: $($mgContext.TenantId)"
-        Write-Info "Auth Type: $($mgContext.AuthType)"
-        
-        # Validate that requested scopes were granted (for delegated auth only)
-        if ($AuthMethod -in @('DeviceCode', 'Interactive')) {
-            $grantedScopes = $mgContext.Scopes
-            $missingScopes = $graphScopes | Where-Object { $grantedScopes -notcontains $_ }
-            if ($missingScopes.Count -gt 0) {
-                Write-Warning "  ⚠ Some permissions were not granted: $($missingScopes -join ', ')"
-                Write-Warning "  ⚠ Certain checks may fail or return incomplete data"
-                Write-Warning "  ⚠ Re-consent may be required if checks fail unexpectedly"
-            }
-        } elseif ($AuthMethod -in @('Certificate', 'ClientSecret', 'ManagedIdentity')) {
-            Write-Info "App-only auth: Ensure the app registration has required API permissions with admin consent"
-        }
-        
-        # Get tenant info (already validated during connection check above)
-        $script:TenantInfo = Get-MgOrganization -ErrorAction SilentlyContinue
-        if ($script:TenantInfo) {
-            Write-Info "Tenant: $($script:TenantInfo.DisplayName)"
-        }
-        
-    }
-    catch {
-        Write-Failure "Failed to connect to Microsoft Graph: $_"
-        throw
-    }
-
-    # Exchange Online (optional - some checks)
-    try {
-        Write-Information "  → Connecting to Exchange Online..." -InformationAction Continue
-        
-        # Check if already connected to Exchange Online
-        try {
-            $exoTest = Get-OrganizationConfig -ErrorAction Stop
-            Write-Success "Already connected to Exchange Online"
-            return  # Skip connection if already connected
-        } catch {
-            # Not connected, proceed with connection
-        }
-        
-        # Note: Exchange Online requires separate authentication from Microsoft Graph
-        # This is by design - the services use different auth libraries
-        if ($AuthMethod -eq 'DeviceCode') {
-            Write-Info "Exchange Online requires a separate device code (Microsoft limitation)"
-        }
-        
-        # Build Exchange connection parameters
-        $exoParams = @{
-            ShowBanner = $false
-            ErrorAction = 'Stop'
-        }
-        
-        if ($TenantId) {
-            $exoParams['Organization'] = $TenantId
-        }
-        
-        # Always use device authentication to avoid WAM broker issues in VS Code/terminal
-        # WAM broker can fail in non-standard terminal environments
-        # For ManagedIdentity, use the -ManagedIdentity flag instead
-        if ($AuthMethod -eq 'ManagedIdentity') {
-            $exoParams['ManagedIdentity'] = $true
-            if ($ClientId) {
-                $exoParams['ManagedIdentityAccountId'] = $ClientId
-            }
-        } else {
-            # Device code works reliably in all terminal environments
-            $exoParams['Device'] = $true
-        }
-        
-        Connect-ExchangeOnline @exoParams
-        Write-Success "Connected to Exchange Online"
-    }
-    catch {
-        Write-Failure "Failed to connect to Exchange Online: $_"
-        Write-Info "Some Exchange checks may be skipped"
-    }
+    
+    $script:TenantInfo = Connect-AllM365Services `
+        -AuthMethod $AuthMethod `
+        -TenantId $TenantId `
+        -ClientId $ClientId `
+        -CertificateThumbprint $CertificateThumbprint `
+        -ClientSecret $ClientSecret `
+        -NoAuth:$NoAuth
 }
 
 function Get-ModulesToRun {
@@ -771,15 +592,15 @@ function Get-HTMLTemplate {
 #region Post-Assessment Functions
 
 function Disconnect-M365Services {
-    Write-Step "Disconnecting from Microsoft 365 services..."
-    
-    try {
-        Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
-        Write-Success "Disconnected from all services"
-    }
-    catch {
-        # Silently continue if disconnect fails
+    # Delegates to module function (loaded during Connect-M365Services)
+    if (Get-Command Disconnect-AllM365Services -ErrorAction SilentlyContinue) {
+        Disconnect-AllM365Services
+    } else {
+        # Fallback if module wasn't loaded (e.g., connection failed early)
+        try {
+            Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
+            Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+        } catch { }
     }
 }
 
@@ -1008,37 +829,12 @@ Total Checks: $($script:AssessmentResults.Count)$scoreInfo$cisInfo
 
 #region Main Execution
 
-# Clean up any existing connections to ensure fresh start
-function Clear-ExistingConnections {
-    Write-Information "`n[$(Get-Date -Format 'HH:mm:ss')] Clearing existing connections..." -InformationAction Continue
-    
-    # Disconnect Microsoft Graph
-    try {
-        $graphContext = Get-MgContext -ErrorAction SilentlyContinue
-        if ($graphContext) {
-            Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-            Write-Information "  ✓ Disconnected from Microsoft Graph ($($graphContext.Account))" -InformationAction Continue
-        }
-    } catch { }
-    
-    # Disconnect Exchange Online
-    try {
-        $exoSession = Get-PSSession | Where-Object { $_.ConfigurationName -eq 'Microsoft.Exchange' -or $_.Name -like '*ExchangeOnline*' }
-        if ($exoSession) {
-            Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
-            Write-Information "  ✓ Disconnected from Exchange Online" -InformationAction Continue
-        }
-    } catch { }
-    
-    # Also remove any stale Exchange PS sessions
-    try {
-        Get-PSSession | Where-Object { $_.ConfigurationName -eq 'Microsoft.Exchange' } | Remove-PSSession -ErrorAction SilentlyContinue
-    } catch { }
-    
-    Write-Information "  ✓ Ready for fresh connection" -InformationAction Continue
+# Load connection module and clean up any existing connections
+$connectionModulePath = Join-Path $PSScriptRoot "modules\Core\Connect-Services.ps1"
+if (Test-Path $connectionModulePath) {
+    . $connectionModulePath
 }
-
-Clear-ExistingConnections
+Clear-ExistingM365Connections
 
 try {
     Write-Banner
