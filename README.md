@@ -25,6 +25,7 @@
 ## Features
 
 ### 🎯 Tenant Security Score
+
 - Overall security posture score (0-100) with letter grade (A-F)
 - Category breakdown: Identity & Access, Conditional Access, Application Security, Email Security, Governance
 - **Top Priorities** - Highest impact remediation items ranked by potential score improvement
@@ -40,8 +41,9 @@
 - Audit-ready reports for compliance frameworks (SOC 2, ISO 27001, etc.)
 
 ### 🔍 Security Assessments
+
 | Module | Checks |
-|--------|--------|
+| ------ | ------ |
 | **Identity** | MFA adoption, Privileged accounts, PIM configuration, Legacy auth |
 | **Conditional Access** | Policy coverage, Risk-based policies, Device compliance, Location controls |
 | **Applications** | High-risk permissions, Credential expiry, Multi-tenant apps, OAuth grants |
@@ -49,6 +51,7 @@
 | **Licensing** | Inactive license detection, Optimization opportunities |
 
 ### 📄 Report Outputs
+
 - **HTML** - Interactive dashboard with filtering and export
 - **JSON** - Machine-readable for automation and SIEM integration
 - **CSV** - Spreadsheet-compatible for analysis and sharing
@@ -72,7 +75,7 @@ cd m365-security-guardian
 The tool supports multiple authentication methods:
 
 | Method | Best For | Command |
-|--------|----------|---------|
+| ------ | -------- | ------- |
 | **Certificate** ⭐ | Recommended - Reliable & automated | `.\Start-M365Assessment.ps1` (after setup) |
 | **DeviceCode** | Terminal use, multi-tenant | `.\Start-M365Assessment.ps1 -AuthMethod DeviceCode` |
 | **Interactive** | Quick browser-based runs | `.\Start-M365Assessment.ps1 -AuthMethod Interactive` |
@@ -91,6 +94,7 @@ Certificate auth provides the most reliable experience, especially in VS Code or
 ```
 
 The setup creates:
+
 - Entra ID App Registration with required permissions
 - Self-signed certificate (valid 1 year)
 - `.auth-config.json` file with saved credentials
@@ -123,7 +127,7 @@ This creates an Entra ID App Registration with certificate authentication and gr
 These permissions are required for the App Registration (app-only authentication):
 
 | Permission | Permission ID | Purpose | Checks Enabled |
-|------------|---------------|---------|----------------|
+| ---------- | ------------- | ------- | -------------- |
 | `User.Read.All` | `df021288-bdef-4463-88db-98f22de89214` | Read all users' profiles | MFA status, user enumeration, license optimization |
 | `Directory.Read.All` | `7ab1d382-f21e-4acd-a863-ba3e13f7da61` | Read directory data | Privileged roles, group membership, directory objects |
 | `Policy.Read.All` | `246dd0d5-5bd0-4def-940b-0421030a5b68` | Read all policies | Conditional Access policies, authentication methods |
@@ -140,15 +144,16 @@ These permissions are required for the App Registration (app-only authentication
 Exchange Online uses role-based access control (RBAC). The user authenticating to Exchange Online needs **one of the following roles**:
 
 | Role | Scope | Checks Enabled |
-|------|-------|----------------|
+| ---- | ----- | -------------- |
 | **View-Only Organization Management** | Read-only access to Exchange | All Exchange checks (recommended minimum) |
 | **Security Reader** | Read security settings | Email security, auditing |
 | **Compliance Management** | Read compliance settings | DLP, Retention, Sensitivity Labels |
 | **Global Reader** | Read-only across M365 | All checks |
 
 **Exchange Online Cmdlets Used:**
+
 | Cmdlet | Purpose | Required Role |
-|--------|---------|---------------|
+| ------ | ------- | ------------- |
 | `Get-EXOMailbox` | Mailbox auditing status | View-Only Organization Management |
 | `Get-AcceptedDomain` | Domain list for SPF/DKIM/DMARC | View-Only Organization Management |
 | `Get-DkimSigningConfig` | DKIM configuration | View-Only Organization Management |
@@ -164,18 +169,21 @@ Exchange Online uses role-based access control (RBAC). The user authenticating t
 For organizations with strict permission policies, here's the minimum set to run the core security checks:
 
 **Graph API (must have):**
+
 - `User.Read.All` - Required for MFA check
 - `Directory.Read.All` - Required for privileged accounts
 - `Policy.Read.All` - Required for Conditional Access
 - `AuditLog.Read.All` - Required for sign-in analysis
 
 **Graph API (optional but recommended):**
+
 - `Application.Read.All` - App permissions audit
 - `SharePointTenantSettings.Read.All` - External sharing
 - `SecurityEvents.Read.All` - Secure Score (E5 only)
 - `RoleManagement.Read.All` - PIM (P2 only)
 
 **Exchange Online:**
+
 - Assign **View-Only Organization Management** role to the user running the assessment
 
 ### Granting Admin Consent
@@ -188,12 +196,14 @@ After creating the App Registration, an administrator must grant consent for the
    - Click **Grant admin consent for [Tenant]**
 
 2. **Via PowerShell (Azure CLI):**
+
    ```powershell
    az ad app permission admin-consent --id <app-id>
    ```
 
 3. **Via URL:**
-   ```
+
+   ```text
    https://login.microsoftonline.com/{tenant-id}/adminconsent?client_id={app-id}
    ```
 
@@ -202,13 +212,15 @@ After creating the App Registration, an administrator must grant consent for the
 To assign the View-Only Organization Management role:
 
 **Via Exchange Admin Center:**
-1. Go to https://admin.exchange.microsoft.com
+
+1. Go to [https://admin.exchange.microsoft.com](https://admin.exchange.microsoft.com)
 2. Navigate to **Roles** → **Admin roles**
 3. Select **View-Only Organization Management**
 4. Click **Assigned** → **Add**
 5. Add the user who will run the assessment
 
 **Via PowerShell:**
+
 ```powershell
 Add-RoleGroupMember -Identity "View-Only Organization Management" -Member "user@domain.com"
 ```
@@ -218,7 +230,7 @@ Add-RoleGroupMember -Identity "View-Only Organization Management" -Member "user@
 The tool gracefully handles missing permissions - checks will show as "Info" with guidance:
 
 | Missing Permission | Result |
-|--------------------|--------|
+| ------------------ | ------ |
 | `SecurityEvents.Read.All` | Secure Score check shows "E5 license required" |
 | `RoleManagement.Read.All` | PIM check shows "P2 license required" |
 | `SharePointTenantSettings.Read.All` | External sharing check skipped |
@@ -233,7 +245,7 @@ The tool gracefully handles missing permissions - checks will show as "Info" wit
 The assessment calculates an **overall Tenant Security Score**:
 
 | Grade | Score Range | Description |
-|-------|-------------|-------------|
+| ----- | ----------- | ----------- |
 | **A** | 90-100% | Excellent - Your tenant follows security best practices |
 | **B** | 80-89% | Good - Minor improvements recommended |
 | **C** | 70-79% | Fair - Several security gaps should be addressed |
@@ -241,8 +253,9 @@ The assessment calculates an **overall Tenant Security Score**:
 | **F** | 0-59% | Critical - Immediate action required |
 
 ### Category Weights
+
 | Category | Weight | Key Checks |
-|----------|--------|------------|
+| -------- | ------ | ---------- |
 | Identity & Access | 30% | MFA, Privileged Accounts, PIM, Legacy Auth |
 | Conditional Access | 25% | CA Policies, External Sharing |
 | Application Security | 20% | App Permissions, Secure Score |
@@ -255,7 +268,7 @@ The assessment calculates an **overall Tenant Security Score**:
 
 All findings are mapped to the **CIS Microsoft 365 Foundations Benchmark v3.1.0**:
 
-```
+```text
 ╔══════════════════════════════════════════════════════════════════════╗
 ║            CIS Microsoft 365 Foundations Benchmark                   ║
 ║                    Compliance Assessment                             ║
@@ -270,6 +283,7 @@ All findings are mapped to the **CIS Microsoft 365 Foundations Benchmark v3.1.0*
 ```
 
 ### Sections Covered
+
 - **Section 1** - Account/Authentication (MFA, Password Policies)
 - **Section 2** - Application Permissions (OAuth, Consent Workflow)
 - **Section 5** - Conditional Access (Risk Policies, Device Compliance)
@@ -307,12 +321,13 @@ Track security progress over time by comparing assessments against saved baselin
 ### Comparison Output
 
 The comparison shows:
+
 - **Overall Trend** - Improving, Declining, or Stable
 - **Score Deltas** - Changes in Security Score and CIS compliance percentages
 - **Improvements** - Checks that moved from Fail/Warning to Pass
 - **Regressions** - Checks that worsened since baseline
 
-```
+```text
 ╔══════════════════════════════════════════════════════════════════════╗
 ║                    Baseline Comparison                               ║
 ╚══════════════════════════════════════════════════════════════════════╝
@@ -336,7 +351,7 @@ The comparison shows:
 ### Baseline Parameters
 
 | Parameter | Description | Example |
-|-----------|-------------|---------|
+| --------- | ----------- | ------- |
 | `-SaveBaseline` | Save current results as baseline | `.\Start-M365Assessment.ps1 -SaveBaseline` |
 | `-BaselineName` | Custom label for the baseline | `-BaselineName "Q1-2025"` |
 | `-CompareToBaseline` | Path or name of baseline to compare | `-CompareToBaseline "Q1-2025"` |
@@ -375,7 +390,7 @@ Customize the assessment in `config/assessment-config.json`:
 Each assessment generates timestamped reports:
 
 | File | Description |
-|------|-------------|
+| ---- | ----------- |
 | `M365Guardian_*.html` | Interactive HTML dashboard |
 | `M365Guardian_*.json` | Full assessment data |
 | `M365Guardian_*.csv` | All findings for spreadsheets |
@@ -397,6 +412,7 @@ Each assessment generates timestamped reports:
 - **Azure CLI** (for app registration setup only)
 
 Install prerequisites:
+
 ```powershell
 .\Install-Prerequisites.ps1
 ```
@@ -406,16 +422,20 @@ Install prerequisites:
 ## Troubleshooting
 
 ### "DeviceCodeCredential authentication failed" errors
+
 Use certificate authentication instead of device code:
+
 ```powershell
 .\Setup-AppRegistration-CLI.ps1  # Run once
 .\Start-M365Assessment.ps1       # Auto-uses certificate
 ```
 
 ### "Secure Score API requires E5 license"
+
 Microsoft Secure Score API is only available with E5 licensing. The custom Tenant Security Score provides similar insights without E5.
 
 ### Exchange Online connection issues
+
 The tool automatically uses device code flow for Exchange to avoid WAM broker issues in VS Code terminals.
 
 ---
