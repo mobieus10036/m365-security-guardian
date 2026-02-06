@@ -200,25 +200,19 @@ Write-Host "  Run the assessment with:" -ForegroundColor Yellow
 Write-Host $runCommand -ForegroundColor Gray
 Write-Host ""
 
-# Save config
-$configPath = Join-Path $PSScriptRoot ".auth-config.ps1"
-@"
-# M365 Security Guardian - Auth Config
-# Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
-
-`$AuthConfig = @{
+# Save config (JSON - safe data-only format)
+$configPath = Join-Path $PSScriptRoot ".auth-config.json"
+@{
     AuthMethod = 'Certificate'
-    ClientId = '$appId'
-    TenantId = '$TenantId'
-    CertificateThumbprint = '$($certificate.Thumbprint)'
-}
-
-# Usage: . .\.auth-config.ps1; .\Start-M365Assessment.ps1 @AuthConfig
-"@ | Out-File -FilePath $configPath -Encoding UTF8
+    ClientId = $appId
+    TenantId = $TenantId
+    CertificateThumbprint = $certificate.Thumbprint
+    Generated = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+} | ConvertTo-Json -Depth 2 | Out-File -FilePath $configPath -Encoding UTF8
 
 Write-Host "  Config saved to: $configPath" -ForegroundColor Green
-Write-Host "  Quick run: " -NoNewline
-Write-Host ". .\.auth-config.ps1; .\Start-M365Assessment.ps1 @AuthConfig" -ForegroundColor Cyan
+Write-Host "  The assessment will auto-detect this config. Just run:" -ForegroundColor White
+Write-Host "  .\Start-M365Assessment.ps1" -ForegroundColor Cyan
 Write-Host ""
 
 # Logout

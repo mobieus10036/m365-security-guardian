@@ -32,6 +32,65 @@ function ConvertTo-HtmlSafe {
     return [System.Net.WebUtility]::HtmlEncode($Text)
 }
 
+function Protect-ReportFiles {
+    <#
+    .SYNOPSIS
+        Restricts file system permissions on report files to the current user only.
+    
+    .DESCRIPTION
+        Removes inherited ACLs and grants FullControl only to the current user and
+        local Administrators. This prevents other users on the machine from reading
+        security assessment reports that may contain sensitive tenant information
+        such as user principal names, security configurations, and vulnerability details.
+    
+    .PARAMETER Path
+        The path to a file or directory to protect.
+    
+    .PARAMETER Recurse
+        If set, also protects all files within the directory.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$Recurse
+    )
+
+    try {
+        if (-not (Test-Path $Path)) { return }
+
+        $items = @($Path)
+        if ($Recurse -and (Test-Path $Path -PathType Container)) {
+            $items += Get-ChildItem -Path $Path -File -Recurse | Select-Object -ExpandProperty FullName
+        }
+
+        foreach ($item in $items) {
+            $acl = Get-Acl -Path $item
+            # Disable inheritance and remove inherited rules
+            $acl.SetAccessRuleProtection($true, $false)
+            # Remove all existing access rules
+            $acl.Access | ForEach-Object { $acl.RemoveAccessRule($_) } | Out-Null
+            # Grant current user FullControl
+            $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+            $userRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                $currentUser, 'FullControl', 'Allow'
+            )
+            $acl.AddAccessRule($userRule)
+            # Grant BUILTIN\Administrators FullControl
+            $adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                'BUILTIN\Administrators', 'FullControl', 'Allow'
+            )
+            $acl.AddAccessRule($adminRule)
+            Set-Acl -Path $item -AclObject $acl
+        }
+        Write-Verbose "Report file permissions restricted to current user and Administrators"
+    }
+    catch {
+        Write-Warning "Could not restrict report file permissions: $_"
+    }
+}
+
 #endregion
 
 #region JSON Export Functions

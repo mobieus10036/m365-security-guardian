@@ -172,17 +172,26 @@ $script:TenantInfo = $null
 $script:SecurityScore = $null
 
 # Auto-load auth config if exists and no auth method specified
-$authConfigPath = Join-Path $PSScriptRoot ".auth-config.ps1"
+$authConfigPath = Join-Path $PSScriptRoot ".auth-config.json"
+# Also check legacy .ps1 format for backward compatibility
+$legacyAuthConfigPath = Join-Path $PSScriptRoot ".auth-config.ps1"
 if ((Test-Path $authConfigPath) -and ($AuthMethod -eq 'DeviceCode') -and (-not $ClientId)) {
-    Write-Verbose "Loading saved authentication configuration..."
-    . $authConfigPath
-    if ($AuthConfig) {
+    Write-Verbose "Loading saved authentication configuration from JSON..."
+    try {
+        $AuthConfig = Get-Content -Path $authConfigPath -Raw | ConvertFrom-Json
         $AuthMethod = $AuthConfig.AuthMethod
         $ClientId = $AuthConfig.ClientId
         $TenantId = $AuthConfig.TenantId
         $CertificateThumbprint = $AuthConfig.CertificateThumbprint
         Write-Verbose "Using saved auth: $AuthMethod"
     }
+    catch {
+        Write-Warning "Failed to load auth config: $_"
+    }
+}
+elseif ((Test-Path $legacyAuthConfigPath) -and ($AuthMethod -eq 'DeviceCode') -and (-not $ClientId)) {
+    Write-Warning "Legacy .auth-config.ps1 detected. Please re-run Setup-AppRegistration to generate the safer .auth-config.json format."
+    Write-Warning "Dot-sourcing .ps1 config files is deprecated due to code injection risk."
 }
 
 #region Helper Functions
@@ -537,6 +546,10 @@ function Export-Results {
         
         Write-Success "HTML report: $htmlPath"
     }
+
+    # Restrict file permissions on generated reports
+    Protect-ReportFiles -Path $OutputPath -Recurse
+    Write-Verbose "Report file permissions restricted to current user and Administrators"
 }
 
 #endregion

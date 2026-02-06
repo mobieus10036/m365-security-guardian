@@ -2,6 +2,7 @@
 reports/
 
 # Auth config (contains tenant-specific credentials)
+.auth-config.json
 .auth-config.ps1
 
 # Baselines (contain tenant security data)

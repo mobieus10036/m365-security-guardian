@@ -92,7 +92,7 @@ Certificate auth provides the most reliable experience, especially in VS Code or
 The setup creates:
 - Entra ID App Registration with required permissions
 - Self-signed certificate (valid 1 year)
-- `.auth-config.ps1` file with saved credentials
+- `.auth-config.json` file with saved credentials
 
 ### Multi-Tenant Assessments (Consultants)
 
