@@ -632,7 +632,24 @@ function Get-ModulesToRun {
 }
 
 function Export-Results {
+    <#
+    .SYNOPSIS
+        Orchestrates export of assessment results to all configured formats.
+    
+    .DESCRIPTION
+        Generates JSON, CSV, and HTML reports using the Export-Reports module.
+        Handles all export operations including detailed CSV reports and CIS compliance exports.
+    #>
     Write-Step "Generating assessment reports..."
+    
+    # Load export module
+    $exportModulePath = Join-Path $PSScriptRoot "modules\Core\Export-Reports.ps1"
+    if (Test-Path $exportModulePath) {
+        . $exportModulePath
+    } else {
+        Write-Warning "Export module not found at: $exportModulePath"
+        return
+    }
     
     # Load CIS compliance module for export functions
     $cisModulePath = Join-Path $PSScriptRoot "modules\Core\Get-CISCompliance.ps1"
@@ -646,1048 +663,63 @@ function Export-Results {
     }
 
     $timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-    $baseFileName = "M365Guardian_$timestamp"
+    $basePath = Join-Path $OutputPath "M365Guardian_$timestamp"
 
-    # JSON Export (includes security score)
+    # JSON Export
     if ($OutputFormat -in @('All', 'JSON')) {
-        $jsonPath = Join-Path $OutputPath "$baseFileName.json"
-        
-        # Build comprehensive export object with score
-        $exportData = @{
-            AssessmentDate = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-            TenantId = if ($script:TenantInfo) { $script:TenantInfo.Id } else { (Get-MgContext).TenantId }
-            TenantName = if ($script:TenantInfo) { $script:TenantInfo.DisplayName } else { "Unknown" }
-            SecurityScore = if ($script:SecurityScore) {
-                @{
-                    OverallScore = $script:SecurityScore.OverallScore
-                    LetterGrade = $script:SecurityScore.LetterGrade
-                    GradeDescription = $script:SecurityScore.GradeDescription
-                    PotentialScore = $script:SecurityScore.PotentialScore
-                    CategoryBreakdown = $script:SecurityScore.CategoryBreakdown
-                    TopPriorities = $script:SecurityScore.TopPriorities
-                    QuickWins = $script:SecurityScore.QuickWins
-                    Summary = $script:SecurityScore.Summary
-                }
-            } else { $null }
-            Findings = $script:AssessmentResults
-        }
-        
-        $exportData | ConvertTo-Json -Depth 15 | Out-File $jsonPath -Encoding UTF8
+        $jsonPath = Export-JsonReport -Results $script:AssessmentResults `
+            -OutputPath $basePath `
+            -TenantInfo $script:TenantInfo `
+            -SecurityScore $script:SecurityScore
         Write-Success "JSON report: $jsonPath"
         
-        # Export security score summary to separate file
+        # Export security score details separately
         if ($script:SecurityScore) {
-            $scorePath = Join-Path $OutputPath "$($baseFileName)_SecurityScore.json"
-            $script:SecurityScore | ConvertTo-Json -Depth 10 | Out-File $scorePath -Encoding UTF8
+            $scorePath = Export-SecurityScoreJson -SecurityScore $script:SecurityScore -OutputPath $basePath
             Write-Success "Security Score details: $scorePath"
         }
     }
 
     # CSV Export
     if ($OutputFormat -in @('All', 'CSV')) {
-        $csvPath = Join-Path $OutputPath "$baseFileName.csv"
-        $script:AssessmentResults | Select-Object CheckName, Category, Status, Severity, Message, Recommendation | 
-            Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
+        $csvPath = Export-CsvReport -Results $script:AssessmentResults -OutputPath $basePath
         Write-Success "CSV report: $csvPath"
         
-        # Export detailed non-compliant mailboxes to separate CSV
-        $mailboxAuditResult = $script:AssessmentResults | Where-Object { $_.CheckName -eq "Mailbox Auditing" -and $_.NonCompliantMailboxes }
-        if ($mailboxAuditResult -and $mailboxAuditResult.NonCompliantMailboxes.Count -gt 0) {
-            $mailboxCsvPath = Join-Path $OutputPath "$($baseFileName)_NonCompliantMailboxes.csv"
-            $mailboxAuditResult.NonCompliantMailboxes | 
-                Export-Csv -Path $mailboxCsvPath -NoTypeInformation -Encoding UTF8
-            Write-Success "Non-compliant mailboxes CSV: $mailboxCsvPath"
-            Write-Info "  → $($mailboxAuditResult.NonCompliantMailboxes.Count) mailbox(es) without auditing exported"
-        }
-
-        # Export inactive mailboxes to separate CSV
-        $licenseOptResult = $script:AssessmentResults | Where-Object { $_.CheckName -eq "License Optimization" -and $_.InactiveMailboxes }
-        if ($licenseOptResult -and $licenseOptResult.InactiveMailboxes.Count -gt 0) {
-            $inactiveCsvPath = Join-Path $OutputPath "$($baseFileName)_InactiveMailboxes.csv"
-            $licenseOptResult.InactiveMailboxes | 
-                Export-Csv -Path $inactiveCsvPath -NoTypeInformation -Encoding UTF8
-            Write-Success "Inactive mailboxes CSV: $inactiveCsvPath"
-            Write-Info "  → $($licenseOptResult.InactiveMailboxes.Count) inactive licensed user(s) exported"
-        }
-
-        # Export domain email authentication details to separate CSV
-        $emailAuthResult = $script:AssessmentResults | Where-Object { $_.CheckName -eq "Email Authentication (SPF/DKIM/DMARC)" -and $_.DomainDetails }
-        if ($emailAuthResult -and $emailAuthResult.DomainDetails.Count -gt 0) {
-            $domainsCsvPath = Join-Path $OutputPath "$($baseFileName)_DomainEmailAuth.csv"
-            $emailAuthResult.DomainDetails | 
-                Export-Csv -Path $domainsCsvPath -NoTypeInformation -Encoding UTF8
-            Write-Success "Domain email authentication CSV: $domainsCsvPath"
-            Write-Info "  → $($emailAuthResult.DomainDetails.Count) domain(s) with SPF/DKIM/DMARC details exported"
-        }
-
-        # Export privileged accounts to separate CSV with full risk context
-        $privAccountResult = $script:AssessmentResults | Where-Object { $_.CheckName -eq "Privileged Account Security" -and $_.PrivilegedAccounts }
-        if ($privAccountResult -and $privAccountResult.PrivilegedAccounts.Count -gt 0) {
-            $privAccountsCsvPath = Join-Path $OutputPath "$($baseFileName)_PrivilegedAccounts.csv"
-            # Export with all risk context fields
-            $privAccountResult.PrivilegedAccounts | Select-Object `
-                UserPrincipalName, `
-                DisplayName, `
-                RiskLevel, `
-                RiskScore, `
-                HighestRiskRole, `
-                Roles, `
-                RoleCount, `
-                @{Name='HasMFA';Expression={if($_.HasMFA){'Yes'}else{'No'}}}, `
-                LastSignIn, `
-                LastSignInDaysAgo, `
-                @{Name='IsStale';Expression={if($_.IsStale){'Yes'}else{'No'}}}, `
-                AccountType, `
-                RiskFactors, `
-                RiskFactorCount | 
-                Export-Csv -Path $privAccountsCsvPath -NoTypeInformation -Encoding UTF8
-            Write-Success "Privileged accounts CSV: $privAccountsCsvPath"
-            Write-Info "  → $($privAccountResult.PrivilegedAccounts.Count) privileged account(s) with risk context exported"
-        }
-
-        # Export enabled Conditional Access policies to separate CSV
-        $caResult = $script:AssessmentResults | Where-Object { $_.CheckName -eq "Conditional Access Policies" -and $_.EnabledPolicies }
-        if ($caResult -and $caResult.EnabledPolicies.Count -gt 0) {
-            $caPoliciesCsvPath = Join-Path $OutputPath "$($baseFileName)_ConditionalAccessPolicies.csv"
-            $caResult.EnabledPolicies | Select-Object DisplayName, State, Id | 
-                Export-Csv -Path $caPoliciesCsvPath -NoTypeInformation -Encoding UTF8
-            Write-Success "Conditional Access policies CSV: $caPoliciesCsvPath"
-            Write-Info "  → $($caResult.EnabledPolicies.Count) policy/policies exported"
-        }
-
-        # Export Conditional Access per-policy findings to separate CSV
-        if ($caResult -and $caResult.PolicyFindings -and $caResult.PolicyFindings.Count -gt 0) {
-            $caFindingsCsvPath = Join-Path $OutputPath "$($baseFileName)_ConditionalAccessPolicyFindings.csv"
-            $flattened = @()
-            foreach ($pf in $caResult.PolicyFindings) {
-                $riskMessages = ""
-                $riskSeverities = ""
-                $oppMessages = ""
-                $oppSeverities = ""
-                if ($pf.Risks -and $pf.Risks.Count -gt 0) {
-                    $riskMessages = ($pf.Risks | ForEach-Object { $_.Message }) -join '; '
-                    $riskSeverities = ($pf.Risks | ForEach-Object { $_.Severity }) -join '; '
-                }
-                if ($pf.Opportunities -and $pf.Opportunities.Count -gt 0) {
-                    $oppMessages = ($pf.Opportunities | ForEach-Object { $_.Message }) -join '; '
-                    $oppSeverities = ($pf.Opportunities | ForEach-Object { $_.Severity }) -join '; '
-                }
-                $flattened += [PSCustomObject]@{
-                    DisplayName = $pf.DisplayName
-                    State = $pf.State
-                    Id = $pf.Id
-                    RiskMessages = $riskMessages
-                    RiskSeverities = $riskSeverities
-                    OpportunityMessages = $oppMessages
-                    OpportunitySeverities = $oppSeverities
-                }
-            }
-            $flattened | Export-Csv -Path $caFindingsCsvPath -NoTypeInformation -Encoding UTF8
-            Write-Success "Conditional Access policy findings CSV: $caFindingsCsvPath"
-            Write-Info "  � $($flattened.Count) policy finding record(s) exported"
-        }
-
-        # Export users without MFA to separate CSV
-        $mfaResult = $script:AssessmentResults | Where-Object { $_.CheckName -eq "MFA Enforcement" -and $_.UsersWithoutMFA }
-        if ($mfaResult -and $mfaResult.UsersWithoutMFA.Count -gt 0) {
-            $usersWithoutMFACsvPath = Join-Path $OutputPath "$($baseFileName)_UsersWithoutMFA.csv"
-            $mfaResult.UsersWithoutMFA | 
-                Export-Csv -Path $usersWithoutMFACsvPath -NoTypeInformation -Encoding UTF8
-            Write-Success "Users without MFA CSV: $usersWithoutMFACsvPath"
-            Write-Info "  → $($mfaResult.UsersWithoutMFA.Count) user(s) without MFA exported"
-        }
-
-        # Export risky applications to separate CSV
-        $appResult = $script:AssessmentResults | Where-Object { $_.CheckName -eq "Application Permission Audit" -and $_.RiskyApps }
-        if ($appResult -and $appResult.RiskyApps.Count -gt 0) {
-            $riskyAppsCsvPath = Join-Path $OutputPath "$($baseFileName)_RiskyApplications.csv"
-            $appResult.RiskyApps | Select-Object DisplayName, AppId, Type, @{Name='RiskReasons';Expression={$_.RiskReasons -join '; '}}, @{Name='HighRiskPermissions';Expression={$_.HighRiskPermissions -join '; '}}, LastSignIn | 
-                Export-Csv -Path $riskyAppsCsvPath -NoTypeInformation -Encoding UTF8
-            Write-Success "Risky applications CSV: $riskyAppsCsvPath"
-            Write-Info "  → $($appResult.RiskyApps.Count) risky application(s) exported"
-        }
-
-        # Export Secure Score improvement actions to separate CSV
-        $secureScoreResult = $script:AssessmentResults | Where-Object { $_.CheckName -eq "Microsoft Secure Score" -and $_.TopActions }
-        if ($secureScoreResult -and $secureScoreResult.TopActions.Count -gt 0) {
-            $secureScoreCsvPath = Join-Path $OutputPath "$($baseFileName)_SecureScoreActions.csv"
-            $secureScoreResult.TopActions | Select-Object Title, Category, ScoreInPercentage, ImplementationStatus | 
-                Export-Csv -Path $secureScoreCsvPath -NoTypeInformation -Encoding UTF8
-            Write-Success "Secure Score actions CSV: $secureScoreCsvPath"
-            Write-Info "  → $($secureScoreResult.TopActions.Count) improvement action(s) exported"
+        # Export detailed CSVs
+        $detailedExports = Export-DetailedCsvReports -Results $script:AssessmentResults -OutputPath $basePath
+        
+        foreach ($exportType in $detailedExports.Keys) {
+            $export = $detailedExports[$exportType]
+            Write-Success "$($exportType -replace '([A-Z])', ' $1'.Trim()) CSV: $($export.Path)"
+            Write-Info "  → $($export.Count) record(s) exported"
         }
         
         # Export CIS Compliance reports
         if ($script:CISCompliance) {
-            $cisBasePath = Join-Path $OutputPath $baseFileName
-            Export-CISComplianceReport -ComplianceSummary $script:CISCompliance -OutputPath $cisBasePath -Format @('JSON', 'CSV')
+            Export-CISComplianceReport -ComplianceSummary $script:CISCompliance -OutputPath $basePath -Format @('JSON', 'CSV')
             Write-Info "  → $($script:CISCompliance.TotalControls) CIS controls assessed"
         }
     }
 
     # HTML Export
     if ($OutputFormat -in @('All', 'HTML')) {
-        $htmlPath = Join-Path $OutputPath "$baseFileName.html"
-        Export-HTMLReport -Results $script:AssessmentResults -OutputPath $htmlPath
+        $templatePath = Join-Path $PSScriptRoot "templates\report-template.html"
+        $htmlPath = "${basePath}.html"
+        
+        Export-HtmlReport -Results $script:AssessmentResults `
+            -OutputPath $htmlPath `
+            -TenantInfo $script:TenantInfo `
+            -SecurityScore $script:SecurityScore `
+            -BaselineComparison $script:BaselineComparison `
+            -TemplatePath $templatePath
+        
         Write-Success "HTML report: $htmlPath"
     }
 }
 
-function Export-HTMLReport {
-    param(
-        [Parameter(Mandatory = $true)]
-        [array]$Results,
-        
-        [Parameter(Mandatory = $true)]
-        [string]$OutputPath
-    )
+#endregion
 
-    $html = Get-HTMLTemplate
-    
-    # Calculate statistics
-    $totalChecks = $Results.Count
-    $passCount = ($Results | Where-Object { $_.Status -eq 'Pass' }).Count
-    $failCount = ($Results | Where-Object { $_.Status -eq 'Fail' }).Count
-    $warnCount = ($Results | Where-Object { $_.Status -eq 'Warning' }).Count
-    $infoCount = ($Results | Where-Object { $_.Status -eq 'Info' }).Count
-    $passPercentage = if ($totalChecks -gt 0) { [math]::Round(($passCount / $totalChecks) * 100, 1) } else { 0 }
-
-    # Calculate severity distribution for chart
-    $severityCounts = @{
-        'Critical' = ($Results | Where-Object { $_.Severity -eq 'Critical' }).Count
-        'High' = ($Results | Where-Object { $_.Severity -eq 'High' }).Count
-        'Medium' = ($Results | Where-Object { $_.Severity -eq 'Medium' }).Count
-        'Low' = ($Results | Where-Object { $_.Severity -eq 'Low' }).Count
-        'Info' = ($Results | Where-Object { $_.Severity -eq 'Info' }).Count
-    }
-    
-    # Build arrays for Chart.js (only include severities with counts > 0)
-    $severityLabels = @()
-    $severityValues = @()
-    foreach ($severity in @('Critical', 'High', 'Medium', 'Low', 'Info')) {
-        if ($severityCounts[$severity] -gt 0) {
-            $severityLabels += "'$severity'"
-            $severityValues += $severityCounts[$severity]
-        }
-    }
-    $severityLabelsJson = "[$($severityLabels -join ', ')]"
-    $severityValuesJson = "[$($severityValues -join ', ')]"
-
-    # Build results cards
-    $resultsHtml = ""
-    foreach ($result in $Results) {
-        $statusClass = $result.Status.ToLower()
-        $severityClass = $result.Severity.ToLower()
-        
-        # HTML-encode all dynamic text values for XSS protection
-        $checkNameSafe = ConvertTo-HtmlSafe $result.CheckName
-        $categorySafe = ConvertTo-HtmlSafe $result.Category
-        $statusSafe = ConvertTo-HtmlSafe $result.Status
-        $severitySafe = ConvertTo-HtmlSafe $result.Severity
-        $messageSafe = ConvertTo-HtmlSafe $result.Message
-        $recommendationSafe = ConvertTo-HtmlSafe $result.Recommendation
-        $docUrlSafe = ConvertTo-HtmlSafe $result.DocumentationUrl
-        
-        # Build detailed findings content
-        $findingContent = $messageSafe
-        
-        # For Conditional Access, show the issues table at the top before policy list
-        if ($result.CheckName -eq "Conditional Access Policies" -and $result.Findings -and $result.Findings.Count -gt 0) {
-            # Override the message with a cleaner summary
-            $findingContent = "<strong>$($result.Details.EnabledPolicies) enabled policies analyzed.</strong>"
-            
-            # Show posture score if available
-            if ($null -ne $result.ConditionalAccessScore) {
-                $findingContent += " CA Posture Score: <strong>$($result.ConditionalAccessScore)%</strong> of policies have no flagged risks."
-            }
-            
-            # Count by severity
-            $criticalCount = ($result.Findings | Where-Object { $_.Severity -eq 'Critical' }).Count
-            $highCount = ($result.Findings | Where-Object { $_.Severity -eq 'High' }).Count
-            $mediumCount = ($result.Findings | Where-Object { $_.Severity -eq 'Medium' }).Count
-            
-            $findingContent += "<br><br><div style='background: #fdf6ec; border-left: 4px solid #ffb900; padding: 12px; margin: 10px 0; border-radius: 4px;'>"
-            $findingContent += "<strong style='font-size: 14px;'>⚠ $($result.Findings.Count) Security Gaps Identified</strong>"
-            if ($criticalCount -gt 0 -or $highCount -gt 0) {
-                $findingContent += "<span style='margin-left: 15px;'>"
-                if ($criticalCount -gt 0) { $findingContent += "<span style='color: #a4262c; font-weight: 600;'>$criticalCount Critical</span> " }
-                if ($highCount -gt 0) { $findingContent += "<span style='color: #d13438; font-weight: 600;'>$highCount High</span> " }
-                if ($mediumCount -gt 0) { $findingContent += "<span style='color: #8a6b0f; font-weight: 600;'>$mediumCount Medium</span>" }
-                $findingContent += "</span>"
-            }
-            $findingContent += "</div>"
-            
-            # Issues table
-            $findingContent += "<table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'>"
-            $findingContent += "<tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300); width: 90px;'>Severity</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Security Gap</td></tr>"
-            
-            # Sort by severity (Critical > High > Medium > Low)
-            $severityOrder = @{ 'Critical' = 1; 'High' = 2; 'Medium' = 3; 'Low' = 4 }
-            $sortedFindings = $result.Findings | Sort-Object { $severityOrder[$_.Severity] }
-            
-            foreach ($finding in $sortedFindings) {
-                $findingMsgSafe = ConvertTo-HtmlSafe $finding.Message
-                $findingSeveritySafe = ConvertTo-HtmlSafe $finding.Severity
-                $severityColor = switch ($finding.Severity) {
-                    'Critical' { '#a4262c' }
-                    'High' { '#d13438' }
-                    'Medium' { '#8a6b0f' }
-                    'Low' { '#0078d4' }
-                    default { 'var(--gray-700)' }
-                }
-                $severityBg = switch ($finding.Severity) {
-                    'Critical' { '#fde7e9' }
-                    'High' { '#fed9cc' }
-                    'Medium' { '#fff4ce' }
-                    'Low' { '#deecf9' }
-                    default { 'var(--gray-100)' }
-                }
-                $findingContent += "<tr>"
-                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300); background: $severityBg; color: $severityColor; font-weight: 600; text-align: center;'>$findingSeveritySafe</td>"
-                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300);'>$findingMsgSafe</td>"
-                $findingContent += "</tr>"
-            }
-            $findingContent += "</table>"
-        }
-        
-        # Handle inactive mailboxes from License Optimization
-        if ($result.InactiveMailboxes -and $result.InactiveMailboxes.Count -gt 0) {
-            $findingContent += "<br><br><strong>Inactive Licensed Users ($($result.InactiveMailboxes.Count)):</strong><br>"
-            $findingContent += "<ul>"
-            $displayCount = [Math]::Min(10, $result.InactiveMailboxes.Count)
-            for ($i = 0; $i -lt $displayCount; $i++) {
-                $mailbox = $result.InactiveMailboxes[$i]
-                $upnSafe = ConvertTo-HtmlSafe $mailbox.UserPrincipalName
-                $nameSafe = ConvertTo-HtmlSafe $mailbox.DisplayName
-                $lastSignIn = if ($mailbox.LastSignInDate -eq 'Never') { 
-                    '<span style="color: #d13438; font-weight: 600;">Never</span>' 
-                } else { 
-                    ConvertTo-HtmlSafe $mailbox.LastSignInDate
-                }
-                $daysSafe = ConvertTo-HtmlSafe $mailbox.DaysSinceLastSignIn
-                $findingContent += "<li><code>$upnSafe</code> - $nameSafe | Last: $lastSignIn ($daysSafe days ago)</li>"
-            }
-            if ($result.InactiveMailboxes.Count -gt 10) {
-                $findingContent += "<li><em>...and $($result.InactiveMailboxes.Count - 10) more users (see CSV export)</em></li>"
-            }
-            $findingContent += "</ul>"
-        }
-        
-        # Handle non-compliant mailboxes from Mailbox Auditing
-        if ($result.NonCompliantMailboxes -and $result.NonCompliantMailboxes.Count -gt 0) {
-            $findingContent += "<br><br><strong>Non-Compliant Mailboxes ($($result.NonCompliantMailboxes.Count)):</strong><br>"
-            $findingContent += "<ul>"
-            $displayCount = [Math]::Min(10, $result.NonCompliantMailboxes.Count)
-            for ($i = 0; $i -lt $displayCount; $i++) {
-                $mailbox = $result.NonCompliantMailboxes[$i]
-                $upnSafe = ConvertTo-HtmlSafe $mailbox.UserPrincipalName
-                $nameSafe = ConvertTo-HtmlSafe $mailbox.DisplayName
-                $findingContent += "<li><code>$upnSafe</code> - $nameSafe</li>"
-            }
-            if ($result.NonCompliantMailboxes.Count -gt 10) {
-                $findingContent += "<li><em>...and $($result.NonCompliantMailboxes.Count - 10) more mailboxes (see CSV export)</em></li>"
-            }
-            $findingContent += "</ul>"
-        }
-        
-        # Handle domain details from Email Authentication
-        if ($result.DomainDetails -and $result.DomainDetails.Count -gt 0) {
-            $findingContent += "<br><br><strong>Domain Email Authentication Details:</strong><br>"
-            $findingContent += "<table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'>"
-            $findingContent += "<tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>Domain</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>SPF</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>DKIM</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>DMARC</td></tr>"
-            $statusDot = @{
-                Green = "<span style='display:inline-block;width:10px;height:10px;border-radius:50%;background:#107c10;'></span>"
-                Amber = "<span style='display:inline-block;width:10px;height:10px;border-radius:50%;background:#ffb900;'></span>"
-                Red   = "<span style='display:inline-block;width:10px;height:10px;border-radius:50%;background:#d13438;'></span>"
-                Gray  = "<span style='display:inline-block;width:10px;height:10px;border-radius:50%;background:#8a8886;'></span>"
-            }
-            foreach ($domain in $result.DomainDetails) {
-                $domainSafe = ConvertTo-HtmlSafe $domain.Domain
-                $spfSafe = ConvertTo-HtmlSafe $domain.SPF
-                $dkimSafe = ConvertTo-HtmlSafe $domain.DKIM
-                $dmarcSafe = ConvertTo-HtmlSafe $domain.DMARC
-                
-                $spfIcon = switch -Regex ($domain.SPF) {
-                    "^Valid" { $statusDot.Green }
-                    "^Missing" { $statusDot.Red }
-                    "^Invalid" { $statusDot.Amber }
-                    default { $statusDot.Gray }
-                }
-                $dkimIcon = if ($domain.DKIM -eq "Enabled") { $statusDot.Green } else { $statusDot.Red }
-                $dmarcIcon = switch -Regex ($domain.DMARC) {
-                    "^Valid" { $statusDot.Green }
-                    "^Missing" { $statusDot.Red }
-                    "^Weak" { $statusDot.Amber }
-                    default { $statusDot.Gray }
-                }
-                
-                $findingContent += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'><code>$domainSafe</code></td>"
-                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300);'>$spfIcon $spfSafe</td>"
-                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300);'>$dkimIcon $dkimSafe</td>"
-                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300);'>$dmarcIcon $dmarcSafe</td></tr>"
-            }
-            $findingContent += "</table>"
-        }
-        
-        # Handle Legacy Auth block policies (with links)
-        if ($result.BlockPolicies -and $result.BlockPolicies.Count -gt 0) {
-            $caPortalBase = "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ConditionalAccessBlade/~/policyId/"
-            $findingContent += "<br><br><strong>Legacy Auth Block Policies ($($result.BlockPolicies.Count)):</strong><br>"
-            $findingContent += "<ul>"
-            foreach ($policy in $result.BlockPolicies) {
-                $policyNameSafe = ConvertTo-HtmlSafe $policy.DisplayName
-                $policyIdSafe = ConvertTo-HtmlSafe $policy.Id
-                $policyLink = "$caPortalBase$policyIdSafe"
-                $findingContent += "<li><code>$policyNameSafe</code>"
-                $findingContent += " <a href='$policyLink' target='_blank' style='margin-left:6px; font-size:12px;'>Open in Entra</a>"
-                $findingContent += " <span style='color: var(--gray-700); font-size: 12px;'>ID: <code>$policyIdSafe</code></span>"
-                $findingContent += "</li>"
-            }
-            $findingContent += "</ul>"
-        }
-
-        # Handle enabled Conditional Access policies
-        if ($result.EnabledPolicies -and $result.EnabledPolicies.Count -gt 0) {
-            $findingContent += "<br><br><strong>Enabled Conditional Access Policies ($($result.EnabledPolicies.Count)):</strong><br>"
-            $findingContent += "<ul>"
-            foreach ($policy in $result.EnabledPolicies) {
-                $policyNameSafe = ConvertTo-HtmlSafe $policy.DisplayName
-                $policyStateSafe = ConvertTo-HtmlSafe $policy.State
-                $findingContent += "<li><code>$policyNameSafe</code>"
-                if ($policy.State) {
-                    $stateColor = if ($policy.State -eq 'enabled') { 'var(--success-color)' } else { 'var(--warning-color)' }
-                    $findingContent += " - <span style='color: $stateColor; font-weight: 600;'>$policyStateSafe</span>"
-                }
-                $findingContent += "</li>"
-            }
-            $findingContent += "</ul>"
-        }
-
-        # Handle per-policy Conditional Access analysis (risks/opportunities)
-        # Note: Security gaps table is already shown at the top for CA findings
-        if ($result.PolicyFindings -and $result.PolicyFindings.Count -gt 0) {
-            $severityColors = @{
-                critical = 'var(--danger-color)'
-                high = 'var(--danger-color)'
-                medium = 'var(--warning-color)'
-                low = 'var(--info-color)'
-                info = 'var(--info-color)'
-            }
-            $caPortalBase = "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ConditionalAccessBlade/~/policyId/"
-            $caSeverityRank = {
-                param($sev)
-                if (-not $sev) { return 0 }
-                switch ($sev.ToLower()) {
-                    'critical' { return 5 }
-                    'high' { return 4 }
-                    'medium' { return 3 }
-                    'low' { return 2 }
-                    default { return 1 }
-                }
-            }
-
-            $findingContent += "<br><br><strong>Conditional Access Policy Analysis:</strong><br>"
-            $findingContent += "<ul>"
-            foreach ($analysis in $result.PolicyFindings) {
-                $policyNameSafe = ConvertTo-HtmlSafe $analysis.DisplayName
-                $policyStateSafe = ConvertTo-HtmlSafe $analysis.State
-                $policyIdSafe = ConvertTo-HtmlSafe $analysis.Id
-                $findingContent += "<li><code>$policyNameSafe</code>"
-                if ($analysis.State) {
-                    $stateColor = if ($analysis.State -eq 'enabled') { 'var(--success-color)' } elseif ($analysis.State -eq 'disabled') { 'var(--danger-color)' } else { 'var(--warning-color)' }
-                    $findingContent += " - <span style='color: $stateColor; font-weight: 600;'>$policyStateSafe</span>"
-                }
-                if ($analysis.Id) {
-                    $policyLink = "$caPortalBase$policyIdSafe"
-                    $findingContent += " <a href='$policyLink' target='_blank' style='margin-left:6px; font-size:12px;'>Open in Entra</a> <span style='color: var(--gray-700); font-size: 12px;'>ID: <code>$policyIdSafe</code></span>"
-                }
-
-                $riskList = @()
-                if ($analysis.Risks) { $riskList = $analysis.Risks | Where-Object { $_ } }
-                $opportunityList = @()
-                if ($analysis.Opportunities) { $opportunityList = $analysis.Opportunities | Where-Object { $_ } }
-
-                if ($riskList.Count -gt 0 -or $opportunityList.Count -gt 0) {
-                    $findingContent += "<br><div style='margin-top:6px;'>"
-                    if ($riskList.Count -gt 0) {
-                        $findingContent += "<div><strong>Risks:</strong><ul style='margin:4px 0 8px 16px;'>"
-                        foreach ($risk in $riskList) {
-                            $riskSafe = ConvertTo-HtmlSafe $risk.Message
-                            $riskSeveritySafe = ConvertTo-HtmlSafe $risk.Severity
-                            $riskColor = $severityColors[$riskSeveritySafe.ToLower()]
-                            if (-not $riskColor) { $riskColor = 'var(--danger-color)' }
-                            $findingContent += "<li style='color: $riskColor;'><strong>${riskSeveritySafe}:</strong> $riskSafe</li>"
-                        }
-                        $findingContent += "</ul></div>"
-                    }
-                    if ($opportunityList.Count -gt 0) {
-                        $findingContent += "<div><strong>Opportunities:</strong><ul style='margin:4px 0 8px 16px;'>"
-                        foreach ($opp in $opportunityList) {
-                            $oppSafe = ConvertTo-HtmlSafe $opp.Message
-                            $oppSeveritySafe = ConvertTo-HtmlSafe $opp.Severity
-                            $oppColor = $severityColors[$oppSeveritySafe.ToLower()]
-                            if (-not $oppColor) { $oppColor = 'var(--warning-color)' }
-                            $findingContent += "<li style='color: $oppColor;'><strong>${oppSeveritySafe}:</strong> $oppSafe</li>"
-                        }
-                        $findingContent += "</ul></div>"
-                    }
-                    $findingContent += "</div>"
-                }
-                else {
-                    $findingContent += "<br><span style='color: var(--gray-700); font-size: 13px;'>No specific risks or opportunities detected.</span>"
-                }
-
-                $findingContent += "</li>"
-            }
-            $findingContent += "</ul>"
-
-            if ($result.PolicyFindingsSummary -and (($result.PolicyFindingsSummary.Risks.Count -gt 0) -or ($result.PolicyFindingsSummary.Opportunities.Count -gt 0))) {
-                $findingContent += "<br><strong>Cross-policy highlights (deduped):</strong><br>"
-                if ($result.PolicyFindingsSummary.Risks.Count -gt 0) {
-                    $findingContent += "<div style='margin-top:4px;'><strong>Risks:</strong><ul style='margin:4px 0 8px 16px;'>"
-                    foreach ($summaryRisk in ($result.PolicyFindingsSummary.Risks | Sort-Object @{Expression={& $caSeverityRank $_.Severity};Descending=$true}, @{Expression={$_.Count};Descending=$true})) {
-                        $riskMsgSafe = ConvertTo-HtmlSafe $summaryRisk.Message
-                        $riskSeveritySafe = ConvertTo-HtmlSafe $summaryRisk.Severity
-                        $riskColor = $severityColors[$riskSeveritySafe.ToLower()]
-                        if (-not $riskColor) { $riskColor = 'var(--danger-color)' }
-                        $countSafe = ConvertTo-HtmlSafe $summaryRisk.Count
-                        $findingContent += "<li style='color: $riskColor;'><strong>$riskSeveritySafe</strong> ($countSafe policy/policies): $riskMsgSafe</li>"
-                    }
-                    $findingContent += "</ul></div>"
-                }
-                if ($result.PolicyFindingsSummary.Opportunities.Count -gt 0) {
-                    $findingContent += "<div style='margin-top:4px;'><strong>Opportunities:</strong><ul style='margin:4px 0 8px 16px;'>"
-                    foreach ($summaryOpp in ($result.PolicyFindingsSummary.Opportunities | Sort-Object @{Expression={& $caSeverityRank $_.Severity};Descending=$true}, @{Expression={$_.Count};Descending=$true})) {
-                        $oppMsgSafe = ConvertTo-HtmlSafe $summaryOpp.Message
-                        $oppSeveritySafe = ConvertTo-HtmlSafe $summaryOpp.Severity
-                        $oppColor = $severityColors[$oppSeveritySafe.ToLower()]
-                        if (-not $oppColor) { $oppColor = 'var(--warning-color)' }
-                        $countSafe = ConvertTo-HtmlSafe $summaryOpp.Count
-                        $findingContent += "<li style='color: $oppColor;'><strong>$oppSeveritySafe</strong> ($countSafe policy/policies): $oppMsgSafe</li>"
-                    }
-                    $findingContent += "</ul></div>"
-                }
-            }
-        }
-        
-        # Handle privileged accounts from Privileged Account Security
-        if ($result.PrivilegedAccounts -and $result.PrivilegedAccounts.Count -gt 0) {
-            $findingContent += "<br><br><strong>Privileged Accounts ($($result.PrivilegedAccounts.Count)):</strong><br>"
-            $findingContent += "<table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'>"
-            $findingContent += "<tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>User Principal Name</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Roles</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>MFA Status</td></tr>"
-            foreach ($account in $result.PrivilegedAccounts) {
-                $accountUpnSafe = ConvertTo-HtmlSafe $account.UserPrincipalName
-                $mfaIcon = if ($account.HasMFA) { "✅ Enabled" } else { "❌ Not Enabled" }
-                $mfaColor = if ($account.HasMFA) { 'var(--success-color)' } else { 'var(--danger-color)' }
-                $rolesSafe = ($account.Roles | ForEach-Object { ConvertTo-HtmlSafe $_ }) -join ', '
-                $findingContent += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'><code>$accountUpnSafe</code></td>"
-                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300); font-size: 12px;'>$rolesSafe</td>"
-                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300); color: $mfaColor; font-weight: 600;'>$mfaIcon</td></tr>"
-            }
-            $findingContent += "</table>"
-        }
-        
-        # Handle Microsoft Secure Score details
-        if ($result.SecureScore -and $result.MaxScore) {
-            $scorePercent = [math]::Round(($result.SecureScore / $result.MaxScore) * 100, 1)
-            $scoreColor = if ($scorePercent -ge 80) { 'var(--success-color)' } elseif ($scorePercent -ge 60) { 'var(--warning-color)' } else { 'var(--danger-color)' }
-            $findingContent += "<br><br><div style='text-align: center; padding: 20px; background: var(--gray-100); border-radius: 8px;'>"
-            $findingContent += "<div style='font-size: 48px; font-weight: 700; color: $scoreColor;'>$($result.SecureScore) / $($result.MaxScore)</div>"
-            $findingContent += "<div style='font-size: 18px; color: var(--gray-700); margin-top: 4px;'>Secure Score ($scorePercent%)</div>"
-            $findingContent += "</div>"
-            
-            # Show category breakdown if available
-            if ($result.CategoryBreakdown -and $result.CategoryBreakdown.Count -gt 0) {
-                $findingContent += "<br><strong>Score by Category:</strong><br>"
-                $findingContent += "<table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'>"
-                $findingContent += "<tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>Category</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Score</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Max</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>%</td></tr>"
-                foreach ($cat in $result.CategoryBreakdown) {
-                    $catNameSafe = ConvertTo-HtmlSafe $cat.Category
-                    $catPct = if ($cat.MaxScore -gt 0) { [math]::Round(($cat.Score / $cat.MaxScore) * 100, 0) } else { 0 }
-                    $catColor = if ($catPct -ge 80) { 'var(--success-color)' } elseif ($catPct -ge 60) { 'var(--warning-color)' } else { 'var(--danger-color)' }
-                    $findingContent += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'>$catNameSafe</td>"
-                    $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300);'>$($cat.Score)</td>"
-                    $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300);'>$($cat.MaxScore)</td>"
-                    $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300); color: $catColor; font-weight: 600;'>$catPct%</td></tr>"
-                }
-                $findingContent += "</table>"
-            }
-            
-            # Show top improvement actions
-            if ($result.TopActions -and $result.TopActions.Count -gt 0) {
-                $findingContent += "<br><strong>Top Improvement Actions ($($result.TopActions.Count)):</strong><br>"
-                $findingContent += "<table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'>"
-                $findingContent += "<tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>Action</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Category</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Points</td></tr>"
-                foreach ($action in $result.TopActions) {
-                    $actionTitleSafe = ConvertTo-HtmlSafe $action.Title
-                    $actionCatSafe = ConvertTo-HtmlSafe $action.Category
-                    $actionPoints = $action.ScoreInPercentage
-                    $findingContent += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'>$actionTitleSafe</td>"
-                    $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300);'>$actionCatSafe</td>"
-                    $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300); color: var(--info-color); font-weight: 600;'>+$actionPoints</td></tr>"
-                }
-                $findingContent += "</table>"
-            }
-        }
-        
-        # Handle Risky Apps from Application Permission Audit
-        if ($result.RiskyApps -and $result.RiskyApps.Count -gt 0) {
-            $findingContent += "<br><br><strong>Risky Applications ($($result.RiskyApps.Count)):</strong><br>"
-            $findingContent += "<table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'>"
-            $findingContent += "<tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>Application</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Type</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Risk Reasons</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>High-Risk Permissions</td></tr>"
-            $displayCount = [Math]::Min(15, $result.RiskyApps.Count)
-            for ($i = 0; $i -lt $displayCount; $i++) {
-                $app = $result.RiskyApps[$i]
-                $appNameSafe = ConvertTo-HtmlSafe $app.DisplayName
-                $appTypeSafe = ConvertTo-HtmlSafe $app.Type
-                $riskReasonsSafe = ($app.RiskReasons | ForEach-Object { ConvertTo-HtmlSafe $_ }) -join '<br>'
-                $permsSafe = ($app.HighRiskPermissions | ForEach-Object { ConvertTo-HtmlSafe $_ }) -join ', '
-                if (-not $permsSafe) { $permsSafe = '-' }
-                $findingContent += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'><code>$appNameSafe</code></td>"
-                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300);'>$appTypeSafe</td>"
-                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300); color: var(--danger-color);'>$riskReasonsSafe</td>"
-                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300); font-size: 11px;'>$permsSafe</td></tr>"
-            }
-            if ($result.RiskyApps.Count -gt 15) {
-                $findingContent += "<tr><td colspan='4' style='padding: 8px; border: 1px solid var(--gray-300); font-style: italic; text-align: center;'>...and $($result.RiskyApps.Count - 15) more apps (see CSV export)</td></tr>"
-            }
-            $findingContent += "</table>"
-        }
-        
-        # Handle Email Security Configuration details
-        if ($result.CheckName -eq "Email Security Configuration" -and $result.Findings -and $result.Findings.Count -gt 0) {
-            $findingContent += "<br><br><strong>Email Security Settings:</strong><br>"
-            $findingContent += "<table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'>"
-            $findingContent += "<tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>Protection Layer</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Status</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Risk Level</td></tr>"
-            
-            foreach ($finding in $result.Findings) {
-                $settingSafe = ConvertTo-HtmlSafe $finding.Setting
-                $valueSafe = ConvertTo-HtmlSafe $finding.Value
-                $riskSafe = ConvertTo-HtmlSafe $finding.Risk
-                $riskColor = switch ($finding.Risk) {
-                    'High' { 'var(--danger-color)' }
-                    'Medium' { 'var(--warning-color)' }
-                    'Low' { 'var(--success-color)' }
-                    default { 'var(--gray-700)' }
-                }
-                $statusIcon = switch ($finding.Value) {
-                    { $_ -like 'Enabled*' } { '✅' }
-                    'Not Configured' { '❌' }
-                    default { '⚪' }
-                }
-                $riskIcon = switch ($finding.Risk) {
-                    'High' { '🔴' }
-                    'Medium' { '🟡' }
-                    'Low' { '🟢' }
-                    default { '⚪' }
-                }
-                $findingContent += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'>$settingSafe</td>"
-                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300);'>$statusIcon <code>$valueSafe</code></td>"
-                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300); color: $riskColor; font-weight: 600;'>$riskIcon $riskSafe</td></tr>"
-            }
-            $findingContent += "</table>"
-            
-            # Display issues as a bulleted list
-            if ($result.Issues -and $result.Issues.Count -gt 0) {
-                $findingContent += "<br><strong>Issues Identified ($($result.Issues.Count)):</strong><br>"
-                $findingContent += "<ul style='margin: 8px 0 0 0; padding-left: 20px;'>"
-                foreach ($issue in $result.Issues) {
-                    $issueSafe = ConvertTo-HtmlSafe $issue
-                    $findingContent += "<li style='color: var(--warning-color); margin-bottom: 4px;'>$issueSafe</li>"
-                }
-                $findingContent += "</ul>"
-            }
-        }
-        
-        # Handle External Sharing configuration details
-        if ($result.CheckName -eq "External Sharing Configuration" -and $result.Findings -and $result.Findings.Count -gt 0) {
-            $findingContent += "<br><br><strong>External Sharing Settings Analysis:</strong><br>"
-            $findingContent += "<table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'>"
-            $findingContent += "<tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>Setting</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Current Value</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Risk Level</td></tr>"
-            
-            foreach ($finding in $result.Findings) {
-                $settingSafe = ConvertTo-HtmlSafe $finding.Setting
-                $valueSafe = ConvertTo-HtmlSafe $finding.Value
-                $riskSafe = ConvertTo-HtmlSafe $finding.Risk
-                $riskColor = switch ($finding.Risk) {
-                    'High' { 'var(--danger-color)' }
-                    'Medium' { 'var(--warning-color)' }
-                    'Low' { 'var(--success-color)' }
-                    default { 'var(--gray-700)' }
-                }
-                $riskIcon = switch ($finding.Risk) {
-                    'High' { '🔴' }
-                    'Medium' { '🟡' }
-                    'Low' { '🟢' }
-                    default { '⚪' }
-                }
-                $findingContent += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'>$settingSafe</td>"
-                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300);'><code>$valueSafe</code></td>"
-                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300); color: $riskColor; font-weight: 600;'>$riskIcon $riskSafe</td></tr>"
-            }
-            $findingContent += "</table>"
-            
-            # Display issues as a bulleted list
-            if ($result.Issues -and $result.Issues.Count -gt 0) {
-                $findingContent += "<br><strong>Issues Identified ($($result.Issues.Count)):</strong><br>"
-                $findingContent += "<ul style='margin: 8px 0 0 0; padding-left: 20px;'>"
-                foreach ($issue in $result.Issues) {
-                    $issueSafe = ConvertTo-HtmlSafe $issue
-                    $findingContent += "<li style='color: var(--warning-color); margin-bottom: 4px;'>$issueSafe</li>"
-                }
-                $findingContent += "</ul>"
-            }
-        }
-        elseif ($result.SharingCapability) {
-            $findingContent += "<br><br><strong>SharePoint/OneDrive External Sharing Configuration:</strong><br>"
-            $findingContent += "<table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'>"
-            $findingContent += "<tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>Setting</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Value</td></tr>"
-            
-            $sharingCapSafe = ConvertTo-HtmlSafe $result.SharingCapability
-            $sharingColor = switch ($result.SharingCapability) {
-                'Disabled' { 'var(--success-color)' }
-                'ExternalUserSharingOnly' { 'var(--warning-color)' }
-                'ExternalUserAndGuestSharing' { 'var(--warning-color)' }
-                'ExistingExternalUserSharingOnly' { 'var(--info-color)' }
-                default { 'var(--danger-color)' }
-            }
-            $findingContent += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'>Sharing Capability</td><td style='padding: 8px; border: 1px solid var(--gray-300); color: $sharingColor; font-weight: 600;'>$sharingCapSafe</td></tr>"
-            
-            if ($null -ne $result.AnonLinksEnabled) {
-                $anonIcon = if ($result.AnonLinksEnabled) { "❌ Enabled" } else { "✅ Disabled" }
-                $anonColor = if ($result.AnonLinksEnabled) { 'var(--danger-color)' } else { 'var(--success-color)' }
-                $findingContent += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'>Anonymous Links</td><td style='padding: 8px; border: 1px solid var(--gray-300); color: $anonColor; font-weight: 600;'>$anonIcon</td></tr>"
-            }
-            
-            if ($result.DefaultLinkType) {
-                $linkTypeSafe = ConvertTo-HtmlSafe $result.DefaultLinkType
-                $findingContent += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'>Default Link Type</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>$linkTypeSafe</td></tr>"
-            }
-            
-            if ($result.DefaultLinkPermission) {
-                $linkPermSafe = ConvertTo-HtmlSafe $result.DefaultLinkPermission
-                $findingContent += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'>Default Link Permission</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>$linkPermSafe</td></tr>"
-            }
-            
-            if ($null -ne $result.RequireAcceptingAccount) {
-                $reqAcctIcon = if ($result.RequireAcceptingAccount) { "✅ Required" } else { "⚠️ Not Required" }
-                $reqAcctColor = if ($result.RequireAcceptingAccount) { 'var(--success-color)' } else { 'var(--warning-color)' }
-                $findingContent += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'>Require Accepting Account</td><td style='padding: 8px; border: 1px solid var(--gray-300); color: $reqAcctColor; font-weight: 600;'>$reqAcctIcon</td></tr>"
-            }
-            
-            if ($result.AllowedDomains -and $result.AllowedDomains.Count -gt 0) {
-                $domainsSafe = ($result.AllowedDomains | ForEach-Object { ConvertTo-HtmlSafe $_ }) -join ', '
-                $findingContent += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'>Allowed Domains</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>$domainsSafe</td></tr>"
-            }
-            
-            if ($result.BlockedDomains -and $result.BlockedDomains.Count -gt 0) {
-                $blockedSafe = ($result.BlockedDomains | ForEach-Object { ConvertTo-HtmlSafe $_ }) -join ', '
-                $findingContent += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'>Blocked Domains</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>$blockedSafe</td></tr>"
-            }
-            
-            $findingContent += "</table>"
-        }
-        
-        # Build structured recommendations for Conditional Access
-        $recommendationContent = $recommendationSafe
-        if ($result.CheckName -eq "Conditional Access Policies" -and $result.Recommendations -and $result.Recommendations.Count -gt 0) {
-            $recommendationContent = "<strong>Actionable Recommendations ($($result.Recommendations.Count)):</strong>"
-            $recommendationContent += "<ol style='margin: 10px 0 0 0; padding-left: 20px;'>"
-            $recNumber = 1
-            foreach ($rec in $result.Recommendations) {
-                $recSafe = ConvertTo-HtmlSafe $rec
-                $recommendationContent += "<li style='margin-bottom: 8px; line-height: 1.5;'>$recSafe</li>"
-                $recNumber++
-            }
-            $recommendationContent += "</ol>"
-        }
-        
-        # Build finding card HTML
-        $resultsHtml += @"
-<div class="finding-card" data-status="$statusClass">
-    <div class="finding-header">
-        <div class="finding-title-group">
-            <div class="finding-name">$checkNameSafe</div>
-            <div class="finding-badges">
-                <span class="badge badge-category">$categorySafe</span>
-                <span class="badge badge-status-$statusClass">$statusSafe</span>
-                <span class="badge badge-severity-$severityClass">$severitySafe</span>
-            </div>
-        </div>
-    </div>
-    <div class="finding-body">
-        <div class="finding-section">
-            <div class="finding-label">Finding</div>
-            <div class="finding-content">$findingContent</div>
-        </div>
-        <div class="finding-section">
-            <div class="finding-label">Recommendation</div>
-            <div class="finding-content">$recommendationContent</div>
-        </div>
-        <div class="finding-section">
-            <a href="$docUrlSafe" target="_blank" class="doc-link">
-                <span>📘</span>
-                <span>View Documentation</span>
-            </a>
-        </div>
-    </div>
-</div>
-
-"@
-    }
-    
-    # Add empty state if no results
-    if ($Results.Count -eq 0) {
-        $resultsHtml = @"
-<div class="empty-state">
-    <div class="empty-state-icon">📋</div>
-    <div class="empty-state-text">No assessment results found</div>
-</div>
-"@
-    }
-
-    # Replace placeholders (encode tenant name for safety)
-    $tenantName = if ($script:TenantInfo) { $script:TenantInfo.DisplayName } else { "Not Connected" }
-    $tenantNameSafe = ConvertTo-HtmlSafe $tenantName
-    
-    # Build security score HTML section
-    $securityScoreHtml = ""
-    if ($script:SecurityScore) {
-        $score = $script:SecurityScore
-        $gradeClass = switch ($score.LetterGrade) {
-            "A" { "grade-a" }
-            "B" { "grade-b" }
-            "C" { "grade-c" }
-            "D" { "grade-d" }
-            default { "grade-f" }
-        }
-        
-        # Build category breakdown
-        $categoryHtml = ""
-        foreach ($cat in $score.CategoryBreakdown) {
-            $catGradeClass = switch ($cat.Grade) {
-                "A" { "grade-a" }
-                "B" { "grade-b" }
-                "C" { "grade-c" }
-                "D" { "grade-d" }
-                default { "grade-f" }
-            }
-            $categoryHtml += @"
-            <div class="score-category">
-                <div class="score-category-name">$(ConvertTo-HtmlSafe $cat.Category)</div>
-                <div class="score-category-bar">
-                    <div class="score-category-fill $catGradeClass" style="width: $($cat.Score)%"></div>
-                </div>
-                <div class="score-category-value">$($cat.Score)%</div>
-            </div>
-"@
-        }
-        
-        # Build priorities list
-        $prioritiesHtml = ""
-        if ($score.TopPriorities.Count -gt 0) {
-            $prioritiesHtml = "<div class='priorities-section'><h4>🎯 Top Priorities</h4><ul>"
-            foreach ($priority in $score.TopPriorities) {
-                $prioritiesHtml += "<li><span class='priority-severity $($priority.Severity.ToLower())'>$($priority.Severity)</span> $(ConvertTo-HtmlSafe $priority.CheckName) <span class='priority-gain'>+$($priority.PotentialGain) pts</span></li>"
-            }
-            $prioritiesHtml += "</ul></div>"
-        }
-        
-        # Build quick wins list
-        $quickWinsHtml = ""
-        if ($score.QuickWins.Count -gt 0) {
-            $quickWinsHtml = "<div class='quickwins-section'><h4>⚡ Quick Wins</h4><ul>"
-            foreach ($win in $score.QuickWins) {
-                $quickWinsHtml += "<li>$(ConvertTo-HtmlSafe $win.CheckName) <span class='priority-gain'>+$($win.PotentialGain) pts</span></li>"
-            }
-            $quickWinsHtml += "</ul></div>"
-        }
-        
-        $securityScoreHtml = @"
-        <div class="security-score-dashboard">
-            <h2 class="summary-title">🛡️ Tenant Security Score</h2>
-            <div class="score-main-display">
-                <div class="score-circle $gradeClass">
-                    <div class="score-value">$($score.OverallScore)%</div>
-                    <div class="score-grade">Grade: $($score.LetterGrade)</div>
-                </div>
-                <div class="score-details">
-                    <div class="score-description">$(ConvertTo-HtmlSafe $score.GradeDescription)</div>
-                    <div class="score-potential">
-                        <span class="potential-label">Potential Score:</span>
-                        <span class="potential-value">$($score.PotentialScore)%</span>
-                        <span class="potential-gain">(+$($score.PotentialImprovement) pts available)</span>
-                    </div>
-                </div>
-            </div>
-            <div class="score-categories">
-                <h3>Category Breakdown</h3>
-                $categoryHtml
-            </div>
-            <div class="score-actions-grid">
-                $prioritiesHtml
-                $quickWinsHtml
-            </div>
-        </div>
-"@
-    }
-    
-    # Build baseline comparison HTML section
-    $baselineComparisonHtml = ""
-    if ($script:BaselineComparison) {
-        $comparison = $script:BaselineComparison
-        
-        # Determine trend styling
-        $trendClass = switch ($comparison.OverallTrend) {
-            "Improving" { "improving" }
-            "Declining" { "declining" }
-            default { "stable" }
-        }
-        $trendIcon = switch ($comparison.OverallTrend) {
-            "Improving" { "📈" }
-            "Declining" { "📉" }
-            default { "➡️" }
-        }
-        
-        # Format baseline date - use correct property names from comparison object
-        $baselineDate = if ($comparison.BaselineDate) {
-            try { [datetime]::Parse($comparison.BaselineDate).ToString("yyyy-MM-dd HH:mm") } catch { $comparison.BaselineDate }
-        } else { "Unknown" }
-        $baselineName = if ($comparison.BaselineName) { ConvertTo-HtmlSafe $comparison.BaselineName } else { "Baseline" }
-        
-        # Score delta formatting - use SecurityScoreComparison
-        $scoreDelta = if ($comparison.SecurityScoreComparison) { $comparison.SecurityScoreComparison.Delta } else { 0 }
-        $scoreDeltaClass = if ($scoreDelta -gt 0) { "positive" } elseif ($scoreDelta -lt 0) { "negative" } else { "neutral" }
-        $scoreDeltaSign = if ($scoreDelta -gt 0) { "+" } else { "" }
-        
-        $currentScore = if ($comparison.SecurityScoreComparison -and $null -ne $comparison.SecurityScoreComparison.CurrentScore) { "$($comparison.SecurityScoreComparison.CurrentScore)%" } else { "N/A" }
-        $baselineScore = if ($comparison.SecurityScoreComparison -and $null -ne $comparison.SecurityScoreComparison.BaselineScore) { "$($comparison.SecurityScoreComparison.BaselineScore)%" } else { "N/A" }
-        
-        # CIS compliance deltas - use CISComplianceComparison
-        $cisL1Delta = if ($comparison.CISComplianceComparison -and $comparison.CISComplianceComparison.Level1) { $comparison.CISComplianceComparison.Level1.Delta } else { 0 }
-        $cisL2Delta = if ($comparison.CISComplianceComparison -and $comparison.CISComplianceComparison.Level2) { $comparison.CISComplianceComparison.Level2.Delta } else { 0 }
-        $cisL1DeltaClass = if ($cisL1Delta -gt 0) { "positive" } elseif ($cisL1Delta -lt 0) { "negative" } else { "neutral" }
-        $cisL2DeltaClass = if ($cisL2Delta -gt 0) { "positive" } elseif ($cisL2Delta -lt 0) { "negative" } else { "neutral" }
-        $cisL1DeltaSign = if ($cisL1Delta -gt 0) { "+" } else { "" }
-        $cisL2DeltaSign = if ($cisL2Delta -gt 0) { "+" } else { "" }
-        
-        $currentL1 = if ($comparison.CISComplianceComparison -and $comparison.CISComplianceComparison.Level1 -and $null -ne $comparison.CISComplianceComparison.Level1.Current) { "$($comparison.CISComplianceComparison.Level1.Current)%" } else { "N/A" }
-        $currentL2 = if ($comparison.CISComplianceComparison -and $comparison.CISComplianceComparison.Level2 -and $null -ne $comparison.CISComplianceComparison.Level2.Current) { "$($comparison.CISComplianceComparison.Level2.Current)%" } else { "N/A" }
-        
-        # Build improvements list - use PreviousStatus instead of BaselineStatus
-        $improvementsHtml = ""
-        if ($comparison.Improvements -and $comparison.Improvements.Count -gt 0) {
-            $improvementsHtml = "<ul class='baseline-change-list'>"
-            foreach ($imp in $comparison.Improvements) {
-                $checkNameSafe = ConvertTo-HtmlSafe $imp.CheckName
-                $improvementsHtml += @"
-                <li class='baseline-change-item'>
-                    <span class='baseline-change-name'>$checkNameSafe</span>
-                    <span class='baseline-change-status'>
-                        <span style='color: #d13438;'>$($imp.PreviousStatus)</span>
-                        →
-                        <span style='color: #107c10;'>$($imp.CurrentStatus)</span>
-                    </span>
-                </li>
-"@
-            }
-            $improvementsHtml += "</ul>"
-        } else {
-            $improvementsHtml = "<div class='baseline-empty'>No improvements detected</div>"
-        }
-        
-        # Build regressions list - use PreviousStatus instead of BaselineStatus
-        $regressionsHtml = ""
-        if ($comparison.Regressions -and $comparison.Regressions.Count -gt 0) {
-            $regressionsHtml = "<ul class='baseline-change-list'>"
-            foreach ($reg in $comparison.Regressions) {
-                $checkNameSafe = ConvertTo-HtmlSafe $reg.CheckName
-                $regressionsHtml += @"
-                <li class='baseline-change-item'>
-                    <span class='baseline-change-name'>$checkNameSafe</span>
-                    <span class='baseline-change-status'>
-                        <span style='color: #107c10;'>$($reg.PreviousStatus)</span>
-                        →
-                        <span style='color: #d13438;'>$($reg.CurrentStatus)</span>
-                    </span>
-                </li>
-"@
-            }
-            $regressionsHtml += "</ul>"
-        } else {
-            $regressionsHtml = "<div class='baseline-empty'>No regressions detected</div>"
-        }
-        
-        $baselineComparisonHtml = @"
-        <div class="baseline-comparison-section">
-            <div class="baseline-header">
-                <div>
-                    <h2 class="baseline-title">📊 Baseline Comparison</h2>
-                    <div class="baseline-meta">Comparing to: <strong>$baselineName</strong> (saved $baselineDate)</div>
-                </div>
-                <div class="baseline-trend $trendClass">
-                    <span class="baseline-trend-icon">$trendIcon</span>
-                    <span>$($comparison.OverallTrend)</span>
-                </div>
-            </div>
-            
-            <div class="baseline-score-comparison">
-                <div class="baseline-score-card">
-                    <div class="baseline-score-label">Security Score</div>
-                    <div class="baseline-score-value">$currentScore</div>
-                    <div class="baseline-score-delta $scoreDeltaClass">$scoreDeltaSign$scoreDelta pts vs baseline</div>
-                </div>
-                <div class="baseline-score-card">
-                    <div class="baseline-score-label">CIS Level 1</div>
-                    <div class="baseline-score-value">$currentL1</div>
-                    <div class="baseline-score-delta $cisL1DeltaClass">$cisL1DeltaSign$cisL1Delta% vs baseline</div>
-                </div>
-                <div class="baseline-score-card">
-                    <div class="baseline-score-label">CIS Level 2</div>
-                    <div class="baseline-score-value">$currentL2</div>
-                    <div class="baseline-score-delta $cisL2DeltaClass">$cisL2DeltaSign$cisL2Delta% vs baseline</div>
-                </div>
-                <div class="baseline-score-card">
-                    <div class="baseline-score-label">Checks Changed</div>
-                    <div class="baseline-score-value">$($comparison.Summary.TotalChanges)</div>
-                    <div class="baseline-score-delta neutral">of $($comparison.Summary.TotalChecksCompared) total</div>
-                </div>
-            </div>
-            
-            <div class="baseline-changes-grid">
-                <div class="baseline-change-card">
-                    <div class="baseline-change-header improvements">
-                        ✅ Improvements ($($comparison.Summary.TotalImprovements))
-                    </div>
-                    $improvementsHtml
-                </div>
-                <div class="baseline-change-card">
-                    <div class="baseline-change-header regressions">
-                        ❌ Regressions ($($comparison.Summary.TotalRegressions))
-                    </div>
-                    $regressionsHtml
-                </div>
-            </div>
-        </div>
-"@
-    }
-    
-    $html = $html -replace '{{TENANT_NAME}}', $tenantNameSafe
-    $html = $html -replace '{{ASSESSMENT_DATE}}', (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
-    $html = $html -replace '{{TOTAL_CHECKS}}', $totalChecks
-    $html = $html -replace '{{PASS_COUNT}}', $passCount
-    $html = $html -replace '{{FAIL_COUNT}}', $failCount
-    $html = $html -replace '{{WARN_COUNT}}', $warnCount
-    $html = $html -replace '{{INFO_COUNT}}', $infoCount
-    $html = $html -replace '{{PASS_PERCENTAGE}}', $passPercentage
-    $html = $html -replace '{{SEVERITY_LABELS}}', $severityLabelsJson
-    $html = $html -replace '{{SEVERITY_COUNTS}}', $severityValuesJson
-    $html = $html -replace '{{SECURITY_SCORE_SECTION}}', $securityScoreHtml
-    $html = $html -replace '{{BASELINE_COMPARISON_SECTION}}', $baselineComparisonHtml
-    $html = $html -replace '{{RESULTS_CARDS}}', $resultsHtml
-
-    $html | Out-File $OutputPath -Encoding UTF8
-}
+#region Helper Functions
 
 function Get-HTMLTemplate {
     <#
@@ -1723,20 +755,20 @@ function Get-HTMLTemplate {
     </style>
 </head>
 <body>
-    <h1>M365 Security Assessment Report</h1>
     <div class="error">
-        <h2>Template Error</h2>
-        <p>The HTML report template file was not found. Please ensure the file exists at:</p>
-        <code>templates/report-template.html</code>
+        <h1>Template Not Found</h1>
+        <p>The HTML report template file was not found at: templates/report-template.html</p>
+        <p>Please ensure the template file exists in the correct location.</p>
     </div>
-    <h2>Results Summary</h2>
-    <p>Total Checks: {{TOTAL_CHECKS}} | Passed: {{PASS_COUNT}} | Failed: {{FAIL_COUNT}} | Warnings: {{WARN_COUNT}}</p>
-    {{RESULTS_CARDS}}
 </body>
 </html>
 '@
     }
 }
+
+#endregion
+
+#region Post-Assessment Functions
 
 function Disconnect-M365Services {
     Write-Step "Disconnecting from Microsoft 365 services..."
@@ -1894,89 +926,45 @@ function Invoke-BaselineComparison {
             }
         }
         
-        # Compare to baseline if specified
-        if ($CompareToBaseline) {
-            Write-Step "Comparing to baseline..."
+        # Compare against baseline if one is specified or available
+        $effectiveBaseline = if ($CompareToBaseline) { $CompareToBaseline } else { Get-LatestBaseline -BaselinePath $BaselinePath }
+        
+        if ($effectiveBaseline -and (Test-Path $effectiveBaseline)) {
+            Write-Step "Comparing against baseline: $(Split-Path $effectiveBaseline -Leaf)"
             
-            # If path is just a name, look in baselines folder
-            $baselineToLoad = $CompareToBaseline
-            if (-not (Test-Path $baselineToLoad)) {
-                # Try to find in baselines folder
-                $possiblePaths = @(
-                    (Join-Path $BaselinePath $CompareToBaseline),
-                    (Join-Path $BaselinePath "$CompareToBaseline.json"),
-                    (Get-ChildItem -Path $BaselinePath -Filter "*$CompareToBaseline*.json" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName)
-                )
+            $script:BaselineComparison = Compare-ToBaseline -Results $script:AssessmentResults -BaselinePath $effectiveBaseline
+            
+            if ($script:BaselineComparison) {
+                # Display comparison summary
+                $comparisonReport = Format-BaselineComparisonReport -ComparisonResult $script:BaselineComparison
+                Write-Information $comparisonReport -InformationAction Continue
                 
-                foreach ($path in $possiblePaths) {
-                    if ($path -and (Test-Path $path)) {
-                        $baselineToLoad = $path
-                        break
+                $improved = $script:BaselineComparison.Improved.Count
+                $regressed = $script:BaselineComparison.Regressed.Count
+                $new = $script:BaselineComparison.NewChecks.Count
+                $removed = $script:BaselineComparison.RemovedChecks.Count
+                
+                $summaryParts = @()
+                if ($improved -gt 0) { $summaryParts += "$improved improved" }
+                if ($regressed -gt 0) { $summaryParts += "$regressed regressed" }
+                if ($new -gt 0) { $summaryParts += "$new new" }
+                if ($removed -gt 0) { $summaryParts += "$removed removed" }
+                
+                $summaryText = $summaryParts -join ', '
+                if ($summaryText) {
+                    if ($regressed -gt $improved) {
+                        Write-Warning "Baseline comparison: $summaryText"
+                    } else {
+                        Write-Success "Baseline comparison: $summaryText"
                     }
+                } else {
+                    Write-Info "No significant changes from baseline"
                 }
             }
-            
-            if (-not (Test-Path $baselineToLoad)) {
-                Write-Warning "Baseline not found: $CompareToBaseline"
-                Write-Info "  Available baselines:"
-                Get-ChildItem -Path $BaselinePath -Filter "*.json" -ErrorAction SilentlyContinue | ForEach-Object {
-                    Write-Info "    → $($_.Name)"
-                }
-                return
-            }
-            
-            $baselineResult = Get-AssessmentBaseline -BaselinePath $baselineToLoad
-            
-            if (-not $baselineResult.Success) {
-                Write-Warning "Failed to load baseline: $($baselineResult.Error)"
-                return
-            }
-            
-            # Build current CIS compliance for comparison
-            $currentCIS = $null
-            if ($script:CISCompliance) {
-                $currentCIS = [PSCustomObject]@{
-                    Level1Percentage = $script:CISCompliance.Level1.Percentage
-                    Level2Percentage = $script:CISCompliance.Level2.Percentage
-                }
-            }
-            
-            # Build current security score for comparison
-            $currentScore = $null
-            if ($script:SecurityScore) {
-                $currentScore = [PSCustomObject]@{
-                    Score = $script:SecurityScore.OverallScore
-                    Grade = $script:SecurityScore.LetterGrade
-                    CategoryScores = $script:SecurityScore.CategoryDetails | ForEach-Object {
-                        [PSCustomObject]@{
-                            Category = $_.Category
-                            Score = $_.Score
-                        }
-                    }
-                }
-            }
-            
-            $script:BaselineComparison = Compare-AssessmentToBaseline `
-                -CurrentResults $script:AssessmentResults `
-                -CurrentSecurityScore $currentScore `
-                -CurrentCISCompliance $currentCIS `
-                -Baseline $baselineResult.Baseline
-            
-            # Display comparison
-            $comparisonDisplay = Format-BaselineComparison -Comparison $script:BaselineComparison
-            Write-Information $comparisonDisplay -InformationAction Continue
-            
-            # Summary line
-            $trendIcon = switch ($script:BaselineComparison.OverallTrend) {
-                "Improving" { "↑" }
-                "Declining" { "↓" }
-                default { "→" }
-            }
-            Write-Success "Baseline comparison complete: $trendIcon $($script:BaselineComparison.OverallTrend) ($($script:BaselineComparison.Summary.TotalImprovements) improvements, $($script:BaselineComparison.Summary.TotalRegressions) regressions)"
         }
     }
     catch {
-        Write-Warning "Baseline comparison error: $_"
+        Write-Warning "Baseline comparison failed: $_"
         Write-Verbose $_.ScriptStackTrace
     }
 }
