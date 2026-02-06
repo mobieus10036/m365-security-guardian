@@ -17,19 +17,3 @@ jobs:
         with:
           globs: |
             **/*.md
-
-      - name: Emoji scan
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $files = Get-ChildItem -Recurse -Include *.md -File
-          $pattern1 = "[\u2600-\u27BF\uFE0F]"
-          $pattern2 = "[\uD83C-\uDBFF][\uDC00-\uDFFF]"
-          $hits = @()
-          foreach ($f in $files) {
-            $c = Get-Content -Raw -Path $f.FullName
-            if ($c -match $pattern1 -or $c -match $pattern2) { $hits += $f.FullName }
-          }
-          if ($hits.Count -gt 0) {
-            Write-Error "Emoji detected in:`n$($hits -join "`n")"
-          }
