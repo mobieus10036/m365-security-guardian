@@ -77,7 +77,7 @@ The tool supports multiple authentication methods:
 | Method | Best For | Command |
 | ------ | -------- | ------- |
 | **Certificate** ⭐ | Recommended - Reliable & automated | `.\Start-M365Assessment.ps1` (after setup) |
-| **DeviceCode** | Terminal use, multi-tenant | `.\Start-M365Assessment.ps1 -AuthMethod DeviceCode` |
+| **DeviceCode** | Terminal use, other tenants | `.\Start-M365Assessment.ps1 -AuthMethod DeviceCode -TenantId "tenant.onmicrosoft.com"` |
 | **Interactive** | Quick browser-based runs | `.\Start-M365Assessment.ps1 -AuthMethod Interactive` |
 | **ManagedIdentity** | Azure-hosted (VMs, Functions) | `.\Start-M365Assessment.ps1 -AuthMethod ManagedIdentity` |
 
@@ -99,31 +99,18 @@ The setup creates:
 - Self-signed certificate (valid 1 year)
 - `.auth-config.json` file with saved credentials
 
-### Multi-Tenant Assessments (Consultants)
+### Assessing Other Tenants
 
-Use **authentication profiles** to save and switch between tenant configurations:
+To assess a tenant other than your default, pass explicit parameters:
 
 ```powershell
-# Save a profile for each client tenant
-.\Start-M365Assessment.ps1 -SaveProfile -Profile "Contoso" `
-    -TenantId "contoso.onmicrosoft.com" -AuthMethod Certificate `
-    -ClientId "abc-123" -CertificateThumbprint "AABB..."
+# Using device code flow (recommended for ad-hoc tenant access)
+.\Start-M365Assessment.ps1 -TenantId "other.onmicrosoft.com" -AuthMethod DeviceCode
 
-.\Start-M365Assessment.ps1 -SaveProfile -Profile "Fabrikam" `
-    -TenantId "fabrikam.onmicrosoft.com" -AuthMethod DeviceCode
-
-# List all saved profiles
-.\Start-M365Assessment.ps1 -ListProfiles
-
-# Run an assessment using a saved profile
-.\Start-M365Assessment.ps1 -Profile "Contoso"
-.\Start-M365Assessment.ps1 -Profile "Fabrikam"
-
-# Override a profile setting for a one-off run
-.\Start-M365Assessment.ps1 -Profile "Contoso" -AuthMethod DeviceCode
+# Using certificate auth (requires app registration in target tenant)
+.\Start-M365Assessment.ps1 -TenantId "other-tenant-id" -AuthMethod Certificate `
+    -ClientId "app-id" -CertificateThumbprint "thumbprint"
 ```
-
-Profiles are stored locally in `.auth-profiles/` (git-ignored) and never committed to source control.
 
 ---
 
