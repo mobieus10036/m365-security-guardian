@@ -15,6 +15,34 @@
     Created with assistance from GitHub Copilot
 #>
 
+#region Module Constants
+
+# Assessment check status values
+$script:STATUS_PASS = "Pass"
+$script:STATUS_INFO = "Info"
+$script:STATUS_WARNING = "Warning"
+$script:STATUS_FAIL = "Fail"
+
+# Change impact levels
+$script:IMPACT_MAJOR = "Major"
+$script:IMPACT_MINOR = "Minor"
+
+# Trend indicators
+$script:TREND_IMPROVING = "Improving"
+$script:TREND_DECLINING = "Declining"
+$script:TREND_STABLE = "Stable"
+
+# Status priority for comparison (higher = better)
+# Used to determine if a check has improved, regressed, or remained unchanged
+$script:STATUS_PRIORITY = @{
+    $script:STATUS_PASS = 4      # Check passed, no security issues
+    $script:STATUS_INFO = 3       # Informational, not a failure
+    $script:STATUS_WARNING = 2    # Potential issue, needs attention
+    $script:STATUS_FAIL = 1       # Check failed, security risk
+}
+
+#endregion
+
 function Save-AssessmentBaseline {
     <#
     .SYNOPSIS
@@ -64,12 +92,12 @@ function Save-AssessmentBaseline {
             # Summary metrics
             Summary = [PSCustomObject]@{
                 TotalChecks = $Results.Count
-                PassedCount = ($Results | Where-Object { $_.Status -eq "Pass" }).Count
-                WarningCount = ($Results | Where-Object { $_.Status -eq "Warning" }).Count
-                FailCount = ($Results | Where-Object { $_.Status -eq "Fail" }).Count
-                InfoCount = ($Results | Where-Object { $_.Status -eq "Info" }).Count
-                CriticalCount = ($Results | Where-Object { $_.Severity -eq "Critical" -and $_.Status -in @("Fail", "Warning") }).Count
-                HighCount = ($Results | Where-Object { $_.Severity -eq "High" -and $_.Status -in @("Fail", "Warning") }).Count
+                PassedCount = ($Results | Where-Object { $_.Status -eq $script:STATUS_PASS }).Count
+                WarningCount = ($Results | Where-Object { $_.Status -eq $script:STATUS_WARNING }).Count
+                FailCount = ($Results | Where-Object { $_.Status -eq $script:STATUS_FAIL }).Count
+                InfoCount = ($Results | Where-Object { $_.Status -eq $script:STATUS_INFO }).Count
+                CriticalCount = ($Results | Where-Object { $_.Severity -eq "Critical" -and $_.Status -in @($script:STATUS_FAIL, $script:STATUS_WARNING) }).Count
+                HighCount = ($Results | Where-Object { $_.Severity -eq "High" -and $_.Status -in @($script:STATUS_FAIL, $script:STATUS_WARNING) }).Count
             }
             
             # Security Score
@@ -252,17 +280,8 @@ function Compare-CheckChanges {
         $currentHash[$key] = $result
     }
     
-    # Status priority for comparison (higher = better)
-    # Pass=4: Check passed, no issues
-    # Info=3: Informational, not a failure
-    # Warning=2: Potential issue, needs attention
-    # Fail=1: Check failed, security risk
-    $statusPriority = @{
-        "Pass" = 4
-        "Info" = 3
-        "Warning" = 2
-        "Fail" = 1
-    }
+    # Use module-level status priority mapping
+    $statusPriority = $script:STATUS_PRIORITY
     
     $improvements = @()
     $regressions = @()
@@ -289,7 +308,7 @@ function Compare-CheckChanges {
                     PreviousSeverity = $baselineCheck.Severity
                     CurrentSeverity = $current.Severity
                     Change = "Improved"
-                    Impact = if ($current.Status -eq "Pass" -and $baselineCheck.Status -eq "Fail") { "Major" } else { "Minor" }
+                    Impact = if ($current.Status -eq $script:STATUS_PASS -and $baselineCheck.Status -eq $script:STATUS_FAIL) { $script:IMPACT_MAJOR } else { $script:IMPACT_MINOR }
                 }
             }
             elseif ($currentPriority -lt $baselinePriority) {
@@ -302,7 +321,7 @@ function Compare-CheckChanges {
                     PreviousSeverity = $baselineCheck.Severity
                     CurrentSeverity = $current.Severity
                     Change = "Regressed"
-                    Impact = if ($current.Status -eq "Fail" -and $baselineCheck.Status -eq "Pass") { "Major" } else { "Minor" }
+                    Impact = if ($current.Status -eq $script:STATUS_FAIL -and $baselineCheck.Status -eq $script:STATUS_PASS) { $script:IMPACT_MAJOR } else { $script:IMPACT_MINOR }
                 }
             }
             else {
@@ -417,7 +436,7 @@ function Compare-AssessmentToBaseline {
             Delta = $scoreDelta
             CurrentGrade = $CurrentSecurityScore.Grade
             BaselineGrade = $Baseline.SecurityScore.Grade
-            Trend = if ($scoreDelta -gt 0) { "Improving" } elseif ($scoreDelta -lt 0) { "Declining" } else { "Stable" }
+            Trend = if ($scoreDelta -gt 0) { $script:TREND_IMPROVING } elseif ($scoreDelta -lt 0) { $script:TREND_DECLINING } else { $script:TREND_STABLE }
             TrendIcon = if ($scoreDelta -gt 0) { "↑" } elseif ($scoreDelta -lt 0) { "↓" } else { "→" }
             CategoryComparisons = $categoryComparisons
         }
@@ -473,8 +492,8 @@ function Compare-AssessmentToBaseline {
             TotalChecksCompared = $improvements.Count + $regressions.Count + $unchanged.Count
             NewChecks = $newChecks.Count
             RemovedChecks = $removedChecks.Count
-            MajorImprovements = ($improvements | Where-Object { $_.Impact -eq "Major" }).Count
-            MajorRegressions = ($regressions | Where-Object { $_.Impact -eq "Major" }).Count
+            MajorImprovements = ($improvements | Where-Object { $_.Impact -eq $script:IMPACT_MAJOR }).Count
+            MajorRegressions = ($regressions | Where-Object { $_.Impact -eq $script:IMPACT_MAJOR }).Count
         }
         
         # Baseline summary for reference
@@ -483,10 +502,10 @@ function Compare-AssessmentToBaseline {
         # Current summary
         CurrentSummary = [PSCustomObject]@{
             TotalChecks = $CurrentResults.Count
-            PassedCount = ($CurrentResults | Where-Object { $_.Status -eq "Pass" }).Count
-            WarningCount = ($CurrentResults | Where-Object { $_.Status -eq "Warning" }).Count
-            FailCount = ($CurrentResults | Where-Object { $_.Status -eq "Fail" }).Count
-            InfoCount = ($CurrentResults | Where-Object { $_.Status -eq "Info" }).Count
+            PassedCount = ($CurrentResults | Where-Object { $_.Status -eq $script:STATUS_PASS }).Count
+            WarningCount = ($CurrentResults | Where-Object { $_.Status -eq $script:STATUS_WARNING }).Count
+            FailCount = ($CurrentResults | Where-Object { $_.Status -eq $script:STATUS_FAIL }).Count
+            InfoCount = ($CurrentResults | Where-Object { $_.Status -eq $script:STATUS_INFO }).Count
         }
         
         # Score comparison
@@ -504,11 +523,11 @@ function Compare-AssessmentToBaseline {
         
         # Overall trend
         OverallTrend = if ($improvements.Count -gt $regressions.Count) {
-            "Improving"
+            $script:TREND_IMPROVING
         } elseif ($regressions.Count -gt $improvements.Count) {
-            "Declining"
+            $script:TREND_DECLINING
         } else {
-            "Stable"
+            $script:TREND_STABLE
         }
     }
     
@@ -543,13 +562,13 @@ function Format-BaselineComparison {
     
     # Overall trend
     $trendIcon = switch ($Comparison.OverallTrend) {
-        "Improving" { "↑" }
-        "Declining" { "↓" }
+        $script:TREND_IMPROVING { "↑" }
+        $script:TREND_DECLINING { "↓" }
         default { "→" }
     }
     $trendColor = switch ($Comparison.OverallTrend) {
-        "Improving" { "Green" }
-        "Declining" { "Red" }
+        $script:TREND_IMPROVING { "Green" }
+        $script:TREND_DECLINING { "Red" }
         default { "Yellow" }
     }
     
