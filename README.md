@@ -101,10 +101,29 @@ The setup creates:
 
 ### Multi-Tenant Assessments (Consultants)
 
+Use **authentication profiles** to save and switch between tenant configurations:
+
 ```powershell
-# Assess a specific tenant
-.\Start-M365Assessment.ps1 -TenantId "contoso.onmicrosoft.com" -AuthMethod DeviceCode
+# Save a profile for each client tenant
+.\Start-M365Assessment.ps1 -SaveProfile -Profile "Contoso" `
+    -TenantId "contoso.onmicrosoft.com" -AuthMethod Certificate `
+    -ClientId "abc-123" -CertificateThumbprint "AABB..."
+
+.\Start-M365Assessment.ps1 -SaveProfile -Profile "Fabrikam" `
+    -TenantId "fabrikam.onmicrosoft.com" -AuthMethod DeviceCode
+
+# List all saved profiles
+.\Start-M365Assessment.ps1 -ListProfiles
+
+# Run an assessment using a saved profile
+.\Start-M365Assessment.ps1 -Profile "Contoso"
+.\Start-M365Assessment.ps1 -Profile "Fabrikam"
+
+# Override a profile setting for a one-off run
+.\Start-M365Assessment.ps1 -Profile "Contoso" -AuthMethod DeviceCode
 ```
+
+Profiles are stored locally in `.auth-profiles/` (git-ignored) and never committed to source control.
 
 ---
 

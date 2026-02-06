@@ -57,6 +57,18 @@
 .PARAMETER NoAuth
     Skip authentication (useful if already connected in the same session).
 
+.PARAMETER Profile
+    Name of a saved authentication profile to load from the .auth-profiles/ folder.
+    Use this for easy multi-tenant switching (e.g., -Profile "Contoso", -Profile "Fabrikam").
+    Profiles are saved/managed with the -SaveProfile and -ListProfiles switches.
+
+.PARAMETER SaveProfile
+    Save the current authentication parameters as a named profile for reuse.
+    Requires -Profile to specify the name. Profiles are stored in .auth-profiles/{name}.json.
+
+.PARAMETER ListProfiles
+    List all saved authentication profiles and exit.
+
 .EXAMPLE
     .\Start-M365Assessment.ps1
     Runs full assessment with default settings.
@@ -72,6 +84,18 @@
 .EXAMPLE
     .\Start-M365Assessment.ps1 -AuthMethod DeviceCode -TenantId "contoso.onmicrosoft.com"
     Uses device code flow for multi-tenant assessment (recommended for consultants).
+
+.EXAMPLE
+    .\Start-M365Assessment.ps1 -Profile "Contoso"
+    Loads saved auth profile for the Contoso tenant and runs assessment.
+
+.EXAMPLE
+    .\Start-M365Assessment.ps1 -AuthMethod Certificate -ClientId "id" -TenantId "tid" -CertificateThumbprint "tp" -SaveProfile -Profile "Contoso"
+    Saves the auth config as a reusable profile named "Contoso".
+
+.EXAMPLE
+    .\Start-M365Assessment.ps1 -ListProfiles
+    Shows all saved authentication profiles.
 
 .EXAMPLE
     .\Start-M365Assessment.ps1 -AuthMethod Certificate -ClientId "app-id" -TenantId "tenant-id" -CertificateThumbprint "thumbprint"
@@ -136,7 +160,17 @@ param(
     [string]$CompareToBaseline,
 
     [Parameter(Mandatory = $false)]
-    [string]$BaselinePath = (Join-Path $PSScriptRoot 'baselines')
+    [string]$BaselinePath = (Join-Path $PSScriptRoot 'baselines'),
+
+    # Multi-tenant profile parameters
+    [Parameter(Mandatory = $false)]
+    [string]$Profile,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$SaveProfile,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$ListProfiles
 )
 
 #Requires -Version 5.1
@@ -171,27 +205,150 @@ $script:Config = $null
 $script:TenantInfo = $null
 $script:SecurityScore = $null
 
-# Auto-load auth config if exists and no auth method specified
-$authConfigPath = Join-Path $PSScriptRoot ".auth-config.json"
-# Also check legacy .ps1 format for backward compatibility
-$legacyAuthConfigPath = Join-Path $PSScriptRoot ".auth-config.ps1"
-if ((Test-Path $authConfigPath) -and ($AuthMethod -eq 'DeviceCode') -and (-not $ClientId)) {
-    Write-Verbose "Loading saved authentication configuration from JSON..."
+# Profile directory
+$script:ProfileDir = Join-Path $PSScriptRoot '.auth-profiles'
+
+#region Profile Management Functions
+
+function Get-ProfilePath {
+    param([string]$Name)
+    # Sanitize profile name for filesystem
+    $safeName = $Name -replace '[^\w\-\.]', '_'
+    Join-Path $script:ProfileDir "$safeName.json"
+}
+
+function Show-Profiles {
+    if (-not (Test-Path $script:ProfileDir)) {
+        Write-Information "`n  No profiles found. Use -SaveProfile -Profile 'Name' to create one." -InformationAction Continue
+        return
+    }
+    $profiles = Get-ChildItem -Path $script:ProfileDir -Filter '*.json' -ErrorAction SilentlyContinue
+    if ($profiles.Count -eq 0) {
+        Write-Information "`n  No profiles found. Use -SaveProfile -Profile 'Name' to create one." -InformationAction Continue
+        return
+    }
+    Write-Information "`n  Saved Authentication Profiles:" -InformationAction Continue
+    Write-Information "  ─────────────────────────────────────────────────" -InformationAction Continue
+    foreach ($file in $profiles) {
+        try {
+            $cfg = Get-Content -Path $file.FullName -Raw | ConvertFrom-Json
+            $name = [IO.Path]::GetFileNameWithoutExtension($file.Name)
+            $tenant = if ($cfg.TenantId) { $cfg.TenantId } else { '(not set)' }
+            $method = if ($cfg.AuthMethod) { $cfg.AuthMethod } else { 'DeviceCode' }
+            $client = if ($cfg.ClientId) { $cfg.ClientId.Substring(0, [Math]::Min(8, $cfg.ClientId.Length)) + '...' } else { '(not set)' }
+            Write-Information "  ► $name" -InformationAction Continue
+            Write-Information "    Tenant: $tenant | Auth: $method | AppId: $client" -InformationAction Continue
+        }
+        catch {
+            Write-Information "  ► $([IO.Path]::GetFileNameWithoutExtension($file.Name)) (invalid config)" -InformationAction Continue
+        }
+    }
+    Write-Information "" -InformationAction Continue
+}
+
+function Save-Profile {
+    param(
+        [string]$Name,
+        [string]$ProfileTenantId,
+        [string]$ProfileAuthMethod,
+        [string]$ProfileClientId,
+        [string]$ProfileCertThumbprint
+    )
+    if (-not (Test-Path $script:ProfileDir)) {
+        New-Item -ItemType Directory -Path $script:ProfileDir -Force | Out-Null
+    }
+    $profileData = @{
+        TenantId              = $ProfileTenantId
+        AuthMethod            = $ProfileAuthMethod
+        ClientId              = $ProfileClientId
+        CertificateThumbprint = $ProfileCertThumbprint
+    }
+    $profilePath = Get-ProfilePath -Name $Name
+    $profileData | ConvertTo-Json | Set-Content -Path $profilePath -Force
+    Write-Information "  ✅ Profile '$Name' saved to $profilePath" -InformationAction Continue
+}
+
+function Import-Profile {
+    param([string]$Name)
+    $profilePath = Get-ProfilePath -Name $Name
+    if (-not (Test-Path $profilePath)) {
+        Write-Error "Profile '$Name' not found. Use -ListProfiles to see available profiles."
+        exit 1
+    }
     try {
-        $AuthConfig = Get-Content -Path $authConfigPath -Raw | ConvertFrom-Json
-        $AuthMethod = $AuthConfig.AuthMethod
-        $ClientId = $AuthConfig.ClientId
-        $TenantId = $AuthConfig.TenantId
-        $CertificateThumbprint = $AuthConfig.CertificateThumbprint
-        Write-Verbose "Using saved auth: $AuthMethod"
+        $cfg = Get-Content -Path $profilePath -Raw | ConvertFrom-Json
+        Write-Verbose "Loaded profile '$Name': AuthMethod=$($cfg.AuthMethod), TenantId=$($cfg.TenantId)"
+        return $cfg
     }
     catch {
-        Write-Warning "Failed to load auth config: $_"
+        Write-Error "Failed to load profile '$Name': $_"
+        exit 1
     }
 }
-elseif ((Test-Path $legacyAuthConfigPath) -and ($AuthMethod -eq 'DeviceCode') -and (-not $ClientId)) {
-    Write-Warning "Legacy .auth-config.ps1 detected. Please re-run Setup-AppRegistration to generate the safer .auth-config.json format."
-    Write-Warning "Dot-sourcing .ps1 config files is deprecated due to code injection risk."
+
+#endregion Profile Management Functions
+
+# Handle -ListProfiles: show profiles and exit
+if ($ListProfiles) {
+    Show-Profiles
+    exit 0
+}
+
+# Handle -SaveProfile: save current parameters as a named profile
+if ($SaveProfile) {
+    if (-not $Profile) {
+        Write-Error "You must specify -Profile 'Name' when using -SaveProfile."
+        exit 1
+    }
+    Save-Profile -Name $Profile `
+        -ProfileTenantId $TenantId `
+        -ProfileAuthMethod $AuthMethod `
+        -ProfileClientId $ClientId `
+        -ProfileCertThumbprint $CertificateThumbprint
+    exit 0
+}
+
+# Resolve authentication configuration (priority order):
+# 1. Named profile (-Profile)
+# 2. Explicit parameters (detected via $PSBoundParameters)
+# 3. .auth-config.json auto-load (only if no explicit auth params given)
+$hasExplicitAuth = $PSBoundParameters.ContainsKey('TenantId') -or
+                   $PSBoundParameters.ContainsKey('AuthMethod') -or
+                   $PSBoundParameters.ContainsKey('ClientId') -or
+                   $PSBoundParameters.ContainsKey('CertificateThumbprint') -or
+                   $PSBoundParameters.ContainsKey('ClientSecret')
+
+if ($Profile) {
+    # Load named profile
+    $loadedProfile = Import-Profile -Name $Profile
+    if (-not $PSBoundParameters.ContainsKey('AuthMethod'))            { $AuthMethod = $loadedProfile.AuthMethod }
+    if (-not $PSBoundParameters.ContainsKey('TenantId'))              { $TenantId = $loadedProfile.TenantId }
+    if (-not $PSBoundParameters.ContainsKey('ClientId'))              { $ClientId = $loadedProfile.ClientId }
+    if (-not $PSBoundParameters.ContainsKey('CertificateThumbprint')) { $CertificateThumbprint = $loadedProfile.CertificateThumbprint }
+    Write-Information "  🔑 Using profile '$Profile' (Tenant: $TenantId, Auth: $AuthMethod)" -InformationAction Continue
+}
+elseif (-not $hasExplicitAuth) {
+    # Auto-load .auth-config.json only when no explicit auth params were given
+    $authConfigPath = Join-Path $PSScriptRoot ".auth-config.json"
+    $legacyAuthConfigPath = Join-Path $PSScriptRoot ".auth-config.ps1"
+    if (Test-Path $authConfigPath) {
+        Write-Verbose "Loading saved authentication configuration from JSON..."
+        try {
+            $AuthConfig = Get-Content -Path $authConfigPath -Raw | ConvertFrom-Json
+            $AuthMethod = $AuthConfig.AuthMethod
+            $ClientId = $AuthConfig.ClientId
+            $TenantId = $AuthConfig.TenantId
+            $CertificateThumbprint = $AuthConfig.CertificateThumbprint
+            Write-Verbose "Using saved auth: $AuthMethod"
+        }
+        catch {
+            Write-Warning "Failed to load auth config: $_"
+        }
+    }
+    elseif (Test-Path $legacyAuthConfigPath) {
+        Write-Warning "Legacy .auth-config.ps1 detected. Please re-run Setup-AppRegistration to generate the safer .auth-config.json format."
+        Write-Warning "Dot-sourcing .ps1 config files is deprecated due to code injection risk."
+    }
 }
 
 #region Helper Functions
