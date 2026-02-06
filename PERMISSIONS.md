@@ -31,7 +31,7 @@ These are **Application permissions** (not Delegated) that must be assigned to a
 ### Required Permissions
 
 | Permission | Permission ID (GUID) | Type | Description |
-|------------|----------------------|------|-------------|
+| ---------- | -------------------- | ---- | ----------- |
 | `User.Read.All` | `df021288-bdef-4463-88db-98f22de89214` | Application | Read all users' full profiles |
 | `Directory.Read.All` | `7ab1d382-f21e-4acd-a863-ba3e13f7da61` | Application | Read directory data |
 | `Policy.Read.All` | `246dd0d5-5bd0-4def-940b-0421030a5b68` | Application | Read your organization's policies |
@@ -45,7 +45,7 @@ These are **Application permissions** (not Delegated) that must be assigned to a
 ### Optional Permissions (License-Dependent)
 
 | Permission | Permission ID (GUID) | Type | Requires |
-|------------|----------------------|------|----------|
+| ---------- | -------------------- | ---- | -------- |
 | `SecurityEvents.Read.All` | `38d9df27-64da-44fd-b7c5-a6fbac20248f` | Application | Microsoft 365 E5 or E5 Security for Secure Score |
 
 ### Admin Consent Required
@@ -61,13 +61,13 @@ Exchange Online uses Role-Based Access Control (RBAC). The user running the asse
 ### Recommended Role
 
 | Role | Description |
-|------|-------------|
+| ---- | ----------- |
 | **View-Only Organization Management** | Full read-only access to all Exchange settings. This is the recommended minimum role. |
 
 ### Alternative Roles
 
 | Role | Capabilities | Limitations |
-|------|-------------|-------------|
+| ---- | ------------ | ----------- |
 | **Security Reader** | Email security policies, threat protection | Cannot read compliance settings |
 | **Compliance Management** | DLP, Retention, Sensitivity Labels | Cannot read security policies |
 | **Global Reader** | All M365 settings (read-only) | Broader than necessary |
@@ -76,7 +76,7 @@ Exchange Online uses Role-Based Access Control (RBAC). The user running the asse
 ### Exchange Cmdlets Used by This Tool
 
 | Cmdlet | Purpose | Minimum Role |
-|--------|---------|--------------|
+| ------ | ------- | ------------ |
 | `Get-EXOMailbox` | Check mailbox auditing status | View-Only Organization Management |
 | `Get-AcceptedDomain` | List domains for email auth checks | View-Only Organization Management |
 | `Get-DkimSigningConfig` | DKIM configuration status | View-Only Organization Management |
@@ -95,7 +95,7 @@ Exchange Online uses Role-Based Access Control (RBAC). The user running the asse
 ### Security Module Checks
 
 | Check | Graph Permissions Required | Exchange Role Required |
-|-------|---------------------------|------------------------|
+| ----- | ------------------------- | ---------------------- |
 | MFA Configuration | `User.Read.All`, `Directory.Read.All` | None |
 | Conditional Access | `Policy.Read.All` | None |
 | Privileged Accounts | `Directory.Read.All`, `RoleManagement.Read.Directory` | None |
@@ -108,7 +108,7 @@ Exchange Online uses Role-Based Access Control (RBAC). The user running the asse
 ### Exchange Module Checks
 
 | Check | Graph Permissions Required | Exchange Role Required |
-|-------|---------------------------|------------------------|
+| ----- | ------------------------- | ---------------------- |
 | Email Security (ATP) | None | Security Reader |
 | SPF/DKIM/DMARC | None | View-Only Organization Management |
 | Mailbox Auditing | None | View-Only Organization Management |
@@ -116,7 +116,7 @@ Exchange Online uses Role-Based Access Control (RBAC). The user running the asse
 ### Compliance Module Checks
 
 | Check | Graph Permissions Required | Exchange Role Required |
-|-------|---------------------------|------------------------|
+| ----- | ------------------------- | ---------------------- |
 | DLP Policies | None | Compliance Management |
 | Retention Policies | None | Compliance Management |
 | Sensitivity Labels | None | Compliance Management |
@@ -124,7 +124,7 @@ Exchange Online uses Role-Based Access Control (RBAC). The user running the asse
 ### Licensing Module Checks
 
 | Check | Graph Permissions Required | Exchange Role Required |
-|-------|---------------------------|------------------------|
+| ----- | ------------------------- | ---------------------- |
 | License Optimization | `User.Read.All`, `AuditLog.Read.All` | None |
 
 ---
@@ -140,6 +140,7 @@ Run the setup script to create an App Registration with all required permissions
 ```
 
 This script:
+
 1. Creates a self-signed certificate
 2. Creates an Entra ID App Registration
 3. Adds all required Graph API permissions
@@ -166,6 +167,7 @@ This script:
 #### Step 3: Create Certificate or Secret
 
 **Certificate (Recommended):**
+
 ```powershell
 # Create self-signed certificate
 $cert = New-SelfSignedCertificate `
@@ -184,6 +186,7 @@ Export-Certificate -Cert $cert -FilePath $certPath
 Upload the `.cer` file to your App Registration under **Certificates & secrets**.
 
 **Client Secret (Alternative):**
+
 1. Go to **Certificates & secrets** → **Client secrets** → **New client secret**
 2. Note: Secrets expire and are less secure than certificates
 
@@ -204,7 +207,7 @@ Add-RoleGroupMember -Identity "View-Only Organization Management" -Member "asses
 ### Common Permission Errors
 
 | Error Message | Cause | Solution |
-|---------------|-------|----------|
+| ------------- | ----- | -------- |
 | `Insufficient privileges to complete the operation` | Missing Graph permission | Verify all permissions are granted with admin consent |
 | `Access denied` on Conditional Access | Missing `Policy.Read.All` | Add permission and grant admin consent |
 | `The term 'Get-EXOMailbox' is not recognized` | Not connected to Exchange Online | Run `Connect-ExchangeOnline` first |
@@ -214,12 +217,14 @@ Add-RoleGroupMember -Identity "View-Only Organization Management" -Member "asses
 ### Verifying Permissions
 
 **Check Graph API Permissions:**
+
 ```powershell
 # After connecting with Connect-MgGraph
 (Get-MgContext).Scopes
 ```
 
 **Check Exchange Online Role:**
+
 ```powershell
 # After connecting with Connect-ExchangeOnline
 Get-RoleGroupMember -Identity "View-Only Organization Management" | Where-Object { $_.Name -eq "yourusername" }
@@ -247,7 +252,7 @@ The tool handles missing permissions gracefully:
 
 ### Minimum Permissions for Core Checks
 
-```
+```text
 Microsoft Graph (Application):
 ├── User.Read.All
 ├── Directory.Read.All
@@ -260,7 +265,7 @@ Exchange Online:
 
 ### Full Permissions for All Checks
 
-```
+```text
 Microsoft Graph (Application):
 ├── User.Read.All
 ├── Directory.Read.All
@@ -282,5 +287,5 @@ Exchange Online:
 ## Version History
 
 | Version | Date | Changes |
-|---------|------|---------|
+| ------- | ---- | ------- |
 | 1.0 | 2026-02-03 | Initial permissions documentation |
