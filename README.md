@@ -1,61 +1,58 @@
-# M365 Security Guardian 🛡️
-
-**Official GitHub repository:** [https://github.com/mobieus10036/m365-security-guardian](https://github.com/mobieus10036/m365-security-guardian)
+# M365 Security Guardian
 
 **Rapid, actionable Microsoft 365 security assessment for modern enterprises.**
 
-![Version](https://img.shields.io/badge/version-3.1.0-blue)
-![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue)
-![License](https://img.shields.io/github/license/mobieus10036/m365-security-guardian)
+[![Version](https://img.shields.io/badge/version-3.1.0-blue)](https://github.com/mobieus10036/m365-security-guardian/releases)
+[![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue)](https://docs.microsoft.com/powershell/)
+[![License](https://img.shields.io/github/license/mobieus10036/m365-security-guardian)](LICENSE)
 
 ---
 
-## ✨ What's New in v3.1.0
+## What's New in v3.1.0
 
-- **📊 Baseline Comparison** - Track security progress over time by comparing against saved baselines
-- **🏛️ CIS Benchmark Mapping** - Maps findings to CIS Microsoft 365 Foundations Benchmark v3.1.0
-- **🎯 MITRE ATT&CK Integration** - Each CIS control includes relevant MITRE technique IDs
-- **📈 Dual Compliance Levels** - Separate compliance percentages for CIS Level 1 (Essential) and Level 2 (Enhanced)
-- **🔐 Certificate Auth Auto-Load** - Save auth config once, run without parameters
-- **🧹 Connection Cleanup** - Automatically clears stale connections before each run
-- **📈 Enhanced Reporting** - CIS compliance and baseline comparison in HTML reports
+- **Baseline Comparison** — Track security progress over time
+- **CIS Benchmark Mapping** — Maps findings to CIS Microsoft 365 Foundations Benchmark v3.1.0
+- **MITRE ATT&CK Integration** — Each CIS control includes relevant technique IDs
+- **Dual Compliance Levels** — Separate compliance for CIS L1 (Essential) and L2 (Enhanced)
+- **Certificate Auth Auto-Load** — Save auth config once, run without parameters
+- **Connection Cleanup** — Automatically clears stale connections before each run
 
 ---
 
 ## Features
 
-### 🎯 Tenant Security Score
+### Tenant Security Score
 
-- Overall security posture score (0-100) with letter grade (A-F)
-- Category breakdown: Identity & Access, Conditional Access, Application Security, Email Security, Governance
-- **Top Priorities** - Highest impact remediation items ranked by potential score improvement
-- **Quick Wins** - Low-effort, high-impact fixes for immediate security gains
+- Overall security posture score (0–100) with letter grade (A–F)
+- Category breakdown: Identity, Conditional Access, Applications, Email, Governance
+- **Top Priorities** — Highest-impact remediation items
+- **Quick Wins** — Low-effort, high-impact fixes
 - Weighted scoring based on actual security impact
 
-### 🏛️ CIS Microsoft 365 Benchmark Compliance
+### CIS Microsoft 365 Benchmark Compliance
 
 - Maps all findings to **CIS Microsoft 365 Foundations Benchmark v3.1.0**
-- Separate compliance tracking for **Level 1 (Essential)** and **Level 2 (Enhanced)** controls
+- Separate tracking for **Level 1 (Essential)** and **Level 2 (Enhanced)** controls
 - 24 CIS controls assessed across 5 security domains
-- **MITRE ATT&CK technique mappings** for each control
-- Audit-ready reports for compliance frameworks (SOC 2, ISO 27001, etc.)
+- MITRE ATT&CK technique mappings for each control
+- Audit-ready reports for compliance frameworks
 
-### 🔍 Security Assessments
+### Security Assessments
 
 | Module | Checks |
 | ------ | ------ |
 | **Identity** | MFA adoption, Privileged accounts, PIM configuration, Legacy auth |
-| **Conditional Access** | Policy coverage, Risk-based policies, Device compliance, Location controls |
-| **Applications** | High-risk permissions, Credential expiry, Multi-tenant apps, OAuth grants |
-| **Email** | SPF/DKIM/DMARC validation, Mailbox auditing, Anti-spam/malware policies |
+| **Conditional Access** | Policy coverage, Risk-based policies, Device compliance |
+| **Applications** | High-risk permissions, Credential expiry, OAuth grants |
+| **Email** | SPF/DKIM/DMARC validation, Mailbox auditing |
 | **Licensing** | Inactive license detection, Optimization opportunities |
 
-### 📄 Report Outputs
+### Report Outputs
 
-- **HTML** - Interactive dashboard with filtering and export
-- **JSON** - Machine-readable for automation and SIEM integration
-- **CSV** - Spreadsheet-compatible for analysis and sharing
-- **CIS Compliance** - Dedicated JSON/CSV exports for audit tools
+- **HTML** — Interactive dashboard with filtering and export
+- **JSON** — Machine-readable for automation and SIEM integration
+- **CSV** — Spreadsheet-compatible for analysis
+- **CIS Compliance** — Dedicated exports for audit tools
 
 ---
 
@@ -74,14 +71,14 @@ cd m365-security-guardian
 
 The tool supports multiple authentication methods:
 
-| Method | Best For | Command |
+| Method | Best For | Example |
 | ------ | -------- | ------- |
-| **Certificate** ⭐ | Recommended - Reliable & automated | `.\Start-M365Assessment.ps1` (after setup) |
-| **DeviceCode** | Terminal use, other tenants | `.\Start-M365Assessment.ps1 -AuthMethod DeviceCode -TenantId "tenant.onmicrosoft.com"` |
+| **Certificate** ⭐ | Recommended — reliable & automated | `.\Start-M365Assessment.ps1` |
+| **DeviceCode** | Other tenants, terminal use | `.\Start-M365Assessment.ps1 -AuthMethod DeviceCode` |
 | **Interactive** | Quick browser-based runs | `.\Start-M365Assessment.ps1 -AuthMethod Interactive` |
 | **ManagedIdentity** | Azure-hosted (VMs, Functions) | `.\Start-M365Assessment.ps1 -AuthMethod ManagedIdentity` |
 
-### 🔐 Certificate Authentication Setup (Recommended)
+### Certificate Authentication Setup (Recommended)
 
 Certificate auth provides the most reliable experience, especially in VS Code or embedded terminals.
 
@@ -96,27 +93,27 @@ Certificate auth provides the most reliable experience, especially in VS Code or
 The setup creates:
 
 - Entra ID App Registration with required permissions
-- Self-signed certificate (valid 1 year)
+- Self-signed certificate (valid 2 years)
 - `.auth-config.json` file with saved credentials
 
 ### Assessing Other Tenants
 
-To assess a tenant other than your default, pass explicit parameters:
+To assess a different tenant, pass explicit parameters:
 
 ```powershell
-# Using device code flow (recommended for ad-hoc tenant access)
+# Device code flow (recommended for ad-hoc access)
 .\Start-M365Assessment.ps1 -TenantId "other.onmicrosoft.com" -AuthMethod DeviceCode
 
-# Using certificate auth (requires app registration in target tenant)
-.\Start-M365Assessment.ps1 -TenantId "other-tenant-id" -AuthMethod Certificate `
+# Certificate auth (requires app registration in target tenant)
+.\Start-M365Assessment.ps1 -TenantId "tenant-id" -AuthMethod Certificate `
     -ClientId "app-id" -CertificateThumbprint "thumbprint"
 ```
 
 ---
 
-## 🔐 Required Permissions
+## Required Permissions
 
-This tool requires specific permissions in Microsoft Entra ID and Exchange Online. **You do NOT need Global Administrator** - the permissions below are sufficient for a complete assessment.
+This tool requires specific permissions in Microsoft Entra ID and Exchange Online. **Global Administrator is not required** — the permissions below are sufficient.
 
 ### Quick Setup (Recommended)
 
@@ -134,16 +131,15 @@ These permissions are required for the App Registration (app-only authentication
 
 | Permission | Permission ID | Purpose | Checks Enabled |
 | ---------- | ------------- | ------- | -------------- |
-| `User.Read.All` | `df021288-bdef-4463-88db-98f22de89214` | Read all users' profiles | MFA status, user enumeration, license optimization |
-| `Directory.Read.All` | `7ab1d382-f21e-4acd-a863-ba3e13f7da61` | Read directory data | Privileged roles, group membership, directory objects |
-| `Policy.Read.All` | `246dd0d5-5bd0-4def-940b-0421030a5b68` | Read all policies | Conditional Access policies, authentication methods |
-| `Organization.Read.All` | `498476ce-e0fe-48b0-b801-37ba7e2685c6` | Read organization info | Tenant information, display name |
-| `AuditLog.Read.All` | `b0afded3-3588-46d8-8b3d-9842eff778da` | Read audit logs | Sign-in logs, last sign-in dates, legacy auth detection |
-| `SecurityEvents.Read.All` | `38d9df27-64da-44fd-b7c5-a6fbac20248f` | Read security events | Microsoft Secure Score (requires E5 license) |
-| `Application.Read.All` | `9a5d68dd-52b0-4cc2-bd40-abcf44ac3a30` | Read all applications | App permissions audit, credential expiry, risky apps |
-| `RoleManagement.Read.All` | `d5fe8ce8-684c-4c83-a52c-46e882ce4be1` | Read role management data | PIM configuration, role assignments |
-| `RoleManagement.Read.Directory` | `483bed4a-2ad3-4361-a73b-c83ccdbdc53c` | Read directory role data | Privileged account enumeration |
-| `SharePointTenantSettings.Read.All` | `83d4163d-a2d8-4d3b-9695-4ae3ca98f888` | Read SharePoint settings | External sharing configuration |
+| `User.Read.All` | `df021288-bdef-4463-88db-98f22de89214` | Read all users' profiles | MFA status, user enumeration |
+| `Directory.Read.All` | `7ab1d382-f21e-4acd-a863-ba3e13f7da61` | Read directory data | Privileged roles, group membership |
+| `Policy.Read.All` | `246dd0d5-5bd0-4def-940b-0421030a5b68` | Read all policies | Conditional Access, auth methods |
+| `Organization.Read.All` | `498476ce-e0fe-48b0-b801-37ba7e2685c6` | Read organization info | Tenant information |
+| `AuditLog.Read.All` | `b0afded3-3588-46d8-8b3d-9842eff778da` | Read audit logs | Sign-in logs, legacy auth detection |
+| `SecurityEvents.Read.All` | `38d9df27-64da-44fd-b7c5-a6fbac20248f` | Read security events | Microsoft Secure Score (E5) |
+| `Application.Read.All` | `9a5d68dd-52b0-4cc2-bd40-abcf44ac3a30` | Read all applications | App permissions audit |
+| `RoleManagement.Read.Directory` | `483bed4a-2ad3-4361-a73b-c83ccdbdc53c` | Read directory role data | PIM, privileged accounts |
+| `SharePointTenantSettings.Read.All` | `83d4163d-a2d8-4d3b-9695-4ae3ca98f888` | Read SharePoint settings | External sharing config |
 
 ### Exchange Online Permissions
 
@@ -298,9 +294,9 @@ All findings are mapped to the **CIS Microsoft 365 Foundations Benchmark v3.1.0*
 
 ---
 
-## 📊 Baseline Comparison
+## Baseline Comparison
 
-Track security progress over time by comparing assessments against saved baselines:
+Track security progress over time by comparing assessments against saved baselines.
 
 ### Saving a Baseline
 
@@ -460,15 +456,14 @@ MIT License - see [LICENSE](LICENSE)
 
 ## Roadmap
 
-- [ ] Historical Trend Tracking (compare assessments over time)
-- [ ] Identity Protection Integration
-- [ ] Defender for Office 365 Checks
-- [ ] Power Platform Security Assessment
-- [ ] Teams Security Assessment
-- [ ] Multi-Tenant Summary Dashboard
+- [ ] Historical trend tracking
+- [ ] Identity Protection integration
+- [ ] Defender for Office 365 checks
+- [ ] Power Platform security assessment
+- [ ] Teams security assessment
 
-> **Note:** This tool is intentionally **assessment-only**. It identifies and prioritizes security gaps but does not make changes to your tenant. Remediation must be performed manually by qualified administrators who understand the business impact of each change.
+> **Note:** This tool is intentionally **assessment-only**. It identifies and prioritizes security gaps but does not make changes to your tenant. Remediation must be performed by qualified administrators who understand the business impact.
 
 ---
 
-**Mobieus Rapid Assessment Suite** — Accelerate your Microsoft 365 security insights.
+**M365 Security Guardian** — Accelerate your Microsoft 365 security insights.
