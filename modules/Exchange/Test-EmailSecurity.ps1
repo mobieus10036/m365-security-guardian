@@ -43,6 +43,37 @@ function Test-EmailSecurity {
         $hasSafeAttachments = $null -ne $safeAttachmentPolicies -and @($safeAttachmentPolicies).Count -gt 0
         $hasSafeLinks = $null -ne $safeLinksPolicies -and @($safeLinksPolicies).Count -gt 0
 
+        # Build structured findings
+        $findings = @()
+        
+        $findings += [PSCustomObject]@{
+            Setting = "Anti-Spam Protection"
+            Value = if ($hasAntiSpam) { "Enabled" } else { "Not Configured" }
+            Risk = if ($hasAntiSpam) { "Low" } else { "High" }
+            PolicyCount = if ($antispamPolicies) { @($antispamPolicies).Count } else { 0 }
+        }
+        
+        $findings += [PSCustomObject]@{
+            Setting = "Malware Filter"
+            Value = if ($hasMalwareFilter) { "Enabled" } else { "Not Configured" }
+            Risk = if ($hasMalwareFilter) { "Low" } else { "High" }
+            PolicyCount = if ($malwarePolicies) { @($malwarePolicies).Count } else { 0 }
+        }
+        
+        $findings += [PSCustomObject]@{
+            Setting = "Safe Attachments (Defender for O365)"
+            Value = if ($hasSafeAttachments) { "Enabled ($(@($safeAttachmentPolicies).Count) policies)" } else { "Not Configured" }
+            Risk = if ($hasSafeAttachments) { "Low" } else { "Medium" }
+            PolicyCount = if ($safeAttachmentPolicies) { @($safeAttachmentPolicies).Count } else { 0 }
+        }
+        
+        $findings += [PSCustomObject]@{
+            Setting = "Safe Links (Defender for O365)"
+            Value = if ($hasSafeLinks) { "Enabled ($(@($safeLinksPolicies).Count) policies)" } else { "Not Configured" }
+            Risk = if ($hasSafeLinks) { "Low" } else { "Medium" }
+            PolicyCount = if ($safeLinksPolicies) { @($safeLinksPolicies).Count } else { 0 }
+        }
+
         # Determine status
         $status = "Pass"
         $severity = "Low"
@@ -79,6 +110,8 @@ function Test-EmailSecurity {
             Status = $status
             Severity = $severity
             Message = $message
+            Findings = $findings
+            Issues = $issues
             Details = @{
                 HasAntiSpam = $hasAntiSpam
                 HasMalwareFilter = $hasMalwareFilter

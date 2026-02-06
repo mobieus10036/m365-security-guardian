@@ -102,12 +102,25 @@ function Test-LegacyAuth {
             Write-Verbose "Could not check recent sign-ins: $_"
         }
 
+        # Build block policies list with IDs for linking
+        $blockPoliciesList = @()
+        if ($legacyAuthBlockPolicies) {
+            foreach ($policy in $legacyAuthBlockPolicies) {
+                $blockPoliciesList += [PSCustomObject]@{
+                    DisplayName = $policy.DisplayName
+                    Id = $policy.Id
+                    State = $policy.State
+                }
+            }
+        }
+
         return [PSCustomObject]@{
             CheckName = "Legacy Authentication Blocking"
             Category = "Security"
             Status = $status
             Severity = $severity
             Message = $message
+            BlockPolicies = $blockPoliciesList
             Details = @{
                 HasLegacyAuthBlockPolicy = $hasLegacyAuthBlock
                 BlockPolicyCount = if ($legacyAuthBlockPolicies) { $legacyAuthBlockPolicies.Count } else { 0 }

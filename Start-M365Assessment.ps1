@@ -1029,6 +1029,23 @@ function Export-HTMLReport {
             $findingContent += "</table>"
         }
         
+        # Handle Legacy Auth block policies (with links)
+        if ($result.BlockPolicies -and $result.BlockPolicies.Count -gt 0) {
+            $caPortalBase = "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ConditionalAccessBlade/~/policyId/"
+            $findingContent += "<br><br><strong>Legacy Auth Block Policies ($($result.BlockPolicies.Count)):</strong><br>"
+            $findingContent += "<ul>"
+            foreach ($policy in $result.BlockPolicies) {
+                $policyNameSafe = ConvertTo-HtmlSafe $policy.DisplayName
+                $policyIdSafe = ConvertTo-HtmlSafe $policy.Id
+                $policyLink = "$caPortalBase$policyIdSafe"
+                $findingContent += "<li><code>$policyNameSafe</code>"
+                $findingContent += " <a href='$policyLink' target='_blank' style='margin-left:6px; font-size:12px;'>Open in Entra</a>"
+                $findingContent += " <span style='color: var(--gray-700); font-size: 12px;'>ID: <code>$policyIdSafe</code></span>"
+                $findingContent += "</li>"
+            }
+            $findingContent += "</ul>"
+        }
+
         # Handle enabled Conditional Access policies
         if ($result.EnabledPolicies -and $result.EnabledPolicies.Count -gt 0) {
             $findingContent += "<br><br><strong>Enabled Conditional Access Policies ($($result.EnabledPolicies.Count)):</strong><br>"
@@ -1237,8 +1254,91 @@ function Export-HTMLReport {
             $findingContent += "</table>"
         }
         
+        # Handle Email Security Configuration details
+        if ($result.CheckName -eq "Email Security Configuration" -and $result.Findings -and $result.Findings.Count -gt 0) {
+            $findingContent += "<br><br><strong>Email Security Settings:</strong><br>"
+            $findingContent += "<table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'>"
+            $findingContent += "<tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>Protection Layer</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Status</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Risk Level</td></tr>"
+            
+            foreach ($finding in $result.Findings) {
+                $settingSafe = ConvertTo-HtmlSafe $finding.Setting
+                $valueSafe = ConvertTo-HtmlSafe $finding.Value
+                $riskSafe = ConvertTo-HtmlSafe $finding.Risk
+                $riskColor = switch ($finding.Risk) {
+                    'High' { 'var(--danger-color)' }
+                    'Medium' { 'var(--warning-color)' }
+                    'Low' { 'var(--success-color)' }
+                    default { 'var(--gray-700)' }
+                }
+                $statusIcon = switch ($finding.Value) {
+                    { $_ -like 'Enabled*' } { '✅' }
+                    'Not Configured' { '❌' }
+                    default { '⚪' }
+                }
+                $riskIcon = switch ($finding.Risk) {
+                    'High' { '🔴' }
+                    'Medium' { '🟡' }
+                    'Low' { '🟢' }
+                    default { '⚪' }
+                }
+                $findingContent += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'>$settingSafe</td>"
+                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300);'>$statusIcon <code>$valueSafe</code></td>"
+                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300); color: $riskColor; font-weight: 600;'>$riskIcon $riskSafe</td></tr>"
+            }
+            $findingContent += "</table>"
+            
+            # Display issues as a bulleted list
+            if ($result.Issues -and $result.Issues.Count -gt 0) {
+                $findingContent += "<br><strong>Issues Identified ($($result.Issues.Count)):</strong><br>"
+                $findingContent += "<ul style='margin: 8px 0 0 0; padding-left: 20px;'>"
+                foreach ($issue in $result.Issues) {
+                    $issueSafe = ConvertTo-HtmlSafe $issue
+                    $findingContent += "<li style='color: var(--warning-color); margin-bottom: 4px;'>$issueSafe</li>"
+                }
+                $findingContent += "</ul>"
+            }
+        }
+        
         # Handle External Sharing configuration details
-        if ($result.SharingCapability) {
+        if ($result.CheckName -eq "External Sharing Configuration" -and $result.Findings -and $result.Findings.Count -gt 0) {
+            $findingContent += "<br><br><strong>External Sharing Settings Analysis:</strong><br>"
+            $findingContent += "<table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'>"
+            $findingContent += "<tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>Setting</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Current Value</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Risk Level</td></tr>"
+            
+            foreach ($finding in $result.Findings) {
+                $settingSafe = ConvertTo-HtmlSafe $finding.Setting
+                $valueSafe = ConvertTo-HtmlSafe $finding.Value
+                $riskSafe = ConvertTo-HtmlSafe $finding.Risk
+                $riskColor = switch ($finding.Risk) {
+                    'High' { 'var(--danger-color)' }
+                    'Medium' { 'var(--warning-color)' }
+                    'Low' { 'var(--success-color)' }
+                    default { 'var(--gray-700)' }
+                }
+                $riskIcon = switch ($finding.Risk) {
+                    'High' { '🔴' }
+                    'Medium' { '🟡' }
+                    'Low' { '🟢' }
+                    default { '⚪' }
+                }
+                $findingContent += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'>$settingSafe</td>"
+                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300);'><code>$valueSafe</code></td>"
+                $findingContent += "<td style='padding: 8px; border: 1px solid var(--gray-300); color: $riskColor; font-weight: 600;'>$riskIcon $riskSafe</td></tr>"
+            }
+            $findingContent += "</table>"
+            
+            # Display issues as a bulleted list
+            if ($result.Issues -and $result.Issues.Count -gt 0) {
+                $findingContent += "<br><strong>Issues Identified ($($result.Issues.Count)):</strong><br>"
+                $findingContent += "<ul style='margin: 8px 0 0 0; padding-left: 20px;'>"
+                foreach ($issue in $result.Issues) {
+                    $issueSafe = ConvertTo-HtmlSafe $issue
+                    $findingContent += "<li style='color: var(--warning-color); margin-bottom: 4px;'>$issueSafe</li>"
+                }
+                $findingContent += "</ul>"
+            }
+        }
+        elseif ($result.SharingCapability) {
             $findingContent += "<br><br><strong>SharePoint/OneDrive External Sharing Configuration:</strong><br>"
             $findingContent += "<table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'>"
             $findingContent += "<tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>Setting</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Value</td></tr>"
