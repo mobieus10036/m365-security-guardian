@@ -129,6 +129,44 @@ function Save-AssessmentBaseline {
     }
 }
 
+function Get-LatestBaseline {
+    <#
+    .SYNOPSIS
+        Gets the most recent baseline file from the baselines directory.
+    
+    .PARAMETER BaselinePath
+        Path to the baselines directory.
+    
+    .OUTPUTS
+        Path to the latest baseline file, or $null if no baselines exist.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false)]
+        [string]$BaselinePath = (Join-Path $PSScriptRoot "..\..\baselines")
+    )
+    
+    try {
+        if (-not (Test-Path $BaselinePath)) {
+            return $null
+        }
+        
+        $latestBaseline = Get-ChildItem -Path $BaselinePath -Filter "*.json" -ErrorAction SilentlyContinue |
+            Sort-Object -Property LastWriteTime -Descending |
+            Select-Object -First 1
+        
+        if ($latestBaseline) {
+            return $latestBaseline.FullName
+        }
+        
+        return $null
+    }
+    catch {
+        Write-Warning "Could not find latest baseline: $($_.Exception.Message)"
+        return $null
+    }
+}
+
 function Get-AssessmentBaseline {
     <#
     .SYNOPSIS

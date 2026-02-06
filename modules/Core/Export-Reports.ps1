@@ -1221,15 +1221,5 @@ function Build-GenericFindingsTableHtml {
 
 #endregion
 
-# Export module functions
-Export-ModuleMember -Function @(
-    'ConvertTo-HtmlSafe',
-    'Export-JsonReport',
-    'Export-SecurityScoreJson',
-    'Export-CsvReport',
-    'Export-DetailedCsvReports',
-    'Export-HtmlReport',
-    'Build-SecurityScoreDashboardHtml',
-    'Build-BaselineComparisonHtml',
-    'Build-FindingCardsHtml'
-)
+# Note: Functions are automatically available when dot-sourced
+# No Export-ModuleMember needed for .ps1 files
