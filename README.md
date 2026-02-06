@@ -32,6 +32,7 @@
 - Weighted scoring based on actual security impact
 
 ### 🏛️ CIS Microsoft 365 Benchmark Compliance
+
 - Maps all findings to **CIS Microsoft 365 Foundations Benchmark v3.1.0**
 - Separate compliance tracking for **Level 1 (Essential)** and **Level 2 (Enhanced)** controls
 - 24 CIS controls assessed across 5 security domains
