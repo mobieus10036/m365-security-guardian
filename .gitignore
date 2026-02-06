@@ -4,6 +4,14 @@ reports/
 # Auth config (contains tenant-specific credentials)
 .auth-config.ps1
 
+# Baselines (contain tenant security data)
+baselines/
+
+# Certificates (never commit!)
+*.pem
+*.pfx
+*.cer
+
 # PowerShell
 *.ps1xml
 *.psd1~

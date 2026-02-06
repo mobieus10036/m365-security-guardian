@@ -230,6 +230,7 @@ function ConvertTo-HtmlSafe {
     .DESCRIPTION
         Converts special characters to HTML entities to safely display
         user-provided or dynamic content in HTML reports.
+        Uses System.Net.WebUtility which is available in both .NET Framework and .NET Core.
     #>
     param(
         [Parameter(ValueFromPipeline = $true)]
@@ -242,7 +243,7 @@ function ConvertTo-HtmlSafe {
         return $Text
     }
     
-    return [System.Web.HttpUtility]::HtmlEncode($Text)
+    return [System.Net.WebUtility]::HtmlEncode($Text)
 }
 
 function Get-AuthRegistrationDetails {
@@ -856,6 +857,8 @@ catch {
 }
 finally {
     Disconnect-M365Services
+    # Clean up WAM broker override so it doesn't affect other processes
+    Remove-Item env:AZURE_IDENTITY_DISABLE_BROKER -ErrorAction SilentlyContinue
 }
 
 #endregion

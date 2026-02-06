@@ -149,7 +149,16 @@ function Connect-GraphService {
         }
     }
 
-    Connect-MgGraph @connectParams
+    try {
+        Connect-MgGraph @connectParams
+    }
+    finally {
+        # Clear connection params to prevent credential leakage via error traces
+        if ($connectParams.ContainsKey('ClientSecretCredential')) {
+            $connectParams['ClientSecretCredential'] = $null
+        }
+        $connectParams.Clear()
+    }
 
     # Validate connection by attempting to get context
     $mgContext = Get-MgContext
@@ -167,7 +176,15 @@ function Connect-GraphService {
         Write-Warning "  ⚠ Initial connection validation failed, retrying..."
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
         Start-Sleep -Seconds 2
-        Connect-MgGraph @connectParams
+        # Rebuild minimal params for retry (credentials already consumed by initial connect)
+        $retryParams = @{ NoWelcome = $true; ErrorAction = 'Stop' }
+        if ($TenantId) { $retryParams['TenantId'] = $TenantId }
+        if ($AuthMethod -in @('DeviceCode', 'Interactive')) {
+            if ($AuthMethod -eq 'DeviceCode') { $retryParams['UseDeviceCode'] = $true }
+            $retryParams['Scopes'] = $graphScopes
+        }
+        elseif ($AuthMethod -eq 'ManagedIdentity') { $retryParams['Identity'] = $true }
+        Connect-MgGraph @retryParams
         $mgContext = Get-MgContext
     }
 
