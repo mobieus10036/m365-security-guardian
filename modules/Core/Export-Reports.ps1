@@ -82,7 +82,13 @@ function Protect-ReportFiles {
                 'BUILTIN\Administrators', 'FullControl', 'Allow'
             )
             $acl.AddAccessRule($adminRule)
-            Set-Acl -Path $item -AclObject $acl
+            try {
+                Set-Acl -Path $item -AclObject $acl -ErrorAction Stop
+            }
+            catch {
+                # Silently continue if we don't have SeSecurityPrivilege
+                Write-Verbose "Could not set ACL on $item: $_"
+            }
         }
         Write-Verbose "Report file permissions restricted to current user and Administrators"
     }

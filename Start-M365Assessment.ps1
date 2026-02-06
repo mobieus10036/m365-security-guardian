@@ -777,11 +777,19 @@ function Invoke-BaselineComparison {
         if ($effectiveBaseline -and (Test-Path $effectiveBaseline)) {
             Write-Step "Comparing against baseline: $(Split-Path $effectiveBaseline -Leaf)"
             
-            $script:BaselineComparison = Compare-ToBaseline -Results $script:AssessmentResults -BaselinePath $effectiveBaseline
+            # Load the baseline data
+            $baselineData = Get-AssessmentBaseline -Path $effectiveBaseline
+            if ($baselineData) {
+                $script:BaselineComparison = Compare-AssessmentToBaseline `
+                    -CurrentResults $script:AssessmentResults `
+                    -CurrentSecurityScore $script:SecurityScore `
+                    -CurrentCISCompliance $script:CISCompliance `
+                    -Baseline $baselineData
+            }
             
             if ($script:BaselineComparison) {
                 # Display comparison summary
-                $comparisonReport = Format-BaselineComparisonReport -ComparisonResult $script:BaselineComparison
+                $comparisonReport = Format-BaselineComparison -Comparison $script:BaselineComparison
                 Write-Information $comparisonReport -InformationAction Continue
                 
                 $improved = $script:BaselineComparison.Improved.Count
