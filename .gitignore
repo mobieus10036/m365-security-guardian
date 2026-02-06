@@ -6,7 +6,8 @@ reports/
 .auth-config.ps1
 
 # Baselines (contain tenant security data)
-baselines/
+baselines/*
+!baselines/.gitkeep
 
 # Certificates (never commit!)
 *.pem
