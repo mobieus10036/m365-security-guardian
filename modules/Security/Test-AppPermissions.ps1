@@ -14,8 +14,8 @@
     PSCustomObject containing application permission audit results.
 
 .NOTES
-    Project: M365 Assessment Toolkit
-    Repository: https://github.com/mobieus10036/m365-security-assessment
+    Project: M365 Security Guardian
+    Repository: https://github.com/mobieus10036/m365-security-guardian
     Author: mobieus10036
     Version: 3.0.0
     Created with assistance from GitHub Copilot

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Installs required PowerShell modules for M365 Tenant Assessment Toolkit.
+    Installs required PowerShell modules for M365 Security Guardian.
 
 .DESCRIPTION
     This script checks for and installs all PowerShell modules required to run
@@ -27,7 +27,7 @@
     Reinstalls/updates all modules.
 
 .NOTES
-    Project: M365 Assessment Toolkit
+    Project: M365 Security Guardian
     Repository: https://github.com/mobieus10036/m365-security-guardian
     Author: mobieus10036
     Version: 3.0.0

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Main orchestrator for Microsoft 365 Tenant Assessment Toolkit.
+    Main orchestrator for M365 Security Guardian.
 
 .DESCRIPTION
     Executes comprehensive security, compliance, and configuration assessments
@@ -82,7 +82,7 @@
     Uses managed identity when running from Azure VM or Azure Functions.
 
 .NOTES
-    Project: M365 Assessment Toolkit
+    Project: M365 Security Guardian
     Repository: https://github.com/mobieus10036/m365-security-guardian
     Author: mobieus10036
     Version: 3.1.0
@@ -192,9 +192,9 @@ function Write-Banner {
 
 ╔══════════════════════════════════════════════════════════════════════╗
 ║                                                                      ║
-║           Microsoft 365 Assessment Toolkit v3.1.0                    ║
+║              M365 Security Guardian v3.1.0                           ║
 ║                                                                      ║
-║              Security & Best Practice Assessment                     ║
+║         Security & Best Practice Assessment for Microsoft 365        ║
 ║                                                                      ║
 ╚══════════════════════════════════════════════════════════════════════╝
 
@@ -570,7 +570,7 @@ function Get-HTMLTemplate {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>M365 Security Assessment Report - {{TENANT_NAME}}</title>
+    <title>M365 Security Guardian Report - {{TENANT_NAME}}</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px; }
         .error { color: #d13438; background: #fde7e9; padding: 20px; border-radius: 8px; }

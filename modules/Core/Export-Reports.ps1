@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Report export module for M365 Security Assessment.
+    Report export module for M365 Security Guardian.
 
 .DESCRIPTION
     This module provides functions for exporting assessment results to various formats
@@ -9,7 +9,7 @@
 
 .NOTES
     Module: Export-Reports
-    Author: M365 Security Assessment Team
+    Author: M365 Security Guardian Team
     Version: 1.0.0
 #>
 
@@ -925,14 +925,14 @@ function Get-FallbackHtmlTemplate {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>M365 Security Assessment Report - {{TENANT_NAME}}</title>
+    <title>M365 Security Guardian Report - {{TENANT_NAME}}</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px; }
         .error { color: #d13438; background: #fde7e9; padding: 20px; border-radius: 8px; }
     </style>
 </head>
 <body>
-    <h1>M365 Security Assessment Report</h1>
+    <h1>M365 Security Guardian Report</h1>
     <div class="error">
         <h2>Template Error</h2>
         <p>The HTML report template file was not found.</p>

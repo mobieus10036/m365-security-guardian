@@ -9,7 +9,7 @@
     ClientSecret, and ManagedIdentity.
 
 .NOTES
-    This module is dot-sourced by Start-M365Assessment.ps1.
+    This module is dot-sourced by the M365 Security Guardian main script.
     It expects the caller to provide Write-Step, Write-Success, Write-Failure,
     and Write-Info helper functions, plus script-scoped parameters.
 #>

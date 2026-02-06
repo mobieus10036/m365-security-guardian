@@ -1,12 +1,12 @@
-# M365 Security Assessment 🛡️
+# M365 Security Guardian 🛡️
 
-**Official GitHub repository:** [https://github.com/mobieus10036/m365-security-assessment](https://github.com/mobieus10036/m365-security-assessment)
+**Official GitHub repository:** [https://github.com/mobieus10036/m365-security-guardian](https://github.com/mobieus10036/m365-security-guardian)
 
 **Rapid, actionable Microsoft 365 security assessment for modern enterprises.**
 
 ![Version](https://img.shields.io/badge/version-3.1.0-blue)
 ![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue)
-![License](https://img.shields.io/github/license/mobieus10036/m365-security-assessment)
+![License](https://img.shields.io/github/license/mobieus10036/m365-security-guardian)
 
 ---
 
@@ -58,8 +58,8 @@
 ## Quickstart
 
 ```powershell
-git clone https://github.com/mobieus10036/m365-security-assessment.git
-cd m365-security-assessment
+git clone https://github.com/mobieus10036/m365-security-guardian.git
+cd m365-security-guardian
 .\Install-Prerequisites.ps1
 .\Start-M365Assessment.ps1
 ```

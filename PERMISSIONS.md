@@ -1,6 +1,6 @@
-# Required Permissions for M365 Security Assessment
+# Required Permissions for M365 Security Guardian
 
-This document provides a comprehensive list of all permissions required to run the M365 Security Assessment tool.
+This document provides a comprehensive list of all permissions required to run the M365 Security Guardian tool.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ This document provides a comprehensive list of all permissions required to run t
 
 ## Overview
 
-The M365 Security Assessment tool requires:
+The M365 Security Guardian tool requires:
 
 1. **Microsoft Graph API permissions** (Application type) - For reading Entra ID, Conditional Access, and SharePoint configurations
 2. **Exchange Online RBAC role** - For reading mailbox, email security, and compliance settings
@@ -152,7 +152,7 @@ This script:
 
 1. Go to [Azure Portal](https://portal.azure.com) → **Microsoft Entra ID** → **App registrations**
 2. Click **New registration**
-3. Name: `M365 Security Assessment Tool`
+3. Name: `M365 Security Guardian`
 4. Supported account types: **Single tenant**
 5. Click **Register**
 
@@ -169,7 +169,7 @@ This script:
 ```powershell
 # Create self-signed certificate
 $cert = New-SelfSignedCertificate `
-    -Subject "CN=M365 Security Assessment Tool" `
+    -Subject "CN=M365 Security Guardian" `
     -CertStoreLocation "Cert:\CurrentUser\My" `
     -KeyExportPolicy Exportable `
     -KeySpec Signature `

@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-    Creates an Entra ID App Registration with certificate authentication for M365 Security Assessment.
+    Creates an Entra ID App Registration with certificate authentication for M365 Security Guardian.
 
 .DESCRIPTION
-    This script sets up secure, unattended authentication for the M365 Security Assessment tool:
+    This script sets up secure, unattended authentication for the M365 Security Guardian tool:
     1. Creates a self-signed certificate (valid for 2 years)
     2. Creates an App Registration in Entra ID
     3. Assigns required Microsoft Graph API permissions
@@ -15,7 +15,7 @@
 
 .PARAMETER AppName
     Display name for the App Registration.
-    Default: "M365 Security Assessment Tool"
+    Default: "M365 Security Guardian"
 
 .PARAMETER CertificateValidityYears
     How long the certificate should be valid.
@@ -44,7 +44,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $false)]
-    [string]$AppName = "M365 Security Assessment Tool",
+    [string]$AppName = "M365 Security Guardian",
 
     [Parameter(Mandatory = $false)]
     [int]$CertificateValidityYears = 2,
@@ -60,7 +60,7 @@ $env:AZURE_IDENTITY_DISABLE_BROKER = "true"
 
 Write-Host "`n" -NoNewline
 Write-Host "╔══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║         M365 Security Assessment - App Registration Setup            ║" -ForegroundColor Cyan
+Write-Host "║            M365 Security Guardian - App Registration Setup             ║" -ForegroundColor Cyan
 Write-Host "╚══════════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 
@@ -207,7 +207,7 @@ else {
         DisplayName = $AppName
         SignInAudience = "AzureADMyOrg"
         RequiredResourceAccess = @($resourceAccess)
-        Notes = "Created by M365 Security Assessment Setup Script on $(Get-Date -Format 'yyyy-MM-dd')"
+        Notes = "Created by M365 Security Guardian Setup Script on $(Get-Date -Format 'yyyy-MM-dd')"
     }
     
     $app = New-MgApplication @appParams
@@ -231,7 +231,7 @@ $keyCredential = @{
     Type = "AsymmetricX509Cert"
     Usage = "Verify"
     Key = $certificate.RawData
-    DisplayName = "M365 Assessment Certificate"
+    DisplayName = "M365 Security Guardian Certificate"
     StartDateTime = $certificate.NotBefore
     EndDateTime = $certificate.NotAfter
 }
@@ -307,7 +307,7 @@ Write-Host $configSnippet -ForegroundColor Gray
 # Save to a local config file for convenience
 $configPath = Join-Path $PSScriptRoot ".auth-config.ps1"
 $configContent = @"
-# M365 Security Assessment - Authentication Configuration
+# M365 Security Guardian - Authentication Configuration
 # Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 # App Name: $AppName
 

@@ -11,7 +11,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$AppName = "M365 Security Assessment Tool",
+    [string]$AppName = "M365 Security Guardian",
     [int]$CertificateValidityYears = 2
 )
 
@@ -19,7 +19,7 @@ $ErrorActionPreference = 'Stop'
 
 Write-Host "`n"
 Write-Host "╔══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║     M365 Security Assessment - App Registration Setup (Azure CLI)    ║" -ForegroundColor Cyan
+Write-Host "║        M365 Security Guardian - App Registration Setup (Azure CLI)    ║" -ForegroundColor Cyan
 Write-Host "╚══════════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 
@@ -203,7 +203,7 @@ Write-Host ""
 # Save config
 $configPath = Join-Path $PSScriptRoot ".auth-config.ps1"
 @"
-# M365 Security Assessment - Auth Config
+# M365 Security Guardian - Auth Config
 # Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 
 `$AuthConfig = @{

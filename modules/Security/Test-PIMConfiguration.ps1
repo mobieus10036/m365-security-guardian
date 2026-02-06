@@ -18,7 +18,7 @@
     PSCustomObject containing PIM assessment results.
 
 .NOTES
-    Project: M365 Assessment Toolkit
+    Project: M365 Security Guardian
     Repository: https://github.com/mobieus10036/m365-security-guardian
     Author: mobieus10036
     Version: 3.0.0
