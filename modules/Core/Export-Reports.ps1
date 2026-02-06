@@ -87,7 +87,7 @@ function Protect-ReportFiles {
             }
             catch {
                 # Silently continue if we don't have SeSecurityPrivilege
-                Write-Verbose "Could not set ACL on $item: $_"
+                Write-Verbose "Could not set ACL on ${item}: $($_.Exception.Message)"
             }
         }
         Write-Verbose "Report file permissions restricted to current user and Administrators"

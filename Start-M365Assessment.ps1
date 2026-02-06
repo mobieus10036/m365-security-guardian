@@ -778,13 +778,16 @@ function Invoke-BaselineComparison {
             Write-Step "Comparing against baseline: $(Split-Path $effectiveBaseline -Leaf)"
             
             # Load the baseline data
-            $baselineData = Get-AssessmentBaseline -Path $effectiveBaseline
-            if ($baselineData) {
+            $baselineResult = Get-AssessmentBaseline -BaselinePath $effectiveBaseline
+            if ($baselineResult.Success) {
                 $script:BaselineComparison = Compare-AssessmentToBaseline `
                     -CurrentResults $script:AssessmentResults `
                     -CurrentSecurityScore $script:SecurityScore `
                     -CurrentCISCompliance $script:CISCompliance `
-                    -Baseline $baselineData
+                    -Baseline $baselineResult.Baseline
+            }
+            else {
+                Write-Warning "Could not load baseline: $($baselineResult.Error)"
             }
             
             if ($script:BaselineComparison) {
