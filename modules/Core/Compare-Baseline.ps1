@@ -277,21 +277,21 @@ function Compare-AssessmentToBaseline {
         $current = $currentChecks[$key]
         
         if ($baselineChecks.ContainsKey($key)) {
-            $baseline = $baselineChecks[$key]
+            $baselineCheck = $baselineChecks[$key]
             $currentPriority = $statusPriority[$current.Status]
-            $baselinePriority = $statusPriority[$baseline.Status]
+            $baselinePriority = $statusPriority[$baselineCheck.Status]
             
             if ($currentPriority -gt $baselinePriority) {
                 $improvements += [PSCustomObject]@{
                     CheckName = $current.CheckName
                     Category = $current.Category
-                    PreviousStatus = $baseline.Status
+                    PreviousStatus = $baselineCheck.Status
                     CurrentStatus = $current.Status
-                    PreviousSeverity = $baseline.Severity
+                    PreviousSeverity = $baselineCheck.Severity
                     CurrentSeverity = $current.Severity
                     Change = "Improved"
                     Impact = switch ($current.Status) {
-                        "Pass" { if ($baseline.Status -eq "Fail") { "Major" } else { "Minor" } }
+                        "Pass" { if ($baselineCheck.Status -eq "Fail") { "Major" } else { "Minor" } }
                         "Warning" { "Minor" }
                         default { "Minor" }
                     }
@@ -301,13 +301,13 @@ function Compare-AssessmentToBaseline {
                 $regressions += [PSCustomObject]@{
                     CheckName = $current.CheckName
                     Category = $current.Category
-                    PreviousStatus = $baseline.Status
+                    PreviousStatus = $baselineCheck.Status
                     CurrentStatus = $current.Status
-                    PreviousSeverity = $baseline.Severity
+                    PreviousSeverity = $baselineCheck.Severity
                     CurrentSeverity = $current.Severity
                     Change = "Regressed"
                     Impact = switch ($current.Status) {
-                        "Fail" { if ($baseline.Status -eq "Pass") { "Major" } else { "Minor" } }
+                        "Fail" { if ($baselineCheck.Status -eq "Pass") { "Major" } else { "Minor" } }
                         "Warning" { "Minor" }
                         default { "Minor" }
                     }
@@ -335,12 +335,12 @@ function Compare-AssessmentToBaseline {
     # Find removed checks (in baseline but not in current)
     foreach ($key in $baselineChecks.Keys) {
         if (-not $currentChecks.ContainsKey($key)) {
-            $baseline = $baselineChecks[$key]
+            $baselineCheck = $baselineChecks[$key]
             $removedChecks += [PSCustomObject]@{
-                CheckName = $baseline.CheckName
-                Category = $baseline.Category
-                Status = $baseline.Status
-                Severity = $baseline.Severity
+                CheckName = $baselineCheck.CheckName
+                Category = $baselineCheck.Category
+                Status = $baselineCheck.Status
+                Severity = $baselineCheck.Severity
             }
         }
     }
