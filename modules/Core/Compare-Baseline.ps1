@@ -212,6 +212,142 @@ function Get-AssessmentBaseline {
     }
 }
 
+function Compare-CheckChanges {
+    <#
+    .SYNOPSIS
+        Compares individual check results between current and baseline assessments.
+    
+    .DESCRIPTION
+        Analyzes assessment checks to identify improvements, regressions, unchanged items,
+        new checks, and removed checks. Uses a priority system where Pass > Info > Warning > Fail.
+    
+    .PARAMETER CurrentResults
+        Array of current assessment check results.
+    
+    .PARAMETER BaselineChecks
+        Array of baseline check results.
+    
+    .OUTPUTS
+        Hashtable with keys: Improvements, Regressions, Unchanged, NewChecks, RemovedChecks
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [array]$CurrentResults,
+        
+        [Parameter(Mandatory = $true)]
+        [array]$BaselineChecks
+    )
+    
+    # Build lookup tables using composite key (CheckName|Category)
+    $baselineHash = @{}
+    foreach ($check in $BaselineChecks) {
+        $key = "$($check.CheckName)|$($check.Category)"
+        $baselineHash[$key] = $check
+    }
+    
+    $currentHash = @{}
+    foreach ($result in $CurrentResults) {
+        $key = "$($result.CheckName)|$($result.Category)"
+        $currentHash[$key] = $result
+    }
+    
+    # Status priority for comparison (higher = better)
+    # Pass=4: Check passed, no issues
+    # Info=3: Informational, not a failure
+    # Warning=2: Potential issue, needs attention
+    # Fail=1: Check failed, security risk
+    $statusPriority = @{
+        "Pass" = 4
+        "Info" = 3
+        "Warning" = 2
+        "Fail" = 1
+    }
+    
+    $improvements = @()
+    $regressions = @()
+    $unchanged = @()
+    $newChecks = @()
+    $removedChecks = @()
+    
+    # Compare current checks against baseline
+    foreach ($key in $currentHash.Keys) {
+        $current = $currentHash[$key]
+        
+        if ($baselineHash.ContainsKey($key)) {
+            $baselineCheck = $baselineHash[$key]
+            $currentPriority = $statusPriority[$current.Status]
+            $baselinePriority = $statusPriority[$baselineCheck.Status]
+            
+            if ($currentPriority -gt $baselinePriority) {
+                # Check improved (e.g., Fail → Pass)
+                $improvements += [PSCustomObject]@{
+                    CheckName = $current.CheckName
+                    Category = $current.Category
+                    PreviousStatus = $baselineCheck.Status
+                    CurrentStatus = $current.Status
+                    PreviousSeverity = $baselineCheck.Severity
+                    CurrentSeverity = $current.Severity
+                    Change = "Improved"
+                    Impact = if ($current.Status -eq "Pass" -and $baselineCheck.Status -eq "Fail") { "Major" } else { "Minor" }
+                }
+            }
+            elseif ($currentPriority -lt $baselinePriority) {
+                # Check regressed (e.g., Pass → Fail)
+                $regressions += [PSCustomObject]@{
+                    CheckName = $current.CheckName
+                    Category = $current.Category
+                    PreviousStatus = $baselineCheck.Status
+                    CurrentStatus = $current.Status
+                    PreviousSeverity = $baselineCheck.Severity
+                    CurrentSeverity = $current.Severity
+                    Change = "Regressed"
+                    Impact = if ($current.Status -eq "Fail" -and $baselineCheck.Status -eq "Pass") { "Major" } else { "Minor" }
+                }
+            }
+            else {
+                # No change in status
+                $unchanged += [PSCustomObject]@{
+                    CheckName = $current.CheckName
+                    Category = $current.Category
+                    Status = $current.Status
+                    Severity = $current.Severity
+                }
+            }
+        }
+        else {
+            # New check not in baseline
+            $newChecks += [PSCustomObject]@{
+                CheckName = $current.CheckName
+                Category = $current.Category
+                Status = $current.Status
+                Severity = $current.Severity
+            }
+        }
+    }
+    
+    # Find removed checks (in baseline but not in current)
+    foreach ($key in $baselineHash.Keys) {
+        if (-not $currentHash.ContainsKey($key)) {
+            $baselineCheck = $baselineHash[$key]
+            $removedChecks += [PSCustomObject]@{
+                CheckName = $baselineCheck.CheckName
+                Category = $baselineCheck.Category
+                Status = $baselineCheck.Status
+                Severity = $baselineCheck.Severity
+            }
+        }
+    }
+    
+    return @{
+        Improvements = $improvements
+        Regressions = $regressions
+        Unchanged = $unchanged
+        NewChecks = $newChecks
+        RemovedChecks = $removedChecks
+    }
+}
+
 function Compare-AssessmentToBaseline {
     <#
     .SYNOPSIS
@@ -244,106 +380,13 @@ function Compare-AssessmentToBaseline {
         [PSCustomObject]$Baseline
     )
     
-    # Build lookup tables
-    $baselineChecks = @{}
-    foreach ($check in $Baseline.Checks) {
-        $key = "$($check.CheckName)|$($check.Category)"
-        $baselineChecks[$key] = $check
-    }
-    
-    $currentChecks = @{}
-    foreach ($result in $CurrentResults) {
-        $key = "$($result.CheckName)|$($result.Category)"
-        $currentChecks[$key] = $result
-    }
-    
     # Compare individual checks
-    $improvements = @()
-    $regressions = @()
-    $unchanged = @()
-    $newChecks = @()
-    $removedChecks = @()
-    
-    # Status priority for comparison (higher = better)
-    $statusPriority = @{
-        "Pass" = 4
-        "Info" = 3
-        "Warning" = 2
-        "Fail" = 1
-    }
-    
-    # Check current results against baseline
-    foreach ($key in $currentChecks.Keys) {
-        $current = $currentChecks[$key]
-        
-        if ($baselineChecks.ContainsKey($key)) {
-            $baselineCheck = $baselineChecks[$key]
-            $currentPriority = $statusPriority[$current.Status]
-            $baselinePriority = $statusPriority[$baselineCheck.Status]
-            
-            if ($currentPriority -gt $baselinePriority) {
-                $improvements += [PSCustomObject]@{
-                    CheckName = $current.CheckName
-                    Category = $current.Category
-                    PreviousStatus = $baselineCheck.Status
-                    CurrentStatus = $current.Status
-                    PreviousSeverity = $baselineCheck.Severity
-                    CurrentSeverity = $current.Severity
-                    Change = "Improved"
-                    Impact = switch ($current.Status) {
-                        "Pass" { if ($baselineCheck.Status -eq "Fail") { "Major" } else { "Minor" } }
-                        "Warning" { "Minor" }
-                        default { "Minor" }
-                    }
-                }
-            }
-            elseif ($currentPriority -lt $baselinePriority) {
-                $regressions += [PSCustomObject]@{
-                    CheckName = $current.CheckName
-                    Category = $current.Category
-                    PreviousStatus = $baselineCheck.Status
-                    CurrentStatus = $current.Status
-                    PreviousSeverity = $baselineCheck.Severity
-                    CurrentSeverity = $current.Severity
-                    Change = "Regressed"
-                    Impact = switch ($current.Status) {
-                        "Fail" { if ($baselineCheck.Status -eq "Pass") { "Major" } else { "Minor" } }
-                        "Warning" { "Minor" }
-                        default { "Minor" }
-                    }
-                }
-            }
-            else {
-                $unchanged += [PSCustomObject]@{
-                    CheckName = $current.CheckName
-                    Category = $current.Category
-                    Status = $current.Status
-                    Severity = $current.Severity
-                }
-            }
-        }
-        else {
-            $newChecks += [PSCustomObject]@{
-                CheckName = $current.CheckName
-                Category = $current.Category
-                Status = $current.Status
-                Severity = $current.Severity
-            }
-        }
-    }
-    
-    # Find removed checks (in baseline but not in current)
-    foreach ($key in $baselineChecks.Keys) {
-        if (-not $currentChecks.ContainsKey($key)) {
-            $baselineCheck = $baselineChecks[$key]
-            $removedChecks += [PSCustomObject]@{
-                CheckName = $baselineCheck.CheckName
-                Category = $baselineCheck.Category
-                Status = $baselineCheck.Status
-                Severity = $baselineCheck.Severity
-            }
-        }
-    }
+    $checkComparison = Compare-CheckChanges -CurrentResults $CurrentResults -BaselineChecks $Baseline.Checks
+    $improvements = $checkComparison.Improvements
+    $regressions = $checkComparison.Regressions
+    $unchanged = $checkComparison.Unchanged
+    $newChecks = $checkComparison.NewChecks
+    $removedChecks = $checkComparison.RemovedChecks
     
     # Calculate score deltas
     $scoreComparison = $null
