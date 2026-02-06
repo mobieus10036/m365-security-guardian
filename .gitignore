@@ -1,6 +1,9 @@
 # Reports (generated output) - Never commit reports to repo
 reports/
 
+# Auth config (contains tenant-specific credentials)
+.auth-config.ps1
+
 # PowerShell
 *.ps1xml
 *.psd1~
