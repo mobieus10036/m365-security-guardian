@@ -466,16 +466,16 @@ function Compare-AssessmentToBaseline {
         # Compare categories
         $categoryComparisons = @()
         if ($CurrentSecurityScore.CategoryScores -and $Baseline.SecurityScore.Categories) {
-            foreach ($cat in $CurrentSecurityScore.CategoryScores) {
-                $baselineCat = $Baseline.SecurityScore.Categories | Where-Object { $_.Category -eq $cat.Category }
-                if ($baselineCat) {
-                    $catDelta = [math]::Round($cat.Score - $baselineCat.Score, 1)
+            foreach ($category in $CurrentSecurityScore.CategoryScores) {
+                $baselineCategory = $Baseline.SecurityScore.Categories | Where-Object { $_.Category -eq $category.Category }
+                if ($baselineCategory) {
+                    $categoryDelta = [math]::Round($category.Score - $baselineCategory.Score, 1)
                     $categoryComparisons += [PSCustomObject]@{
-                        Category = $cat.Category
-                        CurrentScore = $cat.Score
-                        BaselineScore = $baselineCat.Score
-                        Delta = $catDelta
-                        Trend = if ($catDelta -gt 0) { "↑" } elseif ($catDelta -lt 0) { "↓" } else { "→" }
+                        Category = $category.Category
+                        CurrentScore = $category.Score
+                        BaselineScore = $baselineCategory.Score
+                        Delta = $categoryDelta
+                        Trend = if ($categoryDelta -gt 0) { "↑" } elseif ($categoryDelta -lt 0) { "↓" } else { "→" }
                     }
                 }
             }
@@ -496,21 +496,21 @@ function Compare-AssessmentToBaseline {
     # CIS compliance comparison
     $cisComparison = $null
     if ($CurrentCISCompliance -and $Baseline.CISCompliance) {
-        $l1Delta = [math]::Round($CurrentCISCompliance.Level1Percentage - $Baseline.CISCompliance.Level1Percentage, 1)
-        $l2Delta = [math]::Round($CurrentCISCompliance.Level2Percentage - $Baseline.CISCompliance.Level2Percentage, 1)
+        $level1Delta = [math]::Round($CurrentCISCompliance.Level1Percentage - $Baseline.CISCompliance.Level1Percentage, 1)
+        $level2Delta = [math]::Round($CurrentCISCompliance.Level2Percentage - $Baseline.CISCompliance.Level2Percentage, 1)
         
         $cisComparison = [PSCustomObject]@{
             Level1 = [PSCustomObject]@{
                 Current = $CurrentCISCompliance.Level1Percentage
                 Baseline = $Baseline.CISCompliance.Level1Percentage
-                Delta = $l1Delta
-                Trend = if ($l1Delta -gt 0) { "↑" } elseif ($l1Delta -lt 0) { "↓" } else { "→" }
+                Delta = $level1Delta
+                Trend = if ($level1Delta -gt 0) { "↑" } elseif ($level1Delta -lt 0) { "↓" } else { "→" }
             }
             Level2 = [PSCustomObject]@{
                 Current = $CurrentCISCompliance.Level2Percentage
                 Baseline = $Baseline.CISCompliance.Level2Percentage
-                Delta = $l2Delta
-                Trend = if ($l2Delta -gt 0) { "↑" } elseif ($l2Delta -lt 0) { "↓" } else { "→" }
+                Delta = $level2Delta
+                Trend = if ($level2Delta -gt 0) { "↑" } elseif ($level2Delta -lt 0) { "↓" } else { "→" }
             }
         }
     }
@@ -635,19 +635,19 @@ function Format-BaselineComparison {
     
     # Security Score comparison
     if ($Comparison.SecurityScoreComparison) {
-        $sc = $Comparison.SecurityScoreComparison
-        $deltaStr = if ($sc.Delta -gt 0) { "+$($sc.Delta)%" } elseif ($sc.Delta -lt 0) { "$($sc.Delta)%" } else { "0%" }
+        $scoreComparison = $Comparison.SecurityScoreComparison
+        $deltaStr = if ($scoreComparison.Delta -gt 0) { "+$($scoreComparison.Delta)%" } elseif ($scoreComparison.Delta -lt 0) { "$($scoreComparison.Delta)%" } else { "0%" }
         
         $output += "  Security Score:"
-        $output += "    Baseline: $($sc.BaselineScore)% (Grade $($sc.BaselineGrade)) → Current: $($sc.CurrentScore)% (Grade $($sc.CurrentGrade))"
-        $output += "    Change: $($sc.TrendIcon) $deltaStr"
+        $output += "    Baseline: $($scoreComparison.BaselineScore)% (Grade $($scoreComparison.BaselineGrade)) → Current: $($scoreComparison.CurrentScore)% (Grade $($scoreComparison.CurrentGrade))"
+        $output += "    Change: $($scoreComparison.TrendIcon) $deltaStr"
         $output += ""
         
-        if ($sc.CategoryComparisons -and $sc.CategoryComparisons.Count -gt 0) {
+        if ($scoreComparison.CategoryComparisons -and $scoreComparison.CategoryComparisons.Count -gt 0) {
             $output += "  Category Changes:"
-            foreach ($cat in $sc.CategoryComparisons) {
-                $catDelta = if ($cat.Delta -gt 0) { "+$($cat.Delta)%" } elseif ($cat.Delta -lt 0) { "$($cat.Delta)%" } else { "0%" }
-                $output += "    $($cat.Trend) $($cat.Category.PadRight(25)) $($cat.BaselineScore)% → $($cat.CurrentScore)% ($catDelta)"
+            foreach ($category in $scoreComparison.CategoryComparisons) {
+                $categoryDelta = if ($category.Delta -gt 0) { "+$($category.Delta)%" } elseif ($category.Delta -lt 0) { "$($category.Delta)%" } else { "0%" }
+                $output += "    $($category.Trend) $($category.Category.PadRight(25)) $($category.BaselineScore)% → $($category.CurrentScore)% ($categoryDelta)"
             }
             $output += ""
         }
@@ -655,13 +655,13 @@ function Format-BaselineComparison {
     
     # CIS comparison
     if ($Comparison.CISComplianceComparison) {
-        $cis = $Comparison.CISComplianceComparison
-        $l1Delta = if ($cis.Level1.Delta -gt 0) { "+$($cis.Level1.Delta)%" } elseif ($cis.Level1.Delta -lt 0) { "$($cis.Level1.Delta)%" } else { "0%" }
-        $l2Delta = if ($cis.Level2.Delta -gt 0) { "+$($cis.Level2.Delta)%" } elseif ($cis.Level2.Delta -lt 0) { "$($cis.Level2.Delta)%" } else { "0%" }
+        $cisComparison = $Comparison.CISComplianceComparison
+        $level1Delta = if ($cisComparison.Level1.Delta -gt 0) { "+$($cisComparison.Level1.Delta)%" } elseif ($cisComparison.Level1.Delta -lt 0) { "$($cisComparison.Level1.Delta)%" } else { "0%" }
+        $level2Delta = if ($cisComparison.Level2.Delta -gt 0) { "+$($cisComparison.Level2.Delta)%" } elseif ($cisComparison.Level2.Delta -lt 0) { "$($cisComparison.Level2.Delta)%" } else { "0%" }
         
         $output += "  CIS Benchmark Compliance:"
-        $output += "    Level 1: $($cis.Level1.Trend) $($cis.Level1.Baseline)% → $($cis.Level1.Current)% ($l1Delta)"
-        $output += "    Level 2: $($cis.Level2.Trend) $($cis.Level2.Baseline)% → $($cis.Level2.Current)% ($l2Delta)"
+        $output += "    Level 1: $($cisComparison.Level1.Trend) $($cisComparison.Level1.Baseline)% → $($cisComparison.Level1.Current)% ($level1Delta)"
+        $output += "    Level 2: $($cisComparison.Level2.Trend) $($cisComparison.Level2.Baseline)% → $($cisComparison.Level2.Current)% ($level2Delta)"
         $output += ""
     }
     
