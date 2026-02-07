@@ -135,12 +135,6 @@ function Save-AssessmentBaseline {
                     Status = $_.Status
                     Severity = $_.Severity
                     Message = $_.Message
-                    # Create a hash for quick comparison
-                    CheckHash = [System.BitConverter]::ToString(
-                        [System.Security.Cryptography.SHA256]::Create().ComputeHash(
-                            [System.Text.Encoding]::UTF8.GetBytes("$($_.CheckName)|$($_.Category)")
-                        )
-                    ).Replace("-", "").Substring(0, 16)
                 }
             }
         }
