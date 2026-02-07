@@ -600,18 +600,20 @@ function Build-ListedItemsHtml {
         [int]$MaxDisplay = 10
     )
     
-    $html = "<br><br><strong>$Title ($($Items.Count)):</strong><br><ul>"
-    
+    $html = "<br><br><strong>$Title ($($Items.Count)):</strong><br>"
+    $html += "<table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'>"
+    $html += "<tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>Item</td></tr>"
+
     $displayCount = [Math]::Min($MaxDisplay, $Items.Count)
     for ($i = 0; $i -lt $displayCount; $i++) {
-        $html += "<li>" + (& $ItemFormatter $Items[$i]) + "</li>"
+        $html += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'>" + (& $ItemFormatter $Items[$i]) + "</td></tr>"
     }
-    
+
     if ($Items.Count -gt $MaxDisplay) {
-        $html += "<li><em>...and $($Items.Count - $MaxDisplay) more (see CSV export)</em></li>"
+        $html += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300); font-style: italic; text-align: center;'>...and $($Items.Count - $MaxDisplay) more (see CSV export)</td></tr>"
     }
-    
-    $html += "</ul>"
+
+    $html += "</table>"
     return $html
 }
 
