@@ -43,6 +43,42 @@ $script:STATUS_PRIORITY = @{
 
 #endregion
 
+function Get-TrendIcon {
+    <#
+    .SYNOPSIS
+        Calculates the trend icon based on delta value.
+    
+    .PARAMETER Delta
+        The change value (current minus baseline).
+        Positive values return "↑" (improving)
+        Negative values return "↓" (declining)
+        Zero returns "→" (stable)
+    
+    .OUTPUTS
+        System.String - A single character trend icon
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowNull()]
+        [decimal]$Delta
+    )
+    
+    if ($null -eq $Delta) {
+        return "→"
+    }
+    
+    if ($Delta -gt 0) {
+        return "↑"
+    }
+    elseif ($Delta -lt 0) {
+        return "↓"
+    }
+    else {
+        return "→"
+    }
+}
+
 function Save-AssessmentBaseline {
     <#
     .SYNOPSIS
@@ -475,7 +511,7 @@ function Compare-AssessmentToBaseline {
                         CurrentScore = $category.Score
                         BaselineScore = $baselineCategory.Score
                         Delta = $categoryDelta
-                        Trend = if ($categoryDelta -gt 0) { "↑" } elseif ($categoryDelta -lt 0) { "↓" } else { "→" }
+                        Trend = Get-TrendIcon -Delta $categoryDelta
                     }
                 }
             }
@@ -488,7 +524,7 @@ function Compare-AssessmentToBaseline {
             CurrentGrade = $CurrentSecurityScore.Grade
             BaselineGrade = $Baseline.SecurityScore.Grade
             Trend = if ($scoreDelta -gt 0) { $script:TREND_IMPROVING } elseif ($scoreDelta -lt 0) { $script:TREND_DECLINING } else { $script:TREND_STABLE }
-            TrendIcon = if ($scoreDelta -gt 0) { "↑" } elseif ($scoreDelta -lt 0) { "↓" } else { "→" }
+            TrendIcon = Get-TrendIcon -Delta $scoreDelta
             CategoryComparisons = $categoryComparisons
         }
     }
@@ -504,13 +540,13 @@ function Compare-AssessmentToBaseline {
                 Current = $CurrentCISCompliance.Level1Percentage
                 Baseline = $Baseline.CISCompliance.Level1Percentage
                 Delta = $level1Delta
-                Trend = if ($level1Delta -gt 0) { "↑" } elseif ($level1Delta -lt 0) { "↓" } else { "→" }
+                Trend = Get-TrendIcon -Delta $level1Delta
             }
             Level2 = [PSCustomObject]@{
                 Current = $CurrentCISCompliance.Level2Percentage
                 Baseline = $Baseline.CISCompliance.Level2Percentage
                 Delta = $level2Delta
-                Trend = if ($level2Delta -gt 0) { "↑" } elseif ($level2Delta -lt 0) { "↓" } else { "→" }
+                Trend = Get-TrendIcon -Delta $level2Delta
             }
         }
     }
