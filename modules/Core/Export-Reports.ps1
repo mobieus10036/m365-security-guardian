@@ -1098,6 +1098,11 @@ function Build-FindingContentHtml {
     
     $findingContent = $DefaultMessage
     
+    # MFA Enforcement
+    if ($Result.CheckName -eq "MFA Enforcement") {
+        $findingContent = Build-MFAFindingsHtml -Result $Result -DefaultMessage $DefaultMessage
+    }
+
     # Conditional Access
     if ($Result.CheckName -eq "Conditional Access Policies" -and $Result.Findings -and $Result.Findings.Count -gt 0) {
         $findingContent = Build-ConditionalAccessFindingHtml -Result $Result
@@ -1185,6 +1190,52 @@ function Build-FindingContentHtml {
     }
     
     return $findingContent
+}
+
+function Build-MFAFindingsHtml {
+    <#
+    .SYNOPSIS
+        Builds a structured findings summary for MFA enforcement.
+    #>
+    param(
+        [object]$Result,
+        [string]$DefaultMessage
+    )
+
+    if (-not $Result.Details) {
+        return $DefaultMessage
+    }
+
+    $totalUsers = $Result.Details.TotalUsers
+    $usersWithMfa = $Result.Details.UsersWithMFA
+    $usersWithoutMfa = $Result.Details.UsersWithoutMFA
+    $compliance = $Result.Details.CompliancePercentage
+    $threshold = $Result.Details.Threshold
+
+    $adoptionText = if ($null -ne $compliance) { "$compliance%" } else { "N/A" }
+    $thresholdText = if ($null -ne $threshold) { "$threshold%" } else { "N/A" }
+
+    $html = "<div class='mfa-summary'>"
+    $html += "<div class='mfa-stat'><span class='mfa-label'>Adoption</span><span class='mfa-value'>$adoptionText</span></div>"
+    $html += "<div class='mfa-stat'><span class='mfa-label'>Users With MFA</span><span class='mfa-value'>$usersWithMfa</span></div>"
+    $html += "<div class='mfa-stat'><span class='mfa-label'>Users Without MFA</span><span class='mfa-value'>$usersWithoutMfa</span></div>"
+    $html += "<div class='mfa-stat'><span class='mfa-label'>Target Threshold</span><span class='mfa-value'>$thresholdText</span></div>"
+    $html += "</div>"
+
+    if ($Result.UsersWithoutMFA -and $Result.UsersWithoutMFA.Count -gt 0) {
+        $html += Build-ListedItemsHtml -Items $Result.UsersWithoutMFA -Title "Users without MFA" -ItemFormatter {
+            param($user)
+            $upnSafe = ConvertTo-HtmlSafe $user.UserPrincipalName
+            $nameSafe = ConvertTo-HtmlSafe $user.DisplayName
+            if (-not $nameSafe) { $nameSafe = "Unknown" }
+            "<code>$upnSafe</code> - $nameSafe"
+        } -MaxDisplay 15
+    }
+    else {
+        $html += "<div class='mfa-note'>No users without MFA were detected.</div>"
+    }
+
+    return $html
 }
 
 function Build-RecommendationContentHtml {
