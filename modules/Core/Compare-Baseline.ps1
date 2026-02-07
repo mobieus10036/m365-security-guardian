@@ -622,6 +622,247 @@ function Compare-AssessmentToBaseline {
     return $comparison
 }
 
+function Format-DeltaString {
+    <#
+    .SYNOPSIS
+        Formats a delta value as a string with + or - prefix.
+    
+    .PARAMETER Delta
+        The delta value to format.
+    
+    .OUTPUTS
+        System.String - Formatted delta string (e.g., "+5%", "-3%", "0%")
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowNull()]
+        [decimal]$Delta
+    )
+    
+    if ($null -eq $Delta) {
+        return "0%"
+    }
+    
+    if ($Delta -gt 0) {
+        return "+$($Delta)%"
+    }
+    elseif ($Delta -lt 0) {
+        return "$($Delta)%"
+    }
+    else {
+        return "0%"
+    }
+}
+
+function Format-ComparisonHeader {
+    <#
+    .SYNOPSIS
+        Formats the header section of the baseline comparison.
+    
+    .PARAMETER BaselineName
+        Name of the baseline.
+    
+    .PARAMETER BaselineDate
+        Date of the baseline.
+    
+    .PARAMETER DaysSinceBaseline
+        Number of days since the baseline was created.
+    
+    .OUTPUTS
+        System.String[] - Array of formatted header lines
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$BaselineName,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$BaselineDate,
+        
+        [Parameter(Mandatory = $true)]
+        [int]$DaysSinceBaseline
+    )
+    
+    $output = @()
+    $output += ""
+    $output += "╔══════════════════════════════════════════════════════════════════════╗"
+    $output += "║              BASELINE COMPARISON                                     ║"
+    $output += "╚══════════════════════════════════════════════════════════════════════╝"
+    $output += ""
+    $output += "  Baseline: $BaselineName ($BaselineDate)"
+    $output += "  Days since baseline: $DaysSinceBaseline"
+    $output += ""
+    
+    return $output
+}
+
+function Format-OverallTrendSection {
+    <#
+    .SYNOPSIS
+        Formats the overall trend summary box.
+    
+    .PARAMETER OverallTrend
+        The overall trend (Improving, Declining, Stable).
+    
+    .PARAMETER Summary
+        The summary object containing improvement/regression counts.
+    
+    .OUTPUTS
+        System.String[] - Array of formatted trend section lines
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$OverallTrend,
+        
+        [Parameter(Mandatory = $true)]
+        [PSCustomObject]$Summary
+    )
+    
+    $trendIcon = switch ($OverallTrend) {
+        $script:TREND_IMPROVING { "↑" }
+        $script:TREND_DECLINING { "↓" }
+        default { "→" }
+    }
+    
+    $output = @()
+    $output += "  ┌─────────────────────────────────────────────────────────────────┐"
+    $output += "  │  OVERALL TREND: $trendIcon $($OverallTrend.ToUpper().PadRight(45))│"
+    $output += "  ├─────────────────────────────────────────────────────────────────┤"
+    $output += "  │  Improvements: $($Summary.TotalImprovements.ToString().PadRight(5)) ($($Summary.MajorImprovements) major)                           │"
+    $output += "  │  Regressions:  $($Summary.TotalRegressions.ToString().PadRight(5)) ($($Summary.MajorRegressions) major)                           │"
+    $output += "  │  Unchanged:    $($Summary.TotalUnchanged.ToString().PadRight(48))│"
+    $output += "  └─────────────────────────────────────────────────────────────────┘"
+    $output += ""
+    
+    return $output
+}
+
+function Format-SecurityScoreSection {
+    <#
+    .SYNOPSIS
+        Formats the security score comparison section.
+    
+    .PARAMETER SecurityScoreComparison
+        The security score comparison object.
+    
+    .OUTPUTS
+        System.String[] - Array of formatted security score lines
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false)]
+        [PSCustomObject]$SecurityScoreComparison
+    )
+    
+    if (-not $SecurityScoreComparison) {
+        return @()
+    }
+    
+    $output = @()
+    $deltaStr = Format-DeltaString -Delta $SecurityScoreComparison.Delta
+    
+    $output += "  Security Score:"
+    $output += "    Baseline: $($SecurityScoreComparison.BaselineScore)% (Grade $($SecurityScoreComparison.BaselineGrade)) → Current: $($SecurityScoreComparison.CurrentScore)% (Grade $($SecurityScoreComparison.CurrentGrade))"
+    $output += "    Change: $($SecurityScoreComparison.TrendIcon) $deltaStr"
+    $output += ""
+    
+    if ($SecurityScoreComparison.CategoryComparisons -and $SecurityScoreComparison.CategoryComparisons.Count -gt 0) {
+        $output += "  Category Changes:"
+        foreach ($category in $SecurityScoreComparison.CategoryComparisons) {
+            $categoryDelta = Format-DeltaString -Delta $category.Delta
+            $output += "    $($category.Trend) $($category.Category.PadRight(25)) $($category.BaselineScore)% → $($category.CurrentScore)% ($categoryDelta)"
+        }
+        $output += ""
+    }
+    
+    return $output
+}
+
+function Format-CISComplianceSection {
+    <#
+    .SYNOPSIS
+        Formats the CIS compliance comparison section.
+    
+    .PARAMETER CISComplianceComparison
+        The CIS compliance comparison object.
+    
+    .OUTPUTS
+        System.String[] - Array of formatted CIS compliance lines
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false)]
+        [PSCustomObject]$CISComplianceComparison
+    )
+    
+    if (-not $CISComplianceComparison) {
+        return @()
+    }
+    
+    $output = @()
+    $level1Delta = Format-DeltaString -Delta $CISComplianceComparison.Level1.Delta
+    $level2Delta = Format-DeltaString -Delta $CISComplianceComparison.Level2.Delta
+    
+    $output += "  CIS Benchmark Compliance:"
+    $output += "    Level 1: $($CISComplianceComparison.Level1.Trend) $($CISComplianceComparison.Level1.Baseline)% → $($CISComplianceComparison.Level1.Current)% ($level1Delta)"
+    $output += "    Level 2: $($CISComplianceComparison.Level2.Trend) $($CISComplianceComparison.Level2.Baseline)% → $($CISComplianceComparison.Level2.Current)% ($level2Delta)"
+    $output += ""
+    
+    return $output
+}
+
+function Format-ChangesSection {
+    <#
+    .SYNOPSIS
+        Formats a list of improvements or regressions.
+    
+    .PARAMETER Changes
+        Array of change objects (improvements or regressions).
+    
+    .PARAMETER Title
+        Section title (e.g., "Improvements" or "Regressions").
+    
+    .PARAMETER Icon
+        Icon to display (e.g., "✓" or "✗").
+    
+    .OUTPUTS
+        System.String[] - Array of formatted change lines
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
+        [array]$Changes,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$Title,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$Icon
+    )
+    
+    if ($Changes.Count -eq 0) {
+        return @()
+    }
+    
+    $output = @()
+    $output += "  $Icon $Title ($($Changes.Count)):"
+    
+    foreach ($change in ($Changes | Select-Object -First 5)) {
+        $output += "    • $($change.CheckName): $($change.PreviousStatus) → $($change.CurrentStatus)"
+    }
+    
+    if ($Changes.Count -gt 5) {
+        $output += "    ... and $($Changes.Count - 5) more"
+    }
+    
+    $output += ""
+    
+    return $output
+}
+
 function Format-BaselineComparison {
     <#
     .SYNOPSIS
@@ -636,96 +877,17 @@ function Format-BaselineComparison {
         [PSCustomObject]$Comparison
     )
     
-    $output = @()
+    $sections = @()
     
-    # Header
-    $output += ""
-    $output += "╔══════════════════════════════════════════════════════════════════════╗"
-    $output += "║              BASELINE COMPARISON                                     ║"
-    $output += "╚══════════════════════════════════════════════════════════════════════╝"
-    $output += ""
-    $output += "  Baseline: $($Comparison.BaselineName) ($($Comparison.BaselineDate))"
-    $output += "  Days since baseline: $($Comparison.DaysSinceBaseline)"
-    $output += ""
+    # Build each section using helper functions
+    $sections += Format-ComparisonHeader -BaselineName $Comparison.BaselineName -BaselineDate $Comparison.BaselineDate -DaysSinceBaseline $Comparison.DaysSinceBaseline
+    $sections += Format-OverallTrendSection -OverallTrend $Comparison.OverallTrend -Summary $Comparison.Summary
+    $sections += Format-SecurityScoreSection -SecurityScoreComparison $Comparison.SecurityScoreComparison
+    $sections += Format-CISComplianceSection -CISComplianceComparison $Comparison.CISComplianceComparison
+    $sections += Format-ChangesSection -Changes $Comparison.Improvements -Title "Improvements" -Icon "✓"
+    $sections += Format-ChangesSection -Changes $Comparison.Regressions -Title "Regressions" -Icon "✗"
     
-    # Overall trend
-    $trendIcon = switch ($Comparison.OverallTrend) {
-        $script:TREND_IMPROVING { "↑" }
-        $script:TREND_DECLINING { "↓" }
-        default { "→" }
-    }
-    $trendColor = switch ($Comparison.OverallTrend) {
-        $script:TREND_IMPROVING { "Green" }
-        $script:TREND_DECLINING { "Red" }
-        default { "Yellow" }
-    }
-    
-    $output += "  ┌─────────────────────────────────────────────────────────────────┐"
-    $output += "  │  OVERALL TREND: $trendIcon $($Comparison.OverallTrend.ToUpper().PadRight(45))│"
-    $output += "  ├─────────────────────────────────────────────────────────────────┤"
-    $output += "  │  Improvements: $($Comparison.Summary.TotalImprovements.ToString().PadRight(5)) ($($Comparison.Summary.MajorImprovements) major)                           │"
-    $output += "  │  Regressions:  $($Comparison.Summary.TotalRegressions.ToString().PadRight(5)) ($($Comparison.Summary.MajorRegressions) major)                           │"
-    $output += "  │  Unchanged:    $($Comparison.Summary.TotalUnchanged.ToString().PadRight(48))│"
-    $output += "  └─────────────────────────────────────────────────────────────────┘"
-    $output += ""
-    
-    # Security Score comparison
-    if ($Comparison.SecurityScoreComparison) {
-        $scoreComparison = $Comparison.SecurityScoreComparison
-        $deltaStr = if ($scoreComparison.Delta -gt 0) { "+$($scoreComparison.Delta)%" } elseif ($scoreComparison.Delta -lt 0) { "$($scoreComparison.Delta)%" } else { "0%" }
-        
-        $output += "  Security Score:"
-        $output += "    Baseline: $($scoreComparison.BaselineScore)% (Grade $($scoreComparison.BaselineGrade)) → Current: $($scoreComparison.CurrentScore)% (Grade $($scoreComparison.CurrentGrade))"
-        $output += "    Change: $($scoreComparison.TrendIcon) $deltaStr"
-        $output += ""
-        
-        if ($scoreComparison.CategoryComparisons -and $scoreComparison.CategoryComparisons.Count -gt 0) {
-            $output += "  Category Changes:"
-            foreach ($category in $scoreComparison.CategoryComparisons) {
-                $categoryDelta = if ($category.Delta -gt 0) { "+$($category.Delta)%" } elseif ($category.Delta -lt 0) { "$($category.Delta)%" } else { "0%" }
-                $output += "    $($category.Trend) $($category.Category.PadRight(25)) $($category.BaselineScore)% → $($category.CurrentScore)% ($categoryDelta)"
-            }
-            $output += ""
-        }
-    }
-    
-    # CIS comparison
-    if ($Comparison.CISComplianceComparison) {
-        $cisComparison = $Comparison.CISComplianceComparison
-        $level1Delta = if ($cisComparison.Level1.Delta -gt 0) { "+$($cisComparison.Level1.Delta)%" } elseif ($cisComparison.Level1.Delta -lt 0) { "$($cisComparison.Level1.Delta)%" } else { "0%" }
-        $level2Delta = if ($cisComparison.Level2.Delta -gt 0) { "+$($cisComparison.Level2.Delta)%" } elseif ($cisComparison.Level2.Delta -lt 0) { "$($cisComparison.Level2.Delta)%" } else { "0%" }
-        
-        $output += "  CIS Benchmark Compliance:"
-        $output += "    Level 1: $($cisComparison.Level1.Trend) $($cisComparison.Level1.Baseline)% → $($cisComparison.Level1.Current)% ($level1Delta)"
-        $output += "    Level 2: $($cisComparison.Level2.Trend) $($cisComparison.Level2.Baseline)% → $($cisComparison.Level2.Current)% ($level2Delta)"
-        $output += ""
-    }
-    
-    # Improvements
-    if ($Comparison.Improvements.Count -gt 0) {
-        $output += "  ✓ Improvements ($($Comparison.Improvements.Count)):"
-        foreach ($imp in ($Comparison.Improvements | Select-Object -First 5)) {
-            $output += "    • $($imp.CheckName): $($imp.PreviousStatus) → $($imp.CurrentStatus)"
-        }
-        if ($Comparison.Improvements.Count -gt 5) {
-            $output += "    ... and $($Comparison.Improvements.Count - 5) more"
-        }
-        $output += ""
-    }
-    
-    # Regressions
-    if ($Comparison.Regressions.Count -gt 0) {
-        $output += "  ✗ Regressions ($($Comparison.Regressions.Count)):"
-        foreach ($reg in ($Comparison.Regressions | Select-Object -First 5)) {
-            $output += "    • $($reg.CheckName): $($reg.PreviousStatus) → $($reg.CurrentStatus)"
-        }
-        if ($Comparison.Regressions.Count -gt 5) {
-            $output += "    ... and $($Comparison.Regressions.Count - 5) more"
-        }
-        $output += ""
-    }
-    
-    return $output -join "`n"
+    return $sections -join "`n"
 }
 
 # Functions are automatically available when dot-sourced
