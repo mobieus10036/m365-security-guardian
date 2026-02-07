@@ -1,21 +1,45 @@
 # Security Policy
 
-Reporting a Vulnerability
+## Reporting a Vulnerability
 
-- Do not open public GitHub issues for security problems.
-- Use GitHub private vulnerability reporting (Security Advisories) or contact the maintainer privately via GitHub.
-- Include: description, impact, reproduction steps, affected version, and optional remediation ideas.
-- You will receive an acknowledgement within a few days; we will coordinate a fix and disclosure.
+If you discover a security vulnerability in M365 Security Guardian:
 
-Scope
+- **DO NOT** open public GitHub issues for security problems
+- Use GitHub's [Security Advisories](https://github.com/mobieus10036/m365-security-guardian/security/advisories) feature to report privately
+- Alternatively, contact the maintainer privately via GitHub
 
-- The toolkit is read-only: it does not modify tenant settings.
-- It calls Microsoft APIs; no data is sent to third parties beyond Microsoft.
-- Reports may contain sensitive configuration details—store and share them carefully.
+**Please include:**
+- Description of the vulnerability
+- Potential impact and severity
+- Steps to reproduce
+- Affected version(s)
+- Suggested remediation (optional)
 
-Supported Versions
+You will receive an acknowledgement within 3-5 business days. We will work with you to coordinate a fix and responsible disclosure timeline.
 
-| Version | Supported |
-| --- | --- |
-| 3.x | Yes |
-| < 3.0 | No |
+---
+
+## Security Scope
+
+**What This Tool Does:**
+- **Read-only assessment** - The tool does not modify any tenant settings
+- Calls Microsoft Graph and Exchange Online APIs only
+- No data is sent to third parties beyond Microsoft services
+- All processing is performed locally on your machine
+
+**Important Security Notes:**
+- Generated reports may contain sensitive configuration details
+- Store and share reports securely (consider them confidential)
+- Review reports before sharing externally
+- Use certificate authentication for production environments
+
+---
+
+## Supported Versions
+
+| Version | Supported | Status |
+| ------- | --------- | ------ |
+| 3.x     | ✅ Yes    | Current release |
+| < 3.0   | ❌ No     | Legacy versions |
+
+Only the current major version (3.x) receives security updates.

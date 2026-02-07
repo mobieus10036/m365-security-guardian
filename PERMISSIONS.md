@@ -1,6 +1,6 @@
 # Required Permissions for M365 Security Guardian
 
-This document provides a comprehensive list of all permissions required to run the M365 Security Guardian tool.
+This document provides a comprehensive list of all permissions required to run M365 Security Guardian.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ This document provides a comprehensive list of all permissions required to run t
 
 ## Overview
 
-The M365 Security Guardian tool requires:
+M365 Security Guardian requires:
 
 1. **Microsoft Graph API permissions** (Application type) - For reading Entra ID, Conditional Access, and SharePoint configurations
 2. **Exchange Online RBAC role** - For reading mailbox, email security, and compliance settings
@@ -288,4 +288,5 @@ Exchange Online:
 
 | Version | Date | Changes |
 | ------- | ---- | ------- |
-| 1.0 | 2026-02-03 | Initial permissions documentation |
+| 3.1.0 | 2026-02-07 | Updated for CIS Benchmark v3.1.0 compliance |
+| 3.0.0 | 2026-02-03 | Initial permissions documentation |
