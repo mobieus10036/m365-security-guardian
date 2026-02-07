@@ -773,7 +773,7 @@ function Invoke-BaselineComparison {
         }
         
         # Compare against baseline if one is specified or available
-        $effectiveBaseline = if ($CompareToBaseline) { $CompareToBaseline } else { Get-LatestBaseline -BaselinePath $BaselinePath }
+        $effectiveBaseline = if ($CompareToBaseline) { $CompareToBaseline } else { Get-LatestBaselinePath -BaselinePath $BaselinePath }
         
         if ($effectiveBaseline -and (Test-Path $effectiveBaseline)) {
             Write-Step "Comparing against baseline: $(Split-Path $effectiveBaseline -Leaf)"

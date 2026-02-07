@@ -182,16 +182,16 @@ function Save-AssessmentBaseline {
     }
 }
 
-function Get-LatestBaseline {
+function Get-LatestBaselinePath {
     <#
     .SYNOPSIS
-        Gets the most recent baseline file from the baselines directory.
+        Gets the most recent baseline file path from the baselines directory.
     
     .PARAMETER BaselinePath
         Path to the baselines directory.
     
     .OUTPUTS
-        Path to the latest baseline file, or $null if no baselines exist.
+        String: Full path to the latest baseline file, or $null if no baselines exist.
     #>
     [CmdletBinding()]
     param(
