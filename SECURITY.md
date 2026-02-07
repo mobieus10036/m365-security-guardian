@@ -9,6 +9,7 @@ If you discover a security vulnerability in M365 Security Guardian:
 - Alternatively, contact the maintainer privately via GitHub
 
 **Please include:**
+
 - Description of the vulnerability
 - Potential impact and severity
 - Steps to reproduce
@@ -22,12 +23,14 @@ You will receive an acknowledgement within 3-5 business days. We will work with 
 ## Security Scope
 
 **What This Tool Does:**
+
 - **Read-only assessment** - The tool does not modify any tenant settings
 - Calls Microsoft Graph and Exchange Online APIs only
 - No data is sent to third parties beyond Microsoft services
 - All processing is performed locally on your machine
 
 **Important Security Notes:**
+
 - Generated reports may contain sensitive configuration details
 - Store and share reports securely (consider them confidential)
 - Review reports before sharing externally

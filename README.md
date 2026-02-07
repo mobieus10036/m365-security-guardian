@@ -128,6 +128,7 @@ This creates an Entra ID App Registration with certificate authentication and gr
 ### Permission Summary
 
 **Microsoft Graph API (Application Permissions):**
+
 - `User.Read.All` - Read user profiles and MFA status
 - `Directory.Read.All` - Read directory data and privileged roles
 - `Policy.Read.All` - Read Conditional Access and auth policies
@@ -139,6 +140,7 @@ This creates an Entra ID App Registration with certificate authentication and gr
 - `SecurityEvents.Read.All` - Read Secure Score (E5 license required)
 
 **Exchange Online Role:**
+
 - **View-Only Organization Management** (recommended) - Read-only access to all Exchange settings
 - Alternative: Security Reader, Compliance Management, or Global Reader
 
@@ -332,6 +334,23 @@ Install prerequisites:
 
 ```powershell
 .\Install-Prerequisites.ps1
+```
+
+---
+
+## Linting
+
+Markdown linting is enforced by the rules in [.markdownlint.json](.markdownlint.json). Key rules include:
+
+- `MD022` - Headings surrounded by blank lines
+- `MD031` - Fenced code blocks surrounded by blank lines
+- `MD032` - Lists surrounded by blank lines
+- `MD034` - No bare URLs
+
+Run lint locally (example using markdownlint-cli2):
+
+```powershell
+npx markdownlint-cli2 "**/*.md"
 ```
 
 ---
