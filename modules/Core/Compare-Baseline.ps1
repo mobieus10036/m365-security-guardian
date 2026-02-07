@@ -49,7 +49,7 @@ function Save-AssessmentBaseline {
         Saves the current assessment results as a baseline.
     
     .PARAMETER Results
-        The assessment results object to save as baseline.
+        The assessment results object to save as baseline. Must not be empty.
     
     .PARAMETER SecurityScore
         The security score object from the assessment.
@@ -58,7 +58,7 @@ function Save-AssessmentBaseline {
         The CIS compliance object from the assessment.
     
     .PARAMETER BaselinePath
-        Path where the baseline file should be saved.
+        Path where the baseline file should be saved. Must be a valid path.
     
     .PARAMETER BaselineName
         Optional name/label for the baseline.
@@ -69,6 +69,7 @@ function Save-AssessmentBaseline {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
         [array]$Results,
         
         [Parameter(Mandatory = $false)]
@@ -78,14 +79,38 @@ function Save-AssessmentBaseline {
         [PSCustomObject]$CISCompliance,
         
         [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
         [string]$BaselinePath,
         
         [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
         [string]$BaselineName = "Baseline",
         
         [Parameter(Mandatory = $false)]
         [string]$TenantId = $script:TenantId
     )
+    
+    # Validate that Results is not empty
+    if ($Results.Count -eq 0) {
+        return [PSCustomObject]@{
+            Success = $false
+            Error = "Results array is empty"
+        }
+    }
+    
+    # Validate parent directory exists or can be created
+    $parentDir = Split-Path -Parent $BaselinePath
+    if (-not (Test-Path $parentDir)) {
+        try {
+            New-Item -ItemType Directory -Path $parentDir -Force -ErrorAction Stop | Out-Null
+        }
+        catch {
+            return [PSCustomObject]@{
+                Success = $false
+                Error = "Cannot create baseline directory: $($_.Exception.Message)"
+            }
+        }
+    }
     
     try {
         $baseline = [PSCustomObject]@{
@@ -250,10 +275,10 @@ function Compare-CheckChanges {
         new checks, and removed checks. Uses a priority system where Pass > Info > Warning > Fail.
     
     .PARAMETER CurrentResults
-        Array of current assessment check results.
+        Array of current assessment check results. Must not be empty.
     
     .PARAMETER BaselineChecks
-        Array of baseline check results.
+        Array of baseline check results. Must not be null.
     
     .OUTPUTS
         Hashtable with keys: Improvements, Regressions, Unchanged, NewChecks, RemovedChecks
@@ -261,11 +286,22 @@ function Compare-CheckChanges {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
         [array]$CurrentResults,
         
         [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
         [array]$BaselineChecks
     )
+    
+    # Validate baseline structure
+    if ($null -eq $BaselineChecks -or $BaselineChecks.Count -eq 0) {
+        throw "BaselineChecks cannot be null or empty"
+    }
+    
+    if ($null -eq $CurrentResults -or $CurrentResults.Count -eq 0) {
+        throw "CurrentResults cannot be null or empty"
+    }
     
     # Build lookup tables using composite key (CheckName|Category)
     $baselineHash = @{}
@@ -373,7 +409,7 @@ function Compare-AssessmentToBaseline {
         Compares current assessment results against a baseline.
     
     .PARAMETER CurrentResults
-        The current assessment results.
+        The current assessment results. Must not be empty.
     
     .PARAMETER CurrentSecurityScore
         The current security score.
@@ -382,11 +418,12 @@ function Compare-AssessmentToBaseline {
         The current CIS compliance results.
     
     .PARAMETER Baseline
-        The baseline object to compare against.
+        The baseline object to compare against. Must be valid with Checks array.
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
         [array]$CurrentResults,
         
         [Parameter(Mandatory = $false)]
@@ -396,8 +433,22 @@ function Compare-AssessmentToBaseline {
         [PSCustomObject]$CurrentCISCompliance,
         
         [Parameter(Mandatory = $true)]
+        [ValidateNotNull()]
         [PSCustomObject]$Baseline
     )
+    
+    # Validate baseline structure
+    if ($null -eq $Baseline.Checks -or $Baseline.Checks.Count -eq 0) {
+        throw "Baseline must contain a valid Checks array"
+    }
+    
+    if ($null -eq $Baseline.Name) {
+        throw "Baseline must have a Name property"
+    }
+    
+    if ($CurrentResults.Count -eq 0) {
+        throw "CurrentResults cannot be empty"
+    }
     
     # Compare individual checks
     $checkComparison = Compare-CheckChanges -CurrentResults $CurrentResults -BaselineChecks $Baseline.Checks
@@ -467,12 +518,13 @@ function Compare-AssessmentToBaseline {
     # Calculate days since baseline safely
     $daysSinceBaseline = 0
     try {
-        if ($Baseline.CreatedAt) {
+        if ($null -ne $Baseline.CreatedAt -and -not [string]::IsNullOrWhiteSpace($Baseline.CreatedAt)) {
             $baselineDateTime = [datetime]::Parse($Baseline.CreatedAt)
             $daysSinceBaseline = [math]::Round(((Get-Date) - $baselineDateTime).TotalDays, 0)
         }
     }
     catch {
+        Write-Warning "Could not parse baseline CreatedAt date '$($Baseline.CreatedAt)'. Setting days to 0."
         $daysSinceBaseline = 0
     }
     
