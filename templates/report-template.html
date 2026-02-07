@@ -834,6 +834,77 @@
             color: var(--gray-700);
             font-style: italic;
         }
+
+        /* Tenant Changes Section (within Baseline Comparison) */
+        .tenant-changes-section {
+            margin-top: 28px;
+            padding-top: 24px;
+            border-top: 2px solid var(--gray-200);
+        }
+
+        .tenant-changes-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 16px;
+        }
+
+        .baseline-change-header.tenant-mfa-header {
+            background: #e8f0fe;
+            color: #1a56db;
+        }
+
+        .baseline-change-header.tenant-priv-header {
+            background: #fff4ce;
+            color: #8a4600;
+        }
+
+        .tenant-change-table-wrap {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .tenant-change-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .tenant-change-table thead th {
+            text-align: left;
+            padding: 10px 16px;
+            background: var(--gray-50);
+            color: var(--gray-700);
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .tenant-change-table tbody td {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--gray-100);
+            vertical-align: middle;
+        }
+
+        .tenant-change-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .tenant-change-table small {
+            color: var(--gray-600);
+        }
+
+        .tenant-change-gained {
+            color: #107c10;
+            font-weight: 600;
+        }
+
+        .tenant-change-lost {
+            color: #d13438;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>

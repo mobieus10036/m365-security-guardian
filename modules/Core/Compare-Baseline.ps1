@@ -79,6 +79,77 @@ function Get-TrendIcon {
     }
 }
 
+function Get-TenantSnapshot {
+    <#
+    .SYNOPSIS
+        Extracts a tenant-level data snapshot from assessment results.
+    
+    .DESCRIPTION
+        Captures key tenant metrics (user counts, MFA adoption, privileged accounts)
+        from the full assessment results for baseline comparison. This enables
+        granular change tracking beyond check-level pass/fail status.
+    
+    .PARAMETER Results
+        The full assessment results array containing Details and sub-properties.
+    
+    .OUTPUTS
+        PSCustomObject with UserMetrics and PrivilegedAccess snapshots.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [array]$Results
+    )
+    
+    $userMetrics = $null
+    $privilegedAccess = $null
+    
+    # Extract MFA / user data from the MFA Enforcement check
+    $mfaCheck = $Results | Where-Object { $_.CheckName -eq "MFA Enforcement" } | Select-Object -First 1
+    if ($mfaCheck -and $mfaCheck.Details) {
+        $usersWithoutMFAList = @()
+        if ($mfaCheck.UsersWithoutMFA) {
+            $usersWithoutMFAList = @($mfaCheck.UsersWithoutMFA | ForEach-Object { $_.UserPrincipalName } | Where-Object { $_ })
+        }
+        
+        $userMetrics = [PSCustomObject]@{
+            TotalUsers            = if ($null -ne $mfaCheck.Details.TotalUsers) { $mfaCheck.Details.TotalUsers } else { 0 }
+            UsersWithMFA          = if ($null -ne $mfaCheck.Details.UsersWithMFA) { $mfaCheck.Details.UsersWithMFA } else { 0 }
+            UsersWithoutMFA       = if ($null -ne $mfaCheck.Details.UsersWithoutMFA) { $mfaCheck.Details.UsersWithoutMFA } else { 0 }
+            MFACompliancePercent  = if ($null -ne $mfaCheck.Details.CompliancePercentage) { $mfaCheck.Details.CompliancePercentage } else { 0 }
+            UsersWithoutMFAList   = $usersWithoutMFAList
+        }
+    }
+    
+    # Extract privileged account data
+    $privCheck = $Results | Where-Object { $_.CheckName -eq "Privileged Account Security" } | Select-Object -First 1
+    if ($privCheck -and $privCheck.Details) {
+        $accountList = @()
+        if ($privCheck.PrivilegedAccounts) {
+            $accountList = @($privCheck.PrivilegedAccounts | ForEach-Object {
+                [PSCustomObject]@{
+                    DisplayName       = $_.DisplayName
+                    UserPrincipalName = $_.UserPrincipalName
+                    Roles             = $_.Roles
+                }
+            })
+        }
+        
+        $privilegedAccess = [PSCustomObject]@{
+            TotalPrivilegedUsers      = if ($null -ne $privCheck.Details.TotalPrivilegedUsers) { $privCheck.Details.TotalPrivilegedUsers } else { 0 }
+            GlobalAdminCount          = if ($null -ne $privCheck.Details.GlobalAdminCount) { $privCheck.Details.GlobalAdminCount } else { 0 }
+            PrivilegedUsersWithoutMFA = if ($null -ne $privCheck.Details.PrivilegedUsersWithoutMFA) { $privCheck.Details.PrivilegedUsersWithoutMFA } else { 0 }
+            StalePrivilegedAccounts   = if ($null -ne $privCheck.Details.StalePrivilegedAccounts) { $privCheck.Details.StalePrivilegedAccounts } else { 0 }
+            Accounts                  = $accountList
+        }
+    }
+    
+    return [PSCustomObject]@{
+        UserMetrics      = $userMetrics
+        PrivilegedAccess = $privilegedAccess
+    }
+}
+
 function Save-AssessmentBaseline {
     <#
     .SYNOPSIS
@@ -187,6 +258,9 @@ function Save-AssessmentBaseline {
                     Level2Total = $CISCompliance.Level2Total
                 }
             } else { $null }
+            
+            # Tenant-level snapshot for granular change tracking
+            TenantSnapshot = Get-TenantSnapshot -Results $Results
             
             # Individual check results (normalized for comparison)
             Checks = $Results | ForEach-Object {
@@ -439,6 +513,132 @@ function Compare-CheckChanges {
     }
 }
 
+function Compare-TenantSnapshots {
+    <#
+    .SYNOPSIS
+        Compares two tenant snapshots to identify granular tenant-level changes.
+    
+    .DESCRIPTION
+        Diffs user metrics, MFA adoption, and privileged account membership between
+        a current and baseline snapshot. Returns structured change data including
+        specific user-level changes (e.g., who gained MFA, which admins were added/removed).
+    
+    .PARAMETER CurrentSnapshot
+        The current tenant snapshot from Get-TenantSnapshot.
+    
+    .PARAMETER BaselineSnapshot
+        The baseline tenant snapshot loaded from a saved baseline file.
+    
+    .OUTPUTS
+        PSCustomObject with UserMetrics changes, PrivilegedAccess changes, and HasChanges flag.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [PSCustomObject]$CurrentSnapshot,
+        
+        [Parameter(Mandatory = $true)]
+        [PSCustomObject]$BaselineSnapshot
+    )
+    
+    $changes = [PSCustomObject]@{
+        UserMetrics      = $null
+        PrivilegedAccess = $null
+        HasChanges       = $false
+    }
+    
+    # --- User / MFA metric comparison ---
+    if ($CurrentSnapshot.UserMetrics -and $BaselineSnapshot.UserMetrics) {
+        $cur = $CurrentSnapshot.UserMetrics
+        $base = $BaselineSnapshot.UserMetrics
+        
+        $curTotal  = if ($null -ne $cur.TotalUsers) { [int]$cur.TotalUsers } else { 0 }
+        $baseTotal = if ($null -ne $base.TotalUsers) { [int]$base.TotalUsers } else { 0 }
+        $totalDelta = $curTotal - $baseTotal
+        
+        $curMFA  = if ($null -ne $cur.MFACompliancePercent) { [decimal]$cur.MFACompliancePercent } else { 0 }
+        $baseMFA = if ($null -ne $base.MFACompliancePercent) { [decimal]$base.MFACompliancePercent } else { 0 }
+        $mfaDelta = [math]::Round($curMFA - $baseMFA, 1)
+        
+        $curWithMFA  = if ($null -ne $cur.UsersWithMFA) { [int]$cur.UsersWithMFA } else { 0 }
+        $baseWithMFA = if ($null -ne $base.UsersWithMFA) { [int]$base.UsersWithMFA } else { 0 }
+        
+        $curWithout  = if ($null -ne $cur.UsersWithoutMFA) { [int]$cur.UsersWithoutMFA } else { 0 }
+        $baseWithout = if ($null -ne $base.UsersWithoutMFA) { [int]$base.UsersWithoutMFA } else { 0 }
+        
+        # Compare UPN lists to find specific MFA changes
+        $currentWithoutList  = @($cur.UsersWithoutMFAList  | Where-Object { $_ })
+        $baselineWithoutList = @($base.UsersWithoutMFAList | Where-Object { $_ })
+        
+        $gainedMFA      = @($baselineWithoutList | Where-Object { $_ -notin $currentWithoutList })
+        $newlyWithoutMFA = @($currentWithoutList  | Where-Object { $_ -notin $baselineWithoutList })
+        
+        $changes.UserMetrics = [PSCustomObject]@{
+            TotalUsersDelta       = $totalDelta
+            CurrentTotalUsers     = $curTotal
+            BaselineTotalUsers    = $baseTotal
+            MFAComplianceDelta    = $mfaDelta
+            CurrentMFACompliance  = $curMFA
+            BaselineMFACompliance = $baseMFA
+            UsersWithMFADelta     = $curWithMFA - $baseWithMFA
+            UsersWithoutMFADelta  = $curWithout - $baseWithout
+            UsersGainedMFA        = $gainedMFA
+            UsersLostMFA          = $newlyWithoutMFA
+        }
+        
+        if ($totalDelta -ne 0 -or $mfaDelta -ne 0 -or $gainedMFA.Count -gt 0 -or $newlyWithoutMFA.Count -gt 0) {
+            $changes.HasChanges = $true
+        }
+    }
+    
+    # --- Privileged access comparison ---
+    if ($CurrentSnapshot.PrivilegedAccess -and $BaselineSnapshot.PrivilegedAccess) {
+        $cur  = $CurrentSnapshot.PrivilegedAccess
+        $base = $BaselineSnapshot.PrivilegedAccess
+        
+        $curPriv  = if ($null -ne $cur.TotalPrivilegedUsers) { [int]$cur.TotalPrivilegedUsers } else { 0 }
+        $basePriv = if ($null -ne $base.TotalPrivilegedUsers) { [int]$base.TotalPrivilegedUsers } else { 0 }
+        
+        $curGA  = if ($null -ne $cur.GlobalAdminCount) { [int]$cur.GlobalAdminCount } else { 0 }
+        $baseGA = if ($null -ne $base.GlobalAdminCount) { [int]$base.GlobalAdminCount } else { 0 }
+        
+        $curNoMFA  = if ($null -ne $cur.PrivilegedUsersWithoutMFA) { [int]$cur.PrivilegedUsersWithoutMFA } else { 0 }
+        $baseNoMFA = if ($null -ne $base.PrivilegedUsersWithoutMFA) { [int]$base.PrivilegedUsersWithoutMFA } else { 0 }
+        
+        $curStale  = if ($null -ne $cur.StalePrivilegedAccounts) { [int]$cur.StalePrivilegedAccounts } else { 0 }
+        $baseStale = if ($null -ne $base.StalePrivilegedAccounts) { [int]$base.StalePrivilegedAccounts } else { 0 }
+        
+        # Compare privileged account lists by UPN
+        $currentAccounts  = @($cur.Accounts  | Where-Object { $_ -and $_.UserPrincipalName })
+        $baselineAccounts = @($base.Accounts | Where-Object { $_ -and $_.UserPrincipalName })
+        
+        $currentUPNs  = @($currentAccounts  | ForEach-Object { $_.UserPrincipalName })
+        $baselineUPNs = @($baselineAccounts | ForEach-Object { $_.UserPrincipalName })
+        
+        $newPrivileged     = @($currentAccounts  | Where-Object { $_.UserPrincipalName -notin $baselineUPNs })
+        $removedPrivileged = @($baselineAccounts | Where-Object { $_.UserPrincipalName -notin $currentUPNs })
+        
+        $changes.PrivilegedAccess = [PSCustomObject]@{
+            TotalPrivilegedDelta      = $curPriv - $basePriv
+            CurrentTotalPrivileged    = $curPriv
+            BaselineTotalPrivileged   = $basePriv
+            GlobalAdminDelta          = $curGA - $baseGA
+            CurrentGlobalAdmins       = $curGA
+            BaselineGlobalAdmins      = $baseGA
+            NewPrivilegedAccounts     = $newPrivileged
+            RemovedPrivilegedAccounts = $removedPrivileged
+            PrivilegedWithoutMFADelta = $curNoMFA - $baseNoMFA
+            StaleAccountsDelta        = $curStale - $baseStale
+        }
+        
+        if (($curPriv - $basePriv) -ne 0 -or ($curGA - $baseGA) -ne 0 -or $newPrivileged.Count -gt 0 -or $removedPrivileged.Count -gt 0) {
+            $changes.HasChanges = $true
+        }
+    }
+    
+    return $changes
+}
+
 function Compare-AssessmentToBaseline {
     <#
     .SYNOPSIS
@@ -493,6 +693,13 @@ function Compare-AssessmentToBaseline {
     $unchanged = $checkComparison.Unchanged
     $newChecks = $checkComparison.NewChecks
     $removedChecks = $checkComparison.RemovedChecks
+    
+    # Compare tenant-level snapshots for granular change tracking
+    $currentSnapshot = Get-TenantSnapshot -Results $CurrentResults
+    $tenantChanges = $null
+    if ($Baseline.TenantSnapshot) {
+        $tenantChanges = Compare-TenantSnapshots -CurrentSnapshot $currentSnapshot -BaselineSnapshot $Baseline.TenantSnapshot
+    }
     
     # Calculate score deltas
     $scoreComparison = $null
@@ -608,6 +815,9 @@ function Compare-AssessmentToBaseline {
         Unchanged = $unchanged
         NewChecks = $newChecks
         RemovedChecks = $removedChecks
+        
+        # Tenant-level changes (user counts, MFA, privileged accounts)
+        TenantChanges = $tenantChanges
         
         # Overall trend
         OverallTrend = if ($improvements.Count -gt $regressions.Count) {
@@ -863,6 +1073,90 @@ function Format-ChangesSection {
     return $output
 }
 
+function Format-TenantChangesSection {
+    <#
+    .SYNOPSIS
+        Formats the tenant-level changes section for console output.
+    
+    .PARAMETER TenantChanges
+        The tenant changes object from Compare-TenantSnapshots.
+    
+    .OUTPUTS
+        System.String[] - Array of formatted tenant change lines
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false)]
+        [PSCustomObject]$TenantChanges
+    )
+    
+    if (-not $TenantChanges -or -not $TenantChanges.HasChanges) {
+        return @()
+    }
+    
+    $output = @()
+    $output += "  ┌─────────────────────────────────────────────────────────────────┐"
+    $output += "  │  TENANT CHANGES SINCE BASELINE                                 │"
+    $output += "  └─────────────────────────────────────────────────────────────────┘"
+    $output += ""
+    
+    if ($TenantChanges.UserMetrics) {
+        $um = $TenantChanges.UserMetrics
+        $userSign = if ($um.TotalUsersDelta -gt 0) { "+" } else { "" }
+        $mfaSign  = if ($um.MFAComplianceDelta -gt 0) { "+" } else { "" }
+        
+        $output += "  User & MFA Metrics:"
+        $output += "    Total Users:   $($um.BaselineTotalUsers) → $($um.CurrentTotalUsers) ($userSign$($um.TotalUsersDelta))"
+        $output += "    MFA Adoption:  $($um.BaselineMFACompliance)% → $($um.CurrentMFACompliance)% ($mfaSign$($um.MFAComplianceDelta)%)"
+        
+        if ($um.UsersGainedMFA -and $um.UsersGainedMFA.Count -gt 0) {
+            $output += "    ✓ Users gained MFA ($($um.UsersGainedMFA.Count)):"
+            foreach ($upn in ($um.UsersGainedMFA | Select-Object -First 5)) {
+                $output += "      • $upn"
+            }
+            if ($um.UsersGainedMFA.Count -gt 5) {
+                $output += "      ... and $($um.UsersGainedMFA.Count - 5) more"
+            }
+        }
+        if ($um.UsersLostMFA -and $um.UsersLostMFA.Count -gt 0) {
+            $output += "    ✗ Users without MFA (new) ($($um.UsersLostMFA.Count)):"
+            foreach ($upn in ($um.UsersLostMFA | Select-Object -First 5)) {
+                $output += "      • $upn"
+            }
+            if ($um.UsersLostMFA.Count -gt 5) {
+                $output += "      ... and $($um.UsersLostMFA.Count - 5) more"
+            }
+        }
+        $output += ""
+    }
+    
+    if ($TenantChanges.PrivilegedAccess) {
+        $pa = $TenantChanges.PrivilegedAccess
+        $privSign = if ($pa.TotalPrivilegedDelta -gt 0) { "+" } else { "" }
+        $gaSign   = if ($pa.GlobalAdminDelta -gt 0) { "+" } else { "" }
+        
+        $output += "  Privileged Access:"
+        $output += "    Privileged Accounts: $($pa.BaselineTotalPrivileged) → $($pa.CurrentTotalPrivileged) ($privSign$($pa.TotalPrivilegedDelta))"
+        $output += "    Global Admins:       $($pa.BaselineGlobalAdmins) → $($pa.CurrentGlobalAdmins) ($gaSign$($pa.GlobalAdminDelta))"
+        
+        if ($pa.NewPrivilegedAccounts -and $pa.NewPrivilegedAccounts.Count -gt 0) {
+            $output += "    ✗ New privileged accounts ($($pa.NewPrivilegedAccounts.Count)):"
+            foreach ($acct in ($pa.NewPrivilegedAccounts | Select-Object -First 5)) {
+                $output += "      • $($acct.DisplayName) ($($acct.UserPrincipalName)) - $($acct.Roles)"
+            }
+        }
+        if ($pa.RemovedPrivilegedAccounts -and $pa.RemovedPrivilegedAccounts.Count -gt 0) {
+            $output += "    ✓ Removed privileged accounts ($($pa.RemovedPrivilegedAccounts.Count)):"
+            foreach ($acct in ($pa.RemovedPrivilegedAccounts | Select-Object -First 5)) {
+                $output += "      • $($acct.DisplayName) ($($acct.UserPrincipalName)) - $($acct.Roles)"
+            }
+        }
+        $output += ""
+    }
+    
+    return $output
+}
+
 function Format-BaselineComparison {
     <#
     .SYNOPSIS
@@ -886,6 +1180,7 @@ function Format-BaselineComparison {
     $sections += Format-CISComplianceSection -CISComplianceComparison $Comparison.CISComplianceComparison
     $sections += Format-ChangesSection -Changes $Comparison.Improvements -Title "Improvements" -Icon "✓"
     $sections += Format-ChangesSection -Changes $Comparison.Regressions -Title "Regressions" -Icon "✗"
+    $sections += Format-TenantChangesSection -TenantChanges $Comparison.TenantChanges
     
     return $sections -join "`n"
 }

@@ -810,6 +810,155 @@ function Build-BaselineComparisonHtml {
         $regressionsHtml = "<div class='baseline-empty'>No regressions detected</div>"
     }
     
+    # --- Build Tenant Changes HTML ---
+    $tenantChangesHtml = ""
+    $tc = $comparison.TenantChanges
+    if ($tc -and $tc.HasChanges) {
+        # Metric cards row
+        $metricCards = ""
+        
+        if ($tc.UserMetrics) {
+            $um = $tc.UserMetrics
+            $userDeltaClass = if ($um.TotalUsersDelta -gt 0) { "neutral" } elseif ($um.TotalUsersDelta -lt 0) { "negative" } else { "neutral" }
+            $userDeltaSign  = if ($um.TotalUsersDelta -gt 0) { "+" } else { "" }
+            $mfaPctClass    = if ($um.MFAComplianceDelta -gt 0) { "positive" } elseif ($um.MFAComplianceDelta -lt 0) { "negative" } else { "neutral" }
+            $mfaPctSign     = if ($um.MFAComplianceDelta -gt 0) { "+" } else { "" }
+            
+            $metricCards += @"
+            <div class="baseline-score-card">
+                <div class="baseline-score-label">Total Users</div>
+                <div class="baseline-score-value">$($um.CurrentTotalUsers)</div>
+                <div class="baseline-score-delta $userDeltaClass">$userDeltaSign$($um.TotalUsersDelta) since baseline</div>
+            </div>
+            <div class="baseline-score-card">
+                <div class="baseline-score-label">MFA Adoption</div>
+                <div class="baseline-score-value">$($um.CurrentMFACompliance)%</div>
+                <div class="baseline-score-delta $mfaPctClass">$mfaPctSign$($um.MFAComplianceDelta)% since baseline</div>
+            </div>
+"@
+        }
+        
+        if ($tc.PrivilegedAccess) {
+            $pa = $tc.PrivilegedAccess
+            $privDeltaClass = if ($pa.TotalPrivilegedDelta -gt 0) { "negative" } elseif ($pa.TotalPrivilegedDelta -lt 0) { "positive" } else { "neutral" }
+            $privDeltaSign  = if ($pa.TotalPrivilegedDelta -gt 0) { "+" } else { "" }
+            $gaDeltaClass   = if ($pa.GlobalAdminDelta -gt 0) { "negative" } elseif ($pa.GlobalAdminDelta -lt 0) { "positive" } else { "neutral" }
+            $gaDeltaSign    = if ($pa.GlobalAdminDelta -gt 0) { "+" } else { "" }
+            
+            $metricCards += @"
+            <div class="baseline-score-card">
+                <div class="baseline-score-label">Privileged Accounts</div>
+                <div class="baseline-score-value">$($pa.CurrentTotalPrivileged)</div>
+                <div class="baseline-score-delta $privDeltaClass">$privDeltaSign$($pa.TotalPrivilegedDelta) since baseline</div>
+            </div>
+            <div class="baseline-score-card">
+                <div class="baseline-score-label">Global Admins</div>
+                <div class="baseline-score-value">$($pa.CurrentGlobalAdmins)</div>
+                <div class="baseline-score-delta $gaDeltaClass">$gaDeltaSign$($pa.GlobalAdminDelta) since baseline</div>
+            </div>
+"@
+        }
+        
+        # Detail cards (MFA changes + Privileged access changes)
+        $detailCards = ""
+        
+        # MFA change detail card
+        if ($tc.UserMetrics) {
+            $um = $tc.UserMetrics
+            $mfaRows = ""
+            $hasMFADetails = $false
+            
+            if ($um.UsersGainedMFA -and $um.UsersGainedMFA.Count -gt 0) {
+                $hasMFADetails = $true
+                foreach ($upn in $um.UsersGainedMFA) {
+                    $safeName = ConvertTo-HtmlSafe $upn
+                    $mfaRows += "<tr><td>$safeName</td><td class='tenant-change-gained'>Gained MFA</td></tr>`n"
+                }
+            }
+            if ($um.UsersLostMFA -and $um.UsersLostMFA.Count -gt 0) {
+                $hasMFADetails = $true
+                foreach ($upn in $um.UsersLostMFA) {
+                    $safeName = ConvertTo-HtmlSafe $upn
+                    $mfaRows += "<tr><td>$safeName</td><td class='tenant-change-lost'>Lost MFA / New without MFA</td></tr>`n"
+                }
+            }
+            
+            if ($hasMFADetails) {
+                $gainedCount = if ($um.UsersGainedMFA) { $um.UsersGainedMFA.Count } else { 0 }
+                $lostCount   = if ($um.UsersLostMFA) { $um.UsersLostMFA.Count } else { 0 }
+                $detailCards += @"
+                <div class="baseline-change-card">
+                    <div class="baseline-change-header tenant-mfa-header">
+                        🛡️ MFA Changes ($gainedCount gained, $lostCount lost)
+                    </div>
+                    <div class="tenant-change-table-wrap">
+                        <table class="tenant-change-table">
+                            <thead><tr><th>User</th><th>Change</th></tr></thead>
+                            <tbody>$mfaRows</tbody>
+                        </table>
+                    </div>
+                </div>
+"@
+            }
+        }
+        
+        # Privileged access change detail card
+        if ($tc.PrivilegedAccess) {
+            $pa = $tc.PrivilegedAccess
+            $privRows = ""
+            $hasPrivDetails = $false
+            
+            if ($pa.NewPrivilegedAccounts -and $pa.NewPrivilegedAccounts.Count -gt 0) {
+                $hasPrivDetails = $true
+                foreach ($acct in $pa.NewPrivilegedAccounts) {
+                    $safeName = ConvertTo-HtmlSafe $acct.DisplayName
+                    $safeUPN  = ConvertTo-HtmlSafe $acct.UserPrincipalName
+                    $safeRoles = ConvertTo-HtmlSafe $acct.Roles
+                    $privRows += "<tr><td>$safeName<br><small>$safeUPN</small></td><td>$safeRoles</td><td class='tenant-change-lost'>New</td></tr>`n"
+                }
+            }
+            if ($pa.RemovedPrivilegedAccounts -and $pa.RemovedPrivilegedAccounts.Count -gt 0) {
+                $hasPrivDetails = $true
+                foreach ($acct in $pa.RemovedPrivilegedAccounts) {
+                    $safeName = ConvertTo-HtmlSafe $acct.DisplayName
+                    $safeUPN  = ConvertTo-HtmlSafe $acct.UserPrincipalName
+                    $safeRoles = ConvertTo-HtmlSafe $acct.Roles
+                    $privRows += "<tr><td>$safeName<br><small>$safeUPN</small></td><td>$safeRoles</td><td class='tenant-change-gained'>Removed</td></tr>`n"
+                }
+            }
+            
+            if ($hasPrivDetails) {
+                $newCount     = if ($pa.NewPrivilegedAccounts) { $pa.NewPrivilegedAccounts.Count } else { 0 }
+                $removedCount = if ($pa.RemovedPrivilegedAccounts) { $pa.RemovedPrivilegedAccounts.Count } else { 0 }
+                $detailCards += @"
+                <div class="baseline-change-card">
+                    <div class="baseline-change-header tenant-priv-header">
+                        👤 Privileged Access Changes ($newCount new, $removedCount removed)
+                    </div>
+                    <div class="tenant-change-table-wrap">
+                        <table class="tenant-change-table">
+                            <thead><tr><th>Account</th><th>Roles</th><th>Change</th></tr></thead>
+                            <tbody>$privRows</tbody>
+                        </table>
+                    </div>
+                </div>
+"@
+            }
+        }
+        
+        $tenantChangesHtml = @"
+        <div class="tenant-changes-section">
+            <h3 class="tenant-changes-title">🔄 Tenant Changes Since Baseline</h3>
+            <div class="baseline-score-comparison">
+                $metricCards
+            </div>
+            <div class="baseline-changes-grid">
+                $detailCards
+            </div>
+        </div>
+"@
+    }
+    
     return @"
     <div class="baseline-comparison-section">
         <div class="baseline-header">
@@ -860,6 +1009,8 @@ function Build-BaselineComparisonHtml {
                 $regressionsHtml
             </div>
         </div>
+        
+        $tenantChangesHtml
     </div>
 "@
 }
