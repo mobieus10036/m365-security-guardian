@@ -1404,13 +1404,100 @@ function Build-RecommendationContentHtml {
     $recommendationContent = $DefaultRecommendation
     
     if ($Result.CheckName -eq "Conditional Access Policies" -and $Result.Recommendations -and $Result.Recommendations.Count -gt 0) {
-        $recommendationContent = "<strong>Actionable Recommendations ($($Result.Recommendations.Count)):</strong>"
-        $recommendationContent += "<ol style='margin: 10px 0 0 0; padding-left: 20px;'>"
-        foreach ($rec in $Result.Recommendations) {
-            $recSafe = ConvertTo-HtmlSafe $rec
-            $recommendationContent += "<li style='margin-bottom: 8px; line-height: 1.5;'>$recSafe</li>"
+        # Map recommendation keywords to categories and priority
+        $categoryMap = @{
+            'legacy authentication'       = @{ Category = 'Authentication';     Priority = 'High' }
+            'risk-based'                   = @{ Category = 'Risk Protection';    Priority = 'High' }
+            'sign-in risk'                 = @{ Category = 'Risk Protection';    Priority = 'High' }
+            'user risk'                    = @{ Category = 'Risk Protection';    Priority = 'High' }
+            'Authentication Strength'      = @{ Category = 'Authentication';     Priority = 'High' }
+            'MFA'                          = @{ Category = 'Authentication';     Priority = 'High' }
+            'strong auth'                  = @{ Category = 'Authentication';     Priority = 'High' }
+            'device compliance'            = @{ Category = 'Device Security';    Priority = 'Medium' }
+            'hybrid Azure AD'             = @{ Category = 'Device Security';    Priority = 'Medium' }
+            'named locations'              = @{ Category = 'Network Controls';   Priority = 'Medium' }
+            'location-based'               = @{ Category = 'Network Controls';   Priority = 'Medium' }
+            'untrusted'                    = @{ Category = 'Network Controls';   Priority = 'Medium' }
+            'token protection'             = @{ Category = 'Token Security';     Priority = 'Medium' }
+            'workload identit'             = @{ Category = 'Workload Identity';  Priority = 'Medium' }
+            'service principal'            = @{ Category = 'Workload Identity';  Priority = 'Medium' }
+            'app protection'               = @{ Category = 'App Protection';     Priority = 'Medium' }
+            'approved client'              = @{ Category = 'App Protection';     Priority = 'Medium' }
+            'guest'                        = @{ Category = 'Guest Access';       Priority = 'Medium' }
+            'external user'                = @{ Category = 'Guest Access';       Priority = 'Medium' }
+            'policy conflict'              = @{ Category = 'Policy Hygiene';     Priority = 'High' }
+            'coverage gap'                 = @{ Category = 'Coverage';           Priority = 'High' }
+            'report-only'                  = @{ Category = 'Policy Hygiene';     Priority = 'Low' }
+            'exclusion'                    = @{ Category = 'Policy Hygiene';     Priority = 'High' }
+            'session'                      = @{ Category = 'Session Controls';   Priority = 'Low' }
+            'sign-in frequency'            = @{ Category = 'Session Controls';   Priority = 'Low' }
+            'privileged'                   = @{ Category = 'Admin Protection';   Priority = 'High' }
         }
-        $recommendationContent += "</ol>"
+        
+        $priorityOrder = @{ 'High' = 1; 'Medium' = 2; 'Low' = 3 }
+        
+        $recRows = @()
+        foreach ($rec in $Result.Recommendations) {
+            $matchedCategory = 'General'
+            $matchedPriority = 'Medium'
+            
+            foreach ($keyword in $categoryMap.Keys) {
+                if ($rec -match [regex]::Escape($keyword)) {
+                    $matchedCategory = $categoryMap[$keyword].Category
+                    $matchedPriority = $categoryMap[$keyword].Priority
+                    break
+                }
+            }
+            
+            $recRows += [PSCustomObject]@{
+                Text     = $rec
+                Category = $matchedCategory
+                Priority = $matchedPriority
+                Order    = $priorityOrder[$matchedPriority]
+            }
+        }
+        
+        # Sort by priority
+        $recRows = $recRows | Sort-Object Order
+        
+        $recommendationContent = "<strong>Actionable Recommendations ($($Result.Recommendations.Count)):</strong>"
+        $recommendationContent += "<table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'>"
+        $recommendationContent += "<tr style='background: var(--gray-100); font-weight: 600;'>"
+        $recommendationContent += "<td style='padding: 8px; border: 1px solid var(--gray-300); width: 60px; text-align: center;'>#</td>"
+        $recommendationContent += "<td style='padding: 8px; border: 1px solid var(--gray-300); width: 80px;'>Priority</td>"
+        $recommendationContent += "<td style='padding: 8px; border: 1px solid var(--gray-300); width: 130px;'>Category</td>"
+        $recommendationContent += "<td style='padding: 8px; border: 1px solid var(--gray-300);'>Recommendation</td>"
+        $recommendationContent += "</tr>"
+        
+        $index = 1
+        foreach ($row in $recRows) {
+            $recSafe = ConvertTo-HtmlSafe $row.Text
+            $catSafe = ConvertTo-HtmlSafe $row.Category
+            $priSafe = ConvertTo-HtmlSafe $row.Priority
+            
+            $priorityColor = switch ($row.Priority) {
+                'High'   { '#d13438' }
+                'Medium' { '#8a6b0f' }
+                'Low'    { '#0078d4' }
+                default  { 'var(--gray-700)' }
+            }
+            $priorityBg = switch ($row.Priority) {
+                'High'   { '#fde7e9' }
+                'Medium' { '#fff4ce' }
+                'Low'    { '#deecf9' }
+                default  { 'var(--gray-100)' }
+            }
+            
+            $recommendationContent += "<tr>"
+            $recommendationContent += "<td style='padding: 8px; border: 1px solid var(--gray-300); text-align: center; font-weight: 600;'>$index</td>"
+            $recommendationContent += "<td style='padding: 8px; border: 1px solid var(--gray-300); background: $priorityBg; color: $priorityColor; font-weight: 600; text-align: center;'>$priSafe</td>"
+            $recommendationContent += "<td style='padding: 8px; border: 1px solid var(--gray-300);'>$catSafe</td>"
+            $recommendationContent += "<td style='padding: 8px; border: 1px solid var(--gray-300);'>$recSafe</td>"
+            $recommendationContent += "</tr>"
+            $index++
+        }
+        
+        $recommendationContent += "</table>"
     }
     
     return $recommendationContent
