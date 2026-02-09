@@ -142,8 +142,14 @@ param(
 #Requires -Version 5.1
 
 # Disable WAM broker BEFORE loading modules to prevent token caching issues
-# This fixes "Object reference not set" errors in embedded terminals (VS Code, etc.)
+# This prevents "Object reference not set" errors across all terminal environments
 $env:AZURE_IDENTITY_DISABLE_BROKER = "true"
+
+# Initialize host environment detection (ISE, Console, Windows Terminal, etc.)
+$hostEnvPath = Join-Path $PSScriptRoot "modules\Core\Get-HostEnvironment.ps1"
+if (Test-Path $hostEnvPath) {
+    . $hostEnvPath
+}
 
 # Import required modules
 Write-Verbose "Loading Microsoft Graph modules..."
@@ -229,17 +235,20 @@ function Write-Step {
 
 function Write-Success {
     param([string]$Message)
-    Write-Information "  ✓ $Message" -InformationAction Continue
+    $mark = if ($script:CheckMark) { $script:CheckMark } else { '+' }
+    Write-Information "  $mark $Message" -InformationAction Continue
 }
 
 function Write-Failure {
     param([string]$Message)
-    Write-Warning "  ✗ $Message"
+    $mark = if ($script:CrossMark) { $script:CrossMark } else { 'x' }
+    Write-Warning "  $mark $Message"
 }
 
 function Write-Info {
     param([string]$Message)
-    Write-Information "  ℹ $Message" -InformationAction Continue
+    $mark = if ($script:InfoMark) { $script:InfoMark } else { 'i' }
+    Write-Information "  $mark $Message" -InformationAction Continue
 }
 
 function ConvertTo-HtmlSafe {
@@ -848,11 +857,12 @@ CIS Benchmark: Level 1 = $($script:CISCompliance.Level1.Percentage)% | Level 2 =
 "@
     }
     
+    $completeMark = if ($script:CheckMark) { $script:CheckMark } else { '+' }
     $summary = @"
 
-╔══════════════════════════════════════════════════════════════════════╗
-║                    Assessment Complete! ✓                            ║
-╚══════════════════════════════════════════════════════════════════════╝
++======================================================================+
+|                    Assessment Complete! $completeMark                            |
++======================================================================+
 
 Execution Time: $($duration.Minutes)m $($duration.Seconds)s
 Total Checks: $($script:AssessmentResults.Count)$scoreInfo$cisInfo
@@ -884,7 +894,8 @@ try {
     Show-Summary
 }
 catch {
-    Write-Error "`n✗ FATAL ERROR: Unable to complete assessment"
+    $mark = if ($script:CrossMark) { $script:CrossMark } else { 'x' }
+    Write-Error "`n$mark FATAL ERROR: Unable to complete assessment"
     Write-Error "Error Details: $($_.Exception.Message)"
     Write-Verbose $_.ScriptStackTrace
     Write-Information "`nFor troubleshooting help, visit: https://github.com/mobieus10036/m365-security-guardian/issues" -InformationAction Continue

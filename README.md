@@ -65,6 +65,8 @@ cd m365-security-guardian
 .\Start-M365Assessment.ps1
 ```
 
+Or double-click **Run-M365Assessment.bat** to launch without worrying about execution policies.
+
 ---
 
 ## Authentication
@@ -80,7 +82,7 @@ The tool supports multiple authentication methods:
 
 ### Certificate Authentication Setup (Recommended)
 
-Certificate auth provides the most reliable experience, especially in VS Code or embedded terminals.
+Certificate auth provides the most reliable experience across all terminal environments.
 
 ```powershell
 # Run the setup script to create app registration with certificate
@@ -330,6 +332,17 @@ Each assessment generates timestamped reports:
 - **ExchangeOnlineManagement** module v3.x
 - **Azure CLI** (for app registration setup only)
 
+### Supported Environments
+
+| Environment | Status |
+| ----------- | ------ |
+| **PowerShell Console (5.1)** | Fully supported |
+| **PowerShell 7+ (pwsh)** | Fully supported |
+| **Windows Terminal** | Fully supported |
+| **PowerShell ISE** | Fully supported (ASCII fallback for display chars) |
+| **VS Code Integrated Terminal** | Fully supported |
+| **Run-M365Assessment.bat** | Double-click launcher for any environment |
+
 Install prerequisites:
 
 ```powershell
@@ -372,7 +385,7 @@ Microsoft Secure Score API is only available with E5 licensing. The custom Tenan
 
 ### Exchange Online connection issues
 
-The tool automatically uses device code flow for Exchange to avoid WAM broker issues in VS Code terminals.
+The tool automatically uses device code flow for Exchange to avoid WAM broker issues across terminal environments.
 
 ---
 

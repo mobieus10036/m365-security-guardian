@@ -65,17 +65,21 @@ function Get-TrendIcon {
     )
     
     if ($null -eq $Delta) {
-        return "→"
+        $arrow = if ($script:ArrowRight) { $script:ArrowRight } else { '->' }
+        return $arrow
     }
     
     if ($Delta -gt 0) {
-        return "↑"
+        $arrow = if ($script:ArrowUp) { $script:ArrowUp } else { '^' }
+        return $arrow
     }
     elseif ($Delta -lt 0) {
-        return "↓"
+        $arrow = if ($script:ArrowDown) { $script:ArrowDown } else { 'v' }
+        return $arrow
     }
     else {
-        return "→"
+        $arrow = if ($script:ArrowRight) { $script:ArrowRight } else { '->' }
+        return $arrow
     }
 }
 
@@ -931,9 +935,15 @@ function Format-OverallTrendSection {
     )
     
     $trendIcon = switch ($OverallTrend) {
-        $script:TREND_IMPROVING { "↑" }
-        $script:TREND_DECLINING { "↓" }
-        default { "→" }
+        $script:TREND_IMPROVING {
+            if ($script:ArrowUp) { $script:ArrowUp } else { '^' }
+        }
+        $script:TREND_DECLINING {
+            if ($script:ArrowDown) { $script:ArrowDown } else { 'v' }
+        }
+        default {
+            if ($script:ArrowRight) { $script:ArrowRight } else { '->' }
+        }
     }
     
     $output = @()
@@ -974,7 +984,7 @@ function Format-SecurityScoreSection {
     $deltaStr = Format-DeltaString -Delta $SecurityScoreComparison.Delta
     
     $output += "  Security Score:"
-    $output += "    Baseline: $($SecurityScoreComparison.BaselineScore)% (Grade $($SecurityScoreComparison.BaselineGrade)) → Current: $($SecurityScoreComparison.CurrentScore)% (Grade $($SecurityScoreComparison.CurrentGrade))"
+    $output += "    Baseline: $($SecurityScoreComparison.BaselineScore)% (Grade $($SecurityScoreComparison.BaselineGrade)) -> Current: $($SecurityScoreComparison.CurrentScore)% (Grade $($SecurityScoreComparison.CurrentGrade))"
     $output += "    Change: $($SecurityScoreComparison.TrendIcon) $deltaStr"
     $output += ""
     
@@ -982,7 +992,7 @@ function Format-SecurityScoreSection {
         $output += "  Category Changes:"
         foreach ($category in $SecurityScoreComparison.CategoryComparisons) {
             $categoryDelta = Format-DeltaString -Delta $category.Delta
-            $output += "    $($category.Trend) $($category.Category.PadRight(25)) $($category.BaselineScore)% → $($category.CurrentScore)% ($categoryDelta)"
+            $output += "    $($category.Trend) $($category.Category.PadRight(25)) $($category.BaselineScore)% -> $($category.CurrentScore)% ($categoryDelta)"
         }
         $output += ""
     }
@@ -1016,8 +1026,8 @@ function Format-CISComplianceSection {
     $level2Delta = Format-DeltaString -Delta $CISComplianceComparison.Level2.Delta
     
     $output += "  CIS Benchmark Compliance:"
-    $output += "    Level 1: $($CISComplianceComparison.Level1.Trend) $($CISComplianceComparison.Level1.Baseline)% → $($CISComplianceComparison.Level1.Current)% ($level1Delta)"
-    $output += "    Level 2: $($CISComplianceComparison.Level2.Trend) $($CISComplianceComparison.Level2.Baseline)% → $($CISComplianceComparison.Level2.Current)% ($level2Delta)"
+    $output += "    Level 1: $($CISComplianceComparison.Level1.Trend) $($CISComplianceComparison.Level1.Baseline)% -> $($CISComplianceComparison.Level1.Current)% ($level1Delta)"
+    $output += "    Level 2: $($CISComplianceComparison.Level2.Trend) $($CISComplianceComparison.Level2.Baseline)% -> $($CISComplianceComparison.Level2.Current)% ($level2Delta)"
     $output += ""
     
     return $output
@@ -1061,7 +1071,8 @@ function Format-ChangesSection {
     $output += "  $Icon $Title ($($Changes.Count)):"
     
     foreach ($change in ($Changes | Select-Object -First 5)) {
-        $output += "    • $($change.CheckName): $($change.PreviousStatus) → $($change.CurrentStatus)"
+        $bullet = if ($script:Bullet) { $script:Bullet } else { '*' }
+        $output += "    $bullet $($change.CheckName): $($change.PreviousStatus) -> $($change.CurrentStatus)"
     }
     
     if ($Changes.Count -gt 5) {
@@ -1106,22 +1117,26 @@ function Format-TenantChangesSection {
         $mfaSign  = if ($um.MFAComplianceDelta -gt 0) { "+" } else { "" }
         
         $output += "  User & MFA Metrics:"
-        $output += "    Total Users:   $($um.BaselineTotalUsers) → $($um.CurrentTotalUsers) ($userSign$($um.TotalUsersDelta))"
-        $output += "    MFA Adoption:  $($um.BaselineMFACompliance)% → $($um.CurrentMFACompliance)% ($mfaSign$($um.MFAComplianceDelta)%)"
+        $output += "    Total Users:   $($um.BaselineTotalUsers) -> $($um.CurrentTotalUsers) ($userSign$($um.TotalUsersDelta))"
+        $output += "    MFA Adoption:  $($um.BaselineMFACompliance)% -> $($um.CurrentMFACompliance)% ($mfaSign$($um.MFAComplianceDelta)%)"
         
         if ($um.UsersGainedMFA -and $um.UsersGainedMFA.Count -gt 0) {
-            $output += "    ✓ Users gained MFA ($($um.UsersGainedMFA.Count)):"
+            $checkMark = if ($script:CheckMark) { $script:CheckMark } else { '+' }
+            $output += "    $checkMark Users gained MFA ($($um.UsersGainedMFA.Count)):"
             foreach ($upn in ($um.UsersGainedMFA | Select-Object -First 5)) {
-                $output += "      • $upn"
+                $bulletMFA = if ($script:Bullet) { $script:Bullet } else { '*' }
+                $output += "      $bulletMFA $upn"
             }
             if ($um.UsersGainedMFA.Count -gt 5) {
                 $output += "      ... and $($um.UsersGainedMFA.Count - 5) more"
             }
         }
         if ($um.UsersLostMFA -and $um.UsersLostMFA.Count -gt 0) {
-            $output += "    ✗ Users without MFA (new) ($($um.UsersLostMFA.Count)):"
+            $crossMark = if ($script:CrossMark) { $script:CrossMark } else { 'x' }
+            $output += "    $crossMark Users without MFA (new) ($($um.UsersLostMFA.Count)):"
             foreach ($upn in ($um.UsersLostMFA | Select-Object -First 5)) {
-                $output += "      • $upn"
+                $bullet4 = if ($script:Bullet) { $script:Bullet } else { '*' }
+                $output += "      $bullet4 $upn"
             }
             if ($um.UsersLostMFA.Count -gt 5) {
                 $output += "      ... and $($um.UsersLostMFA.Count - 5) more"
@@ -1136,19 +1151,23 @@ function Format-TenantChangesSection {
         $gaSign   = if ($pa.GlobalAdminDelta -gt 0) { "+" } else { "" }
         
         $output += "  Privileged Access:"
-        $output += "    Privileged Accounts: $($pa.BaselineTotalPrivileged) → $($pa.CurrentTotalPrivileged) ($privSign$($pa.TotalPrivilegedDelta))"
-        $output += "    Global Admins:       $($pa.BaselineGlobalAdmins) → $($pa.CurrentGlobalAdmins) ($gaSign$($pa.GlobalAdminDelta))"
+        $output += "    Privileged Accounts: $($pa.BaselineTotalPrivileged) -> $($pa.CurrentTotalPrivileged) ($privSign$($pa.TotalPrivilegedDelta))"
+        $output += "    Global Admins:       $($pa.BaselineGlobalAdmins) -> $($pa.CurrentGlobalAdmins) ($gaSign$($pa.GlobalAdminDelta))"
         
         if ($pa.NewPrivilegedAccounts -and $pa.NewPrivilegedAccounts.Count -gt 0) {
-            $output += "    ✗ New privileged accounts ($($pa.NewPrivilegedAccounts.Count)):"
+            $crossMark2 = if ($script:CrossMark) { $script:CrossMark } else { 'x' }
+            $output += "    $crossMark2 New privileged accounts ($($pa.NewPrivilegedAccounts.Count)):"
             foreach ($acct in ($pa.NewPrivilegedAccounts | Select-Object -First 5)) {
-                $output += "      • $($acct.DisplayName) ($($acct.UserPrincipalName)) - $($acct.Roles)"
+                $bullet2 = if ($script:Bullet) { $script:Bullet } else { '*' }
+                $output += "      $bullet2 $($acct.DisplayName) ($($acct.UserPrincipalName)) - $($acct.Roles)"
             }
         }
         if ($pa.RemovedPrivilegedAccounts -and $pa.RemovedPrivilegedAccounts.Count -gt 0) {
-            $output += "    ✓ Removed privileged accounts ($($pa.RemovedPrivilegedAccounts.Count)):"
+            $checkMark2 = if ($script:CheckMark) { $script:CheckMark } else { '+' }
+            $output += "    $checkMark2 Removed privileged accounts ($($pa.RemovedPrivilegedAccounts.Count)):"
             foreach ($acct in ($pa.RemovedPrivilegedAccounts | Select-Object -First 5)) {
-                $output += "      • $($acct.DisplayName) ($($acct.UserPrincipalName)) - $($acct.Roles)"
+                $bullet3 = if ($script:Bullet) { $script:Bullet } else { '*' }
+                $output += "      $bullet3 $($acct.DisplayName) ($($acct.UserPrincipalName)) - $($acct.Roles)"
             }
         }
         $output += ""
@@ -1178,8 +1197,10 @@ function Format-BaselineComparison {
     $sections += Format-OverallTrendSection -OverallTrend $Comparison.OverallTrend -Summary $Comparison.Summary
     $sections += Format-SecurityScoreSection -SecurityScoreComparison $Comparison.SecurityScoreComparison
     $sections += Format-CISComplianceSection -CISComplianceComparison $Comparison.CISComplianceComparison
-    $sections += Format-ChangesSection -Changes $Comparison.Improvements -Title "Improvements" -Icon "✓"
-    $sections += Format-ChangesSection -Changes $Comparison.Regressions -Title "Regressions" -Icon "✗"
+    $checkIcon = if ($script:CheckMark) { $script:CheckMark } else { '+' }
+    $crossIcon = if ($script:CrossMark) { $script:CrossMark } else { 'x' }
+    $sections += Format-ChangesSection -Changes $Comparison.Improvements -Title "Improvements" -Icon $checkIcon
+    $sections += Format-ChangesSection -Changes $Comparison.Regressions -Title "Regressions" -Icon $crossIcon
     $sections += Format-TenantChangesSection -TenantChanges $Comparison.TenantChanges
     
     return $sections -join "`n"

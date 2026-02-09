@@ -282,6 +282,9 @@ function Format-SecurityScoreDisplay {
     <#
     .SYNOPSIS
         Formats the security score for console display.
+    .DESCRIPTION
+        Uses Write-Host for colorized output in interactive sessions.
+        Adapts bullet characters based on host environment detection.
     #>
     param(
         [Parameter(Mandatory = $true)]
@@ -296,21 +299,24 @@ function Format-SecurityScoreDisplay {
         "F" { "Red" }
     }
 
+    $bullet = if ($script:Bullet) { $script:Bullet } else { '*' }
+    $warnMark = if ($script:WarningMark) { $script:WarningMark } else { '!' }
+
     Write-Host ""
-    Write-Host "╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-    Write-Host "║              TENANT SECURITY SCORE                           ║" -ForegroundColor Cyan
-    Write-Host "╠══════════════════════════════════════════════════════════════╣" -ForegroundColor Cyan
-    Write-Host "║                                                              ║" -ForegroundColor Cyan
-    Write-Host "║     Score: " -ForegroundColor Cyan -NoNewline
+    Write-Host "+=============================================================+" -ForegroundColor Cyan
+    Write-Host "|              TENANT SECURITY SCORE                           |" -ForegroundColor Cyan
+    Write-Host "+=============================================================+" -ForegroundColor Cyan
+    Write-Host "|                                                              |" -ForegroundColor Cyan
+    Write-Host "|     Score: " -ForegroundColor Cyan -NoNewline
     Write-Host "$($ScoreData.OverallScore)%" -ForegroundColor $gradeColor -NoNewline
     Write-Host "     Grade: " -ForegroundColor Cyan -NoNewline
     Write-Host "$($ScoreData.LetterGrade)" -ForegroundColor $gradeColor -NoNewline
-    Write-Host "                              ║" -ForegroundColor Cyan
-    Write-Host "║                                                              ║" -ForegroundColor Cyan
-    Write-Host "║     $($ScoreData.GradeDescription.PadRight(50))     ║" -ForegroundColor Cyan
-    Write-Host "║                                                              ║" -ForegroundColor Cyan
-    Write-Host "╠══════════════════════════════════════════════════════════════╣" -ForegroundColor Cyan
-    Write-Host "║  Category Breakdown:                                         ║" -ForegroundColor Cyan
+    Write-Host "                              |" -ForegroundColor Cyan
+    Write-Host "|                                                              |" -ForegroundColor Cyan
+    Write-Host "|     $($ScoreData.GradeDescription.PadRight(50))     |" -ForegroundColor Cyan
+    Write-Host "|                                                              |" -ForegroundColor Cyan
+    Write-Host "+=============================================================+" -ForegroundColor Cyan
+    Write-Host "|  Category Breakdown:                                         |" -ForegroundColor Cyan
     
     foreach ($cat in $ScoreData.CategoryBreakdown) {
         $catColor = switch ($cat.Grade) {
@@ -321,20 +327,20 @@ function Format-SecurityScoreDisplay {
             "F" { "Red" }
         }
         $catLine = "    $($cat.Category.PadRight(25)) $($cat.Score.ToString().PadLeft(5))% ($($cat.Grade))"
-        Write-Host "║  " -ForegroundColor Cyan -NoNewline
+        Write-Host "|  " -ForegroundColor Cyan -NoNewline
         Write-Host $catLine.PadRight(58) -ForegroundColor $catColor -NoNewline
-        Write-Host "║" -ForegroundColor Cyan
+        Write-Host "|" -ForegroundColor Cyan
     }
     
-    Write-Host "╠══════════════════════════════════════════════════════════════╣" -ForegroundColor Cyan
-    Write-Host "║  Summary:                                                    ║" -ForegroundColor Cyan
-    Write-Host "║    Passed: $($ScoreData.Summary.PassedChecks.ToString().PadLeft(3))  |  Warnings: $($ScoreData.Summary.WarningChecks.ToString().PadLeft(3))  |  Failed: $($ScoreData.Summary.FailedChecks.ToString().PadLeft(3))         ║" -ForegroundColor Cyan
+    Write-Host "+=============================================================+" -ForegroundColor Cyan
+    Write-Host "|  Summary:                                                    |" -ForegroundColor Cyan
+    Write-Host "|    Passed: $($ScoreData.Summary.PassedChecks.ToString().PadLeft(3))  |  Warnings: $($ScoreData.Summary.WarningChecks.ToString().PadLeft(3))  |  Failed: $($ScoreData.Summary.FailedChecks.ToString().PadLeft(3))         |" -ForegroundColor Cyan
     
     if ($ScoreData.Summary.CriticalFindings -gt 0) {
-        Write-Host "║    ⚠ Critical Findings: $($ScoreData.Summary.CriticalFindings)                                      ║" -ForegroundColor Red
+        Write-Host "|    $warnMark Critical Findings: $($ScoreData.Summary.CriticalFindings)                                      |" -ForegroundColor Red
     }
     
-    Write-Host "╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+    Write-Host "+=============================================================+" -ForegroundColor Cyan
     Write-Host ""
 
     if ($ScoreData.TopPriorities.Count -gt 0) {
@@ -350,7 +356,7 @@ function Format-SecurityScoreDisplay {
     if ($ScoreData.QuickWins.Count -gt 0) {
         Write-Host "  Quick Wins (Low Effort):" -ForegroundColor Green
         foreach ($win in $ScoreData.QuickWins) {
-            Write-Host "    • $($win.CheckName) (+$($win.PotentialGain) pts)" -ForegroundColor Green
+            Write-Host "    $bullet $($win.CheckName) (+$($win.PotentialGain) pts)" -ForegroundColor Green
         }
         Write-Host ""
     }

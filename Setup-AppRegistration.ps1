@@ -55,7 +55,15 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# Disable WAM broker
+# Initialize host environment detection (ISE, Console, Windows Terminal, etc.)
+$hostEnvPath = Join-Path $PSScriptRoot "modules\Core\Get-HostEnvironment.ps1"
+if (Test-Path $hostEnvPath) {
+    . $hostEnvPath
+}
+$chk = if ($script:CheckMark) { $script:CheckMark } else { '+' }
+$err = if ($script:CrossMark) { $script:CrossMark } else { 'x' }
+
+# Disable WAM broker to prevent token caching issues across all terminal environments
 $env:AZURE_IDENTITY_DISABLE_BROKER = "true"
 
 Write-Host "`n" -NoNewline
@@ -69,16 +77,16 @@ Write-Host "[1/6] Checking prerequisites..." -ForegroundColor Yellow
 
 # Check for required module
 if (-not (Get-Module -ListAvailable -Name Microsoft.Graph.Applications)) {
-    Write-Host "  ✗ Microsoft.Graph.Applications module not found" -ForegroundColor Red
+    Write-Host "  $err Microsoft.Graph.Applications module not found" -ForegroundColor Red
     Write-Host "  Installing module..." -ForegroundColor Yellow
     Install-Module Microsoft.Graph.Applications -Scope CurrentUser -Force
 }
-Write-Host "  ✓ Microsoft.Graph.Applications module available" -ForegroundColor Green
+Write-Host "  $chk Microsoft.Graph.Applications module available" -ForegroundColor Green
 
 # Import modules
 Import-Module Microsoft.Graph.Authentication -ErrorAction Stop
 Import-Module Microsoft.Graph.Applications -ErrorAction Stop
-Write-Host "  ✓ Modules imported" -ForegroundColor Green
+Write-Host "  $chk Modules imported" -ForegroundColor Green
 #endregion
 
 #region Connect to Graph
@@ -107,12 +115,12 @@ if ($TenantId) {
 try {
     Connect-MgGraph @connectParams
     $context = Get-MgContext
-    Write-Host "  ✓ Connected as: $($context.Account)" -ForegroundColor Green
-    Write-Host "  ✓ Tenant: $($context.TenantId)" -ForegroundColor Green
+    Write-Host "  $chk Connected as: $($context.Account)" -ForegroundColor Green
+    Write-Host "  $chk Tenant: $($context.TenantId)" -ForegroundColor Green
     $TenantId = $context.TenantId
 }
 catch {
-    Write-Host "  ✗ Failed to connect: $_" -ForegroundColor Red
+    Write-Host "  $err Failed to connect: $_" -ForegroundColor Red
     exit 1
 }
 #endregion
@@ -150,11 +158,11 @@ if (-not $certificate) {
         -HashAlgorithm SHA256 `
         -NotAfter (Get-Date).AddYears($CertificateValidityYears)
     
-    Write-Host "  ✓ Certificate created" -ForegroundColor Green
+    Write-Host "  $chk Certificate created" -ForegroundColor Green
 }
 
-Write-Host "  ✓ Thumbprint: $($certificate.Thumbprint)" -ForegroundColor Green
-Write-Host "  ✓ Expires: $($certificate.NotAfter.ToString('yyyy-MM-dd'))" -ForegroundColor Green
+Write-Host "  $chk Thumbprint: $($certificate.Thumbprint)" -ForegroundColor Green
+Write-Host "  $chk Expires: $($certificate.NotAfter.ToString('yyyy-MM-dd'))" -ForegroundColor Green
 
 # Export certificate public key for upload to Azure
 $certBase64 = [System.Convert]::ToBase64String($certificate.RawData)
@@ -211,15 +219,15 @@ else {
     }
     
     $app = New-MgApplication @appParams
-    Write-Host "  ✓ App Registration created" -ForegroundColor Green
-    Write-Host "  ✓ Application (client) ID: $($app.AppId)" -ForegroundColor Green
+    Write-Host "  $chk App Registration created" -ForegroundColor Green
+    Write-Host "  $chk Application (client) ID: $($app.AppId)" -ForegroundColor Green
 }
 
 # Create Service Principal if it doesn't exist
 $sp = Get-MgServicePrincipal -Filter "appId eq '$($app.AppId)'" -ErrorAction SilentlyContinue
 if (-not $sp) {
     $sp = New-MgServicePrincipal -AppId $app.AppId
-    Write-Host "  ✓ Service Principal created" -ForegroundColor Green
+    Write-Host "  $chk Service Principal created" -ForegroundColor Green
 }
 #endregion
 
@@ -238,7 +246,7 @@ $keyCredential = @{
 
 # Update app with certificate
 Update-MgApplication -ApplicationId $app.Id -KeyCredentials @($keyCredential)
-Write-Host "  ✓ Certificate uploaded to App Registration" -ForegroundColor Green
+Write-Host "  $chk Certificate uploaded to App Registration" -ForegroundColor Green
 #endregion
 
 #region Grant Admin Consent
@@ -270,13 +278,13 @@ foreach ($permission in $requiredPermissions) {
         Write-Host "  ! Could not grant permission $($permission.Id): $_" -ForegroundColor Yellow
     }
 }
-Write-Host "  ✓ Admin consent granted for $grantedCount permissions" -ForegroundColor Green
+Write-Host "  $chk Admin consent granted for $grantedCount permissions" -ForegroundColor Green
 #endregion
 
 #region Output Summary
 Write-Host "`n"
 Write-Host "╔══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Green
-Write-Host "║                    Setup Complete! ✓                                 ║" -ForegroundColor Green
+Write-Host "║                    Setup Complete! $chk                                 ║" -ForegroundColor Green
 Write-Host "╚══════════════════════════════════════════════════════════════════════╝" -ForegroundColor Green
 
 Write-Host "`n  Save these values - you'll need them to run the assessment:" -ForegroundColor Yellow

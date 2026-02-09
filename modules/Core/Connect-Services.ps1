@@ -173,7 +173,7 @@ function Connect-GraphService {
     }
     catch {
         # If the first call fails, the token might be stale - try reconnecting once
-        Write-Warning "  ⚠ Initial connection validation failed, retrying..."
+        Write-Warning "  ! Initial connection validation failed, retrying..."
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
         Start-Sleep -Seconds 2
         # Rebuild minimal params for retry (credentials already consumed by initial connect)
@@ -200,9 +200,9 @@ function Connect-GraphService {
         $grantedScopes = $mgContext.Scopes
         $missingScopes = $graphScopes | Where-Object { $grantedScopes -notcontains $_ }
         if ($missingScopes.Count -gt 0) {
-            Write-Warning "  ⚠ Some permissions were not granted: $($missingScopes -join ', ')"
-            Write-Warning "  ⚠ Certain checks may fail or return incomplete data"
-            Write-Warning "  ⚠ Re-consent may be required if checks fail unexpectedly"
+            Write-Warning "  ! Some permissions were not granted: $($missingScopes -join ', ')"
+            Write-Warning "  ! Certain checks may fail or return incomplete data"
+            Write-Warning "  ! Re-consent may be required if checks fail unexpectedly"
         }
     }
     elseif ($AuthMethod -in @('Certificate', 'ClientSecret', 'ManagedIdentity')) {
@@ -266,8 +266,8 @@ function Connect-ExchangeService {
         $exoParams['Organization'] = $TenantId
     }
 
-    # Always use device authentication to avoid WAM broker issues in VS Code/terminal
-    # WAM broker can fail in non-standard terminal environments
+    # Always use device authentication to avoid WAM broker issues across terminal environments
+    # WAM broker can fail in embedded, remote, or non-standard terminals
     # For ManagedIdentity, use the -ManagedIdentity flag instead
     if ($AuthMethod -eq 'ManagedIdentity') {
         $exoParams['ManagedIdentity'] = $true
@@ -401,7 +401,8 @@ function Clear-ExistingM365Connections {
         $graphContext = Get-MgContext -ErrorAction SilentlyContinue
         if ($graphContext) {
             Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-            Write-Information "  ✓ Disconnected from Microsoft Graph ($($graphContext.Account))" -InformationAction Continue
+            $chk = if ($script:CheckMark) { $script:CheckMark } else { '+' }
+            Write-Information "  $chk Disconnected from Microsoft Graph ($($graphContext.Account))" -InformationAction Continue
         }
     }
     catch { }
@@ -411,7 +412,8 @@ function Clear-ExistingM365Connections {
         $exoSession = Get-PSSession | Where-Object { $_.ConfigurationName -eq 'Microsoft.Exchange' -or $_.Name -like '*ExchangeOnline*' }
         if ($exoSession) {
             Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
-            Write-Information "  ✓ Disconnected from Exchange Online" -InformationAction Continue
+            $chk2 = if ($script:CheckMark) { $script:CheckMark } else { '+' }
+            Write-Information "  $chk2 Disconnected from Exchange Online" -InformationAction Continue
         }
     }
     catch { }
@@ -422,7 +424,8 @@ function Clear-ExistingM365Connections {
     }
     catch { }
 
-    Write-Information "  ✓ Ready for fresh connection" -InformationAction Continue
+    $chk3 = if ($script:CheckMark) { $script:CheckMark } else { '+' }
+    Write-Information "  $chk3 Ready for fresh connection" -InformationAction Continue
 }
 
 function Disconnect-AllM365Services {

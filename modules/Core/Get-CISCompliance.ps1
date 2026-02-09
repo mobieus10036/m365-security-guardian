@@ -374,11 +374,11 @@ function Format-CISComplianceReport {
     $output += "  Status Distribution:"
     foreach ($status in $ComplianceSummary.StatusDistribution) {
         $icon = switch ($status.Status) {
-            'Compliant' { '✓' }
-            'Non-Compliant' { '✗' }
-            'Partially Compliant' { '◐' }
+            'Compliant' { if ($script:CheckMark) { $script:CheckMark } else { '+' } }
+            'Non-Compliant' { if ($script:CrossMark) { $script:CrossMark } else { 'x' } }
+            'Partially Compliant' { '~' }
             'Manual Review Required' { '?' }
-            default { '○' }
+            default { 'o' }
         }
         $output += "    $icon $($status.Status): $($status.Count)"
     }
@@ -394,7 +394,8 @@ function Format-CISComplianceReport {
     
     # Non-compliant controls (top priorities)
     if ($ComplianceSummary.NonCompliantControls.Count -gt 0) {
-        $output += "  ⚠ Non-Compliant Controls Requiring Remediation:"
+        $warnMark = if ($script:WarningMark) { $script:WarningMark } else { '!' }
+        $output += "  $warnMark Non-Compliant Controls Requiring Remediation:"
         $topItems = $ComplianceSummary.NonCompliantControls | Select-Object -First 5
         foreach ($item in $topItems) {
             $levelTag = if ($item.Level -eq 1) { "[L1]" } else { "[L2]" }
@@ -421,7 +422,9 @@ function Get-ProgressBar {
     $filled = [math]::Floor($Percentage / 100 * $Width)
     $empty = $Width - $filled
     
-    $bar = '█' * $filled + '░' * $empty
+    $fillChar = if ($script:BlockFull) { $script:BlockFull } else { '#' }
+    $emptyChar = if ($script:BlockLight) { $script:BlockLight } else { '-' }
+    $bar = $fillChar * $filled + $emptyChar * $empty
     return "[$bar]"
 }
 
@@ -478,7 +481,8 @@ function Export-CISComplianceReport {
                     }
                 }
                 $exportData | ConvertTo-Json -Depth 10 | Out-File -FilePath $jsonPath -Encoding UTF8
-                Write-Information "  ✓ CIS compliance JSON: $jsonPath" -InformationAction Continue
+                $chk = if ($script:CheckMark) { $script:CheckMark } else { '+' }
+                Write-Information "  $chk CIS compliance JSON: $jsonPath" -InformationAction Continue
             }
             'CSV' {
                 $csvPath = Join-Path $baseDir "${baseName}_CISCompliance.csv"
@@ -486,7 +490,7 @@ function Export-CISComplianceReport {
                     ControlId, Title, Level, Section, Status, StatusReason, `
                     Remediation, MitreAttack, Impact, Automated |
                     Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-                Write-Information "  ✓ CIS compliance CSV: $csvPath" -InformationAction Continue
+                Write-Information "  $chk CIS compliance CSV: $csvPath" -InformationAction Continue
             }
         }
     }

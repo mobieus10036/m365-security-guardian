@@ -17,6 +17,14 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# Initialize host environment detection (ISE, Console, Windows Terminal, etc.)
+$hostEnvPath = Join-Path $PSScriptRoot "modules\Core\Get-HostEnvironment.ps1"
+if (Test-Path $hostEnvPath) {
+    . $hostEnvPath
+}
+$chk = if ($script:CheckMark) { $script:CheckMark } else { '+' }
+$err = if ($script:CrossMark) { $script:CrossMark } else { 'x' }
+
 Write-Host "`n"
 Write-Host "╔══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
 Write-Host "║        M365 Security Guardian - App Registration Setup (Azure CLI)    ║" -ForegroundColor Cyan
@@ -36,14 +44,14 @@ Write-Host "  Tenant: $targetTenant" -ForegroundColor Gray
 
 az login --tenant $targetTenant --use-device-code --allow-no-subscriptions --output none
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "  ✗ Login failed" -ForegroundColor Red
+    Write-Host "  $err Login failed" -ForegroundColor Red
     exit 1
 }
 
 $account = az account show --output json | ConvertFrom-Json
 $TenantId = $targetTenant
-Write-Host "  ✓ Logged in as: $($account.user.name)" -ForegroundColor Green
-Write-Host "  ✓ Tenant: $TenantId" -ForegroundColor Green
+Write-Host "  $chk Logged in as: $($account.user.name)" -ForegroundColor Green
+Write-Host "  $chk Tenant: $TenantId" -ForegroundColor Green
 #endregion
 
 #region Create Certificate
@@ -56,7 +64,7 @@ $certStorePath = "Cert:\CurrentUser\My"
 $existingCert = Get-ChildItem -Path $certStorePath | Where-Object { $_.Subject -eq $certSubject } | Select-Object -First 1
 
 if ($existingCert) {
-    Write-Host "  ✓ Using existing certificate: $($existingCert.Thumbprint)" -ForegroundColor Green
+    Write-Host "  $chk Using existing certificate: $($existingCert.Thumbprint)" -ForegroundColor Green
     $certificate = $existingCert
 }
 else {
@@ -70,11 +78,11 @@ else {
         -HashAlgorithm SHA256 `
         -NotAfter (Get-Date).AddYears($CertificateValidityYears)
     
-    Write-Host "  ✓ Certificate created" -ForegroundColor Green
+    Write-Host "  $chk Certificate created" -ForegroundColor Green
 }
 
-Write-Host "  ✓ Thumbprint: $($certificate.Thumbprint)" -ForegroundColor Green
-Write-Host "  ✓ Expires: $($certificate.NotAfter.ToString('yyyy-MM-dd'))" -ForegroundColor Green
+Write-Host "  $chk Thumbprint: $($certificate.Thumbprint)" -ForegroundColor Green
+Write-Host "  $chk Expires: $($certificate.NotAfter.ToString('yyyy-MM-dd'))" -ForegroundColor Green
 
 # Export certificate to temp PEM file for Azure CLI
 $certPath = Join-Path $env:TEMP "m365-assessment-cert.pem"
@@ -92,7 +100,7 @@ Write-Host "`n[3/6] Creating App Registration..." -ForegroundColor Yellow
 # Check if app exists
 $existingApp = az ad app list --display-name $AppName --output json | ConvertFrom-Json
 if ($existingApp -and $existingApp.Count -gt 0) {
-    Write-Host "  ✓ Using existing app: $($existingApp[0].appId)" -ForegroundColor Green
+    Write-Host "  $chk Using existing app: $($existingApp[0].appId)" -ForegroundColor Green
     $appId = $existingApp[0].appId
     $appObjectId = $existingApp[0].id
 }
@@ -108,7 +116,7 @@ else {
     
     $appId = $appResult.appId
     $appObjectId = $appResult.id
-    Write-Host "  ✓ App created: $appId" -ForegroundColor Green
+    Write-Host "  $chk App created: $appId" -ForegroundColor Green
 }
 #endregion
 
@@ -117,13 +125,13 @@ Write-Host "`n[4/6] Creating Service Principal..." -ForegroundColor Yellow
 
 $existingSp = az ad sp list --filter "appId eq '$appId'" --output json | ConvertFrom-Json
 if ($existingSp -and $existingSp.Count -gt 0) {
-    Write-Host "  ✓ Using existing Service Principal" -ForegroundColor Green
+    Write-Host "  $chk Using existing Service Principal" -ForegroundColor Green
     $spId = $existingSp[0].id
 }
 else {
     $spResult = az ad sp create --id $appId --output json | ConvertFrom-Json
     $spId = $spResult.id
-    Write-Host "  ✓ Service Principal created" -ForegroundColor Green
+    Write-Host "  $chk Service Principal created" -ForegroundColor Green
 }
 #endregion
 
@@ -150,7 +158,7 @@ $graphPermissions = @(
 foreach ($permId in $graphPermissions) {
     az ad app permission add --id $appId --api $graphAppId --api-permissions "$permId=Role" --output none 2>$null
 }
-Write-Host "  ✓ Microsoft Graph permissions added" -ForegroundColor Green
+Write-Host "  $chk Microsoft Graph permissions added" -ForegroundColor Green
 #endregion
 
 #region Grant Admin Consent
@@ -161,7 +169,7 @@ Start-Sleep -Seconds 3
 
 az ad app permission admin-consent --id $appId --output none 2>$null
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "  ✓ Admin consent granted" -ForegroundColor Green
+    Write-Host "  $chk Admin consent granted" -ForegroundColor Green
 }
 else {
     Write-Host "  ! Manual admin consent may be required" -ForegroundColor Yellow
@@ -175,7 +183,7 @@ Remove-Item -Path $certPath -Force -ErrorAction SilentlyContinue
 
 Write-Host "`n"
 Write-Host "╔══════════════════════════════════════════════════════════════════════╗" -ForegroundColor Green
-Write-Host "║                    Setup Complete! ✓                                 ║" -ForegroundColor Green
+Write-Host "║                    Setup Complete! $chk                                 ║" -ForegroundColor Green
 Write-Host "╚══════════════════════════════════════════════════════════════════════╝" -ForegroundColor Green
 
 Write-Host "`n  Your authentication configuration:" -ForegroundColor Yellow

@@ -68,6 +68,14 @@ function Write-ColorOutput {
     Write-Information $Message -InformationAction Continue
 }
 
+# Initialize host environment detection (ISE, Console, Windows Terminal, etc.)
+$hostEnvPath = Join-Path $PSScriptRoot "modules\Core\Get-HostEnvironment.ps1"
+if (Test-Path $hostEnvPath) {
+    . $hostEnvPath
+}
+$chk = if ($script:CheckMark) { $script:CheckMark } else { '+' }
+$err = if ($script:CrossMark) { $script:CrossMark } else { 'x' }
+
 function Test-AdminPrivileges {
     if ($PSVersionTable.PSVersion.Major -ge 6) {
         # PowerShell 7+
@@ -92,10 +100,10 @@ Write-ColorOutput "╚═══════════════════�
 # Check PowerShell version
 Write-ColorOutput "Checking PowerShell version..." -Color Yellow
 $psVersion = $PSVersionTable.PSVersion
-Write-ColorOutput "  ✓ PowerShell $($psVersion.Major).$($psVersion.Minor).$($psVersion.Patch)" -Color Green
+Write-ColorOutput "  $chk PowerShell $($psVersion.Major).$($psVersion.Minor).$($psVersion.Patch)" -Color Green
 
 if ($psVersion.Major -lt 5 -or ($psVersion.Major -eq 5 -and $psVersion.Minor -lt 1)) {
-    Write-ColorOutput "`n  ✗ ERROR: PowerShell 5.1 or later is required!" -Color Red
+    Write-ColorOutput "`n  $err ERROR: PowerShell 5.1 or later is required!" -Color Red
     Write-ColorOutput "    Please upgrade PowerShell: https://aka.ms/powershell" -Color Red
     exit 1
 }
@@ -103,7 +111,7 @@ if ($psVersion.Major -lt 5 -or ($psVersion.Major -eq 5 -and $psVersion.Minor -lt
 # Check admin privileges if AllUsers scope
 if ($Scope -eq 'AllUsers') {
     if (-not (Test-AdminPrivileges)) {
-        Write-ColorOutput "`n  ✗ ERROR: AllUsers scope requires administrative privileges!" -Color Red
+        Write-ColorOutput "`n  $err ERROR: AllUsers scope requires administrative privileges!" -Color Red
         Write-ColorOutput "    Run PowerShell as Administrator or use -Scope CurrentUser" -Color Red
         exit 1
     }
@@ -112,27 +120,27 @@ if ($Scope -eq 'AllUsers') {
 # Set TLS 1.2 for secure downloads
 Write-ColorOutput "`nConfiguring secure connection..." -Color Yellow
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-Write-ColorOutput "  ✓ TLS 1.2 enabled" -Color Green
+Write-ColorOutput "  $chk TLS 1.2 enabled" -Color Green
 
 # Check for PowerShellGet and update if needed
 Write-ColorOutput "`nChecking PowerShellGet module..." -Color Yellow
 $psGet = Get-Module -Name PowerShellGet -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1
 
 if ($null -eq $psGet -or $psGet.Version -lt [Version]'2.2.5') {
-    Write-ColorOutput "  → Updating PowerShellGet to latest version..." -Color Yellow
+    Write-ColorOutput "  > Updating PowerShellGet to latest version..." -Color Yellow
     try {
         Install-Module -Name PowerShellGet -Force -Scope $Scope -AllowClobber -ErrorAction Stop
-        Write-ColorOutput "  ✓ PowerShellGet updated successfully" -Color Green
-        Write-ColorOutput "`n  ⚠ IMPORTANT: Please restart PowerShell and run this script again!" -Color Magenta
+        Write-ColorOutput "  $chk PowerShellGet updated successfully" -Color Green
+        Write-ColorOutput "`n  ! IMPORTANT: Please restart PowerShell and run this script again!" -Color Magenta
         exit 0
     }
     catch {
-        Write-ColorOutput "  ✗ Failed to update PowerShellGet: $_" -Color Red
+        Write-ColorOutput "  $err Failed to update PowerShellGet: $_" -Color Red
         exit 1
     }
 }
 else {
-    Write-ColorOutput "  ✓ PowerShellGet $($psGet.Version) is installed" -Color Green
+    Write-ColorOutput "  $chk PowerShellGet $($psGet.Version) is installed" -Color Green
 }
 
 # Install/Update required modules
@@ -156,40 +164,40 @@ foreach ($module in $requiredModules) {
 
     if ($null -eq $installedModule) {
         # Module not installed
-        Write-ColorOutput "  → Installing $moduleName (minimum version: $minVersion)..." -Color Yellow
+        Write-ColorOutput "  > Installing $moduleName (minimum version: $minVersion)..." -Color Yellow
         try {
             Install-Module -Name $moduleName -Scope $Scope -Force -AllowClobber -ErrorAction Stop
-            Write-ColorOutput "  ✓ Successfully installed $moduleName" -Color Green
+            Write-ColorOutput "  $chk Successfully installed $moduleName" -Color Green
             $installCount++
         }
         catch {
-            Write-ColorOutput "  ✗ Failed to install $moduleName : $_" -Color Red
+            Write-ColorOutput "  $err Failed to install $moduleName : $_" -Color Red
         }
     }
     elseif ($installedModule.Version -lt $minVersion -or $Force) {
         # Module needs update or Force flag is set
-        Write-ColorOutput "  → Updating $moduleName from $($installedModule.Version) to latest..." -Color Yellow
+        Write-ColorOutput "  > Updating $moduleName from $($installedModule.Version) to latest..." -Color Yellow
         try {
             Update-Module -Name $moduleName -Force -ErrorAction Stop
-            Write-ColorOutput "  ✓ Successfully updated $moduleName" -Color Green
+            Write-ColorOutput "  $chk Successfully updated $moduleName" -Color Green
             $updateCount++
         }
         catch {
-            Write-ColorOutput "  ⚠ Failed to update $moduleName : $_" -Color Magenta
+            Write-ColorOutput "  ! Failed to update $moduleName : $_" -Color Magenta
             Write-ColorOutput "    Attempting fresh install..." -Color Yellow
             try {
                 Install-Module -Name $moduleName -Scope $Scope -Force -AllowClobber -ErrorAction Stop
-                Write-ColorOutput "  ✓ Successfully installed $moduleName" -Color Green
+                Write-ColorOutput "  $chk Successfully installed $moduleName" -Color Green
                 $installCount++
             }
             catch {
-                Write-ColorOutput "  ✗ Failed to install $moduleName : $_" -Color Red
+                Write-ColorOutput "  $err Failed to install $moduleName : $_" -Color Red
             }
         }
     }
     else {
         # Module is up to date
-        Write-ColorOutput "  ✓ $moduleName $($installedModule.Version) is already installed" -Color Green
+        Write-ColorOutput "  $chk $moduleName $($installedModule.Version) is already installed" -Color Green
         $skipCount++
     }
 }
@@ -210,21 +218,21 @@ $allModulesOk = $true
 foreach ($module in $requiredModules) {
     $check = Get-Module -Name $module.Name -ListAvailable
     if ($null -eq $check) {
-        Write-ColorOutput "  ✗ $($module.Name) is NOT available!" -Color Red
+        Write-ColorOutput "  $err $($module.Name) is NOT available!" -Color Red
         $allModulesOk = $false
     }
 }
 
 if ($allModulesOk) {
-    Write-ColorOutput "  ✓ All required modules are available!`n" -Color Green
+    Write-ColorOutput "  $chk All required modules are available!`n" -Color Green
     Write-ColorOutput "╔════════════════════════════════════════════════════════════╗" -Color Green
-    Write-ColorOutput "║                   Setup Complete! ✓                        ║" -Color Green
+    Write-ColorOutput "║                   Setup Complete! $chk                        ║" -Color Green
     Write-ColorOutput "╚════════════════════════════════════════════════════════════╝" -Color Green
     Write-ColorOutput "`nYou can now run the assessment:" -Color White
     Write-ColorOutput "  .\Start-M365Assessment.ps1`n" -Color Cyan
 }
 else {
-    Write-ColorOutput "`n  ✗ Some modules failed to install. Please review errors above." -Color Red
+    Write-ColorOutput "`n  $err Some modules failed to install. Please review errors above." -Color Red
     Write-ColorOutput "    Try running as Administrator or check network connectivity.`n" -Color Red
     exit 1
 }
