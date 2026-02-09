@@ -4,15 +4,24 @@
 
 .DESCRIPTION
     Uses Azure CLI (no WAM broker issues) to set up secure authentication.
+    If -TenantId is not provided, you will be prompted to enter it.
+
+.PARAMETER TenantId
+    Your Entra ID (Azure AD) Tenant ID. Found at https://entra.microsoft.com under Tenant Overview.
 
 .EXAMPLE
     .\Setup-AppRegistration-CLI.ps1
+    # Prompts for Tenant ID interactively
+
+.EXAMPLE
+    .\Setup-AppRegistration-CLI.ps1 -TenantId "your-tenant-id-here"
 #>
 
 [CmdletBinding()]
 param(
     [string]$AppName = "M365 Security Guardian",
-    [int]$CertificateValidityYears = 2
+    [int]$CertificateValidityYears = 2,
+    [string]$TenantId
 )
 
 $ErrorActionPreference = 'Stop'
@@ -38,18 +47,24 @@ Write-Host "[1/6] Logging into Azure..." -ForegroundColor Yellow
 az logout --output none 2>$null
 az account clear --output none 2>$null
 
-# Login with tenant-specific to satisfy Conditional Access policies
-$targetTenant = "25cfe2b5-4780-4220-babb-8b90f37b2c53"
-Write-Host "  Tenant: $targetTenant" -ForegroundColor Gray
+# Prompt for tenant ID if not supplied via parameter
+if (-not $TenantId) {
+    $TenantId = Read-Host "  Enter your Entra ID (Azure AD) Tenant ID"
+    if ([string]::IsNullOrWhiteSpace($TenantId)) {
+        Write-Host "  $err Tenant ID is required. Find it at https://entra.microsoft.com/#view/Microsoft_AAD_IAM/TenantOverview.ReactView" -ForegroundColor Red
+        exit 1
+    }
+}
 
-az login --tenant $targetTenant --use-device-code --allow-no-subscriptions --output none
+Write-Host "  Tenant: $TenantId" -ForegroundColor Gray
+
+az login --tenant $TenantId --use-device-code --allow-no-subscriptions --output none
 if ($LASTEXITCODE -ne 0) {
     Write-Host "  $err Login failed" -ForegroundColor Red
     exit 1
 }
 
 $account = az account show --output json | ConvertFrom-Json
-$TenantId = $targetTenant
 Write-Host "  $chk Logged in as: $($account.user.name)" -ForegroundColor Green
 Write-Host "  $chk Tenant: $TenantId" -ForegroundColor Green
 #endregion

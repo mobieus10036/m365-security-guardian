@@ -100,7 +100,8 @@ Write-ColorOutput "╚═══════════════════�
 # Check PowerShell version
 Write-ColorOutput "Checking PowerShell version..." -Color Yellow
 $psVersion = $PSVersionTable.PSVersion
-Write-ColorOutput "  $chk PowerShell $($psVersion.Major).$($psVersion.Minor).$($psVersion.Patch)" -Color Green
+$psBuild = if ($psVersion.PSObject.Properties['Patch']) { $psVersion.Patch } else { $psVersion.Build }
+Write-ColorOutput "  $chk PowerShell $($psVersion.Major).$($psVersion.Minor).$psBuild" -Color Green
 
 if ($psVersion.Major -lt 5 -or ($psVersion.Major -eq 5 -and $psVersion.Minor -lt 1)) {
     Write-ColorOutput "`n  $err ERROR: PowerShell 5.1 or later is required!" -Color Red
