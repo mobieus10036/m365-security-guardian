@@ -65,8 +65,6 @@ cd m365-security-guardian
 .\Start-M365Assessment.ps1
 ```
 
-Or double-click **Run-M365Assessment.bat** to launch without worrying about execution policies.
-
 ---
 
 ## Authentication
@@ -339,8 +337,6 @@ Each assessment generates timestamped reports:
 | **PowerShell 7+ (pwsh)** | Fully supported |
 | **Windows Terminal** | Fully supported |
 | **VS Code Integrated Terminal** | Fully supported |
-| **PowerShell ISE** | Not supported (use pwsh) |
-| **Run-M365Assessment.bat** | Double-click launcher — requires pwsh on PATH |
 
 Install prerequisites:
 
