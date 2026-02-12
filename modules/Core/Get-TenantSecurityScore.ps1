@@ -201,13 +201,11 @@ function Get-TenantSecurityScore {
     } else { 0 }
 
     # Determine letter grade
-    $letterGrade = switch ($overallScore) {
-        { $_ -ge 90 } { "A" }
-        { $_ -ge 80 } { "B" }
-        { $_ -ge 70 } { "C" }
-        { $_ -ge 60 } { "D" }
-        default { "F" }
-    }
+    $letterGrade = if ($overallScore -ge 90) { "A" }
+                   elseif ($overallScore -ge 80) { "B" }
+                   elseif ($overallScore -ge 70) { "C" }
+                   elseif ($overallScore -ge 60) { "D" }
+                   else { "F" }
 
     # Grade description
     $gradeDescription = switch ($letterGrade) {
@@ -226,13 +224,11 @@ function Get-TenantSecurityScore {
             [math]::Round(($catData.Earned / $catData.Possible) * 100, 1)
         } else { 100 }
         
-        $catGrade = switch ($catScore) {
-            { $_ -ge 90 } { "A" }
-            { $_ -ge 80 } { "B" }
-            { $_ -ge 70 } { "C" }
-            { $_ -ge 60 } { "D" }
-            default { "F" }
-        }
+        $catGrade = if ($catScore -ge 90) { "A" }
+                    elseif ($catScore -ge 80) { "B" }
+                    elseif ($catScore -ge 70) { "C" }
+                    elseif ($catScore -ge 60) { "D" }
+                    else { "F" }
 
         $categoryBreakdown += [PSCustomObject]@{
             Category = $cat
