@@ -269,13 +269,14 @@ function Connect-ExchangeService {
                 $exoParams['ManagedIdentityAccountId'] = $ClientId
             }
         }
-        'DeviceCode' {
-            Write-Info "Exchange Online requires a separate device code (Microsoft limitation)"
-            $exoParams['Device'] = $true
-        }
         default {
-            # Interactive and Certificate/ClientSecret - no extra flags needed
-            # WAM broker is disabled via AZURE_IDENTITY_DISABLE_BROKER env var
+            # Exchange Online's MSAL.NET broker ignores AZURE_IDENTITY_DISABLE_BROKER
+            # (that env var only affects Azure.Identity used by Graph).
+            # The EXO module's native Interactive flow uses WAM, which throws
+            # NullReferenceException in VS Code / embedded terminals.
+            # Device code is the only reliable flow for Exchange in all environments.
+            Write-Info "Exchange Online uses device code flow (required for terminal compatibility)"
+            $exoParams['Device'] = $true
         }
     }
 
