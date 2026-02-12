@@ -17,40 +17,42 @@ This document provides a comprehensive list of all permissions required to run M
 
 M365 Security Guardian requires:
 
-1. **Microsoft Graph API permissions** (Application type) - For reading Entra ID, Conditional Access, and SharePoint configurations
+1. **Microsoft Graph API permissions** (Delegated) - For reading Entra ID, Conditional Access, and SharePoint configurations using Interactive browser sign-in
 2. **Exchange Online RBAC role** - For reading mailbox, email security, and compliance settings
 
 **Important:** You do NOT need Global Administrator rights. The specific permissions listed below are sufficient for a complete assessment.
+
+> **No Azure app registration required.** The default Interactive auth uses the built-in Microsoft Graph PowerShell enterprise app. Permissions are consented at first sign-in.
 
 ---
 
 ## Microsoft Graph API Permissions
 
-These are **Application permissions** (not Delegated) that must be assigned to an App Registration in Entra ID.
+These are **Delegated permissions** requested automatically when you sign in interactively. No app registration is needed.
 
 ### Required Permissions
 
 | Permission | Permission ID (GUID) | Type | Description |
 | ---------- | -------------------- | ---- | ----------- |
-| `User.Read.All` | `df021288-bdef-4463-88db-98f22de89214` | Application | Read all users' full profiles |
-| `Directory.Read.All` | `7ab1d382-f21e-4acd-a863-ba3e13f7da61` | Application | Read directory data |
-| `Policy.Read.All` | `246dd0d5-5bd0-4def-940b-0421030a5b68` | Application | Read your organization's policies |
-| `Organization.Read.All` | `498476ce-e0fe-48b0-b801-37ba7e2685c6` | Application | Read organization information |
-| `AuditLog.Read.All` | `b0afded3-3588-46d8-8b3d-9842eff778da` | Application | Read all audit log data |
-| `Application.Read.All` | `9a5d68dd-52b0-4cc2-bd40-abcf44ac3a30` | Application | Read all applications |
-| `RoleManagement.Read.All` | `d5fe8ce8-684c-4c83-a52c-46e882ce4be1` | Application | Read role management data for all RBAC providers |
-| `RoleManagement.Read.Directory` | `483bed4a-2ad3-4361-a73b-c83ccdbdc53c` | Application | Read all directory RBAC settings |
-| `SharePointTenantSettings.Read.All` | `83d4163d-a2d8-4d3b-9695-4ae3ca98f888` | Application | Read SharePoint and OneDrive tenant settings |
+| `User.Read.All` | `df021288-bdef-4463-88db-98f22de89214` | Delegated | Read all users' full profiles |
+| `Directory.Read.All` | `7ab1d382-f21e-4acd-a863-ba3e13f7da61` | Delegated | Read directory data |
+| `Policy.Read.All` | `246dd0d5-5bd0-4def-940b-0421030a5b68` | Delegated | Read your organization's policies |
+| `Organization.Read.All` | `498476ce-e0fe-48b0-b801-37ba7e2685c6` | Delegated | Read organization information |
+| `AuditLog.Read.All` | `b0afded3-3588-46d8-8b3d-9842eff778da` | Delegated | Read all audit log data |
+| `Application.Read.All` | `9a5d68dd-52b0-4cc2-bd40-abcf44ac3a30` | Delegated | Read all applications |
+| `RoleManagement.Read.All` | `d5fe8ce8-684c-4c83-a52c-46e882ce4be1` | Delegated | Read role management data for all RBAC providers |
+| `RoleManagement.Read.Directory` | `483bed4a-2ad3-4361-a73b-c83ccdbdc53c` | Delegated | Read all directory RBAC settings |
+| `SharePointTenantSettings.Read.All` | `83d4163d-a2d8-4d3b-9695-4ae3ca98f888` | Delegated | Read SharePoint and OneDrive tenant settings |
 
 ### Optional Permissions (License-Dependent)
 
 | Permission | Permission ID (GUID) | Type | Requires |
 | ---------- | -------------------- | ---- | -------- |
-| `SecurityEvents.Read.All` | `38d9df27-64da-44fd-b7c5-a6fbac20248f` | Application | Microsoft 365 E5 or E5 Security for Secure Score |
+| `SecurityEvents.Read.All` | `38d9df27-64da-44fd-b7c5-a6fbac20248f` | Delegated | Microsoft 365 E5 or E5 Security for Secure Score |
 
-### Admin Consent Required
+### Admin Consent
 
-All the above permissions require **admin consent**. A Global Administrator, Application Administrator, or Cloud Application Administrator must grant consent.
+Some delegated permissions may require admin consent depending on your organization's consent settings. If prompted, a tenant admin can consent via the Microsoft Graph PowerShell enterprise app in **Entra ID → Enterprise Applications**.
 
 ---
 
@@ -131,23 +133,19 @@ Exchange Online uses Role-Based Access Control (RBAC). The user running the asse
 
 ## Setup Instructions
 
-### Option 1: Automated Setup (Recommended)
+### Default: Interactive Sign-In (No Setup Required)
 
-Run the setup script to create an App Registration with all required permissions:
+The default Interactive authentication uses the built-in **Microsoft Graph PowerShell** enterprise app. No app registration is needed.
 
 ```powershell
-.\Setup-AppRegistration-CLI.ps1
+.\Start-M365Assessment.ps1
 ```
 
-This script:
+On first run, you'll be prompted to consent to the required permissions. An admin can pre-consent for the entire organization.
 
-1. Creates a self-signed certificate
-2. Creates an Entra ID App Registration
-3. Adds all required Graph API permissions
-4. Requests admin consent
-5. Saves configuration for future runs
+### Advanced: App Registration (For Automation)
 
-### Option 2: Manual Setup
+If you need unattended/scheduled assessments, create an App Registration manually:
 
 #### Step 1: Create App Registration
 
@@ -164,9 +162,7 @@ This script:
 3. Add each permission from the [Required Permissions](#required-permissions) table
 4. Click **Grant admin consent for [Tenant]**
 
-#### Step 3: Create Certificate or Secret
-
-**Certificate (Recommended):**
+#### Step 3: Create Certificate
 
 ```powershell
 # Create self-signed certificate
@@ -185,19 +181,11 @@ Export-Certificate -Cert $cert -FilePath $certPath
 
 Upload the `.cer` file to your App Registration under **Certificates & secrets**.
 
-**Client Secret (Alternative):**
-
-1. Go to **Certificates & secrets** → **Client secrets** → **New client secret**
-2. Note: Secrets expire and are less secure than certificates
-
-#### Step 4: Assign Exchange Online Role
+#### Step 4: Run with Certificate Auth
 
 ```powershell
-# Connect to Exchange Online
-Connect-ExchangeOnline -UserPrincipalName admin@yourdomain.com
-
-# Add user to View-Only Organization Management
-Add-RoleGroupMember -Identity "View-Only Organization Management" -Member "assessmentuser@yourdomain.com"
+.\Start-M365Assessment.ps1 -AuthMethod Certificate `
+    -ClientId "app-id" -TenantId "tenant-id" -CertificateThumbprint "thumbprint"
 ```
 
 ---
@@ -240,11 +228,10 @@ The tool handles missing permissions gracefully:
 
 ### Security Considerations
 
-- Use **Application permissions** (app-only) rather than Delegated permissions for automated/scheduled runs
-- Use **certificate authentication** instead of client secrets
+- The default **Interactive auth** uses delegated permissions scoped to your signed-in user's access
+- For automated/scheduled runs, use **Certificate auth** with a dedicated app registration
 - Store certificates securely and rotate before expiry
-- Use a dedicated service account or managed identity for production deployments
-- Review and audit the App Registration permissions periodically
+- Review permissions granted to the Microsoft Graph PowerShell enterprise app periodically
 
 ---
 
@@ -253,7 +240,7 @@ The tool handles missing permissions gracefully:
 ### Minimum Permissions for Core Checks
 
 ```text
-Microsoft Graph (Application):
+Microsoft Graph (Delegated):
 ├── User.Read.All
 ├── Directory.Read.All
 ├── Policy.Read.All
@@ -266,7 +253,7 @@ Exchange Online:
 ### Full Permissions for All Checks
 
 ```text
-Microsoft Graph (Application):
+Microsoft Graph (Delegated):
 ├── User.Read.All
 ├── Directory.Read.All
 ├── Policy.Read.All

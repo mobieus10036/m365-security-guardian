@@ -36,8 +36,8 @@
 
 .PARAMETER AuthMethod
     Authentication method to use. Valid values:
-    - DeviceCode (default) - Best for terminal/console use, shows code to enter at microsoft.com/devicelogin
-    - Interactive - Opens browser window (may have WAM issues on Windows)
+    - Interactive (default) - Opens browser for sign-in, no setup required
+    - DeviceCode - Shows a code to enter at microsoft.com/devicelogin
     - Certificate - For automation with app registration and certificate
     - ClientSecret - For automation with app registration and client secret
     - ManagedIdentity - For Azure-hosted automation (Azure VMs, Functions, etc.)
@@ -59,7 +59,7 @@
 
 .EXAMPLE
     .\Start-M365Assessment.ps1
-    Runs full assessment with default settings.
+    Runs full assessment using Interactive browser sign-in (default).
 
 .EXAMPLE
     .\Start-M365Assessment.ps1 -Modules Security,Exchange -OutputFormat HTML
@@ -70,12 +70,12 @@
     Runs full assessment with custom output location.
 
 .EXAMPLE
-    .\Start-M365Assessment.ps1 -AuthMethod DeviceCode -TenantId "contoso.onmicrosoft.com"
-    Uses device code flow to assess a specific tenant.
+    .\Start-M365Assessment.ps1 -TenantId "contoso.onmicrosoft.com"
+    Assesses a specific tenant using Interactive browser sign-in.
 
 .EXAMPLE
-    .\Start-M365Assessment.ps1 -AuthMethod Certificate -ClientId "app-id" -TenantId "tenant-id" -CertificateThumbprint "thumbprint"
-    Uses certificate-based auth for automated/scheduled assessments.
+    .\Start-M365Assessment.ps1 -AuthMethod DeviceCode -TenantId "contoso.onmicrosoft.com"
+    Uses device code flow for terminal-only environments.
 
 .EXAMPLE
     .\Start-M365Assessment.ps1 -AuthMethod ManagedIdentity -ClientId "managed-identity-client-id"
@@ -111,7 +111,7 @@ param(
 
     [Parameter(Mandatory = $false)]
     [ValidateSet('Interactive', 'DeviceCode', 'Certificate', 'ClientSecret', 'ManagedIdentity')]
-    [string]$AuthMethod = 'DeviceCode',
+    [string]$AuthMethod = 'Interactive',
 
     [Parameter(Mandatory = $false)]
     [string]$ClientId,
@@ -177,38 +177,7 @@ $script:Config = $null
 $script:TenantInfo = $null
 $script:SecurityScore = $null
 
-# Resolve authentication configuration (priority order):
-# 1. Explicit parameters (detected via $PSBoundParameters)
-# 2. .auth-config.json auto-load (only if no explicit auth params given)
-$hasExplicitAuth = $PSBoundParameters.ContainsKey('TenantId') -or
-                   $PSBoundParameters.ContainsKey('AuthMethod') -or
-                   $PSBoundParameters.ContainsKey('ClientId') -or
-                   $PSBoundParameters.ContainsKey('CertificateThumbprint') -or
-                   $PSBoundParameters.ContainsKey('ClientSecret')
 
-if (-not $hasExplicitAuth) {
-    # Auto-load .auth-config.json only when no explicit auth params were given
-    $authConfigPath = Join-Path $PSScriptRoot ".auth-config.json"
-    $legacyAuthConfigPath = Join-Path $PSScriptRoot ".auth-config.ps1"
-    if (Test-Path $authConfigPath) {
-        Write-Verbose "Loading saved authentication configuration from JSON..."
-        try {
-            $AuthConfig = Get-Content -Path $authConfigPath -Raw | ConvertFrom-Json
-            $AuthMethod = $AuthConfig.AuthMethod
-            $ClientId = $AuthConfig.ClientId
-            $TenantId = $AuthConfig.TenantId
-            $CertificateThumbprint = $AuthConfig.CertificateThumbprint
-            Write-Verbose "Using saved auth: $AuthMethod"
-        }
-        catch {
-            Write-Warning "Failed to load auth config: $_"
-        }
-    }
-    elseif (Test-Path $legacyAuthConfigPath) {
-        Write-Warning "Legacy .auth-config.ps1 detected. Please re-run Setup-AppRegistration to generate the safer .auth-config.json format."
-        Write-Warning "Dot-sourcing .ps1 config files is deprecated due to code injection risk."
-    }
-}
 
 #region Helper Functions
 

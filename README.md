@@ -14,7 +14,7 @@
 - **CIS Benchmark Mapping** — Maps findings to CIS Microsoft 365 Foundations Benchmark v3.1.0
 - **MITRE ATT&CK Integration** — Each CIS control includes relevant technique IDs
 - **Dual Compliance Levels** — Separate compliance for CIS L1 (Essential) and L2 (Enhanced)
-- **Certificate Auth Auto-Load** — Save auth config once, run without parameters
+- **Interactive Auth (Default)** — Browser sign-in with no Azure setup required
 - **Connection Cleanup** — Automatically clears stale connections before each run
 
 ---
@@ -69,44 +69,21 @@ cd m365-security-guardian
 
 ## Authentication
 
-The tool supports multiple authentication methods:
+The tool uses **Interactive browser sign-in** by default — no Azure setup required. Your browser opens, you sign in, and the assessment runs with your delegated permissions.
 
 | Method | Best For | Example |
 | ------ | -------- | ------- |
-| **Certificate** ⭐ | Recommended — reliable & automated | `.\Start-M365Assessment.ps1` |
-| **DeviceCode** | Other tenants, terminal use | `.\Start-M365Assessment.ps1 -AuthMethod DeviceCode` |
-| **Interactive** | Quick browser-based runs | `.\Start-M365Assessment.ps1 -AuthMethod Interactive` |
+| **Interactive** ⭐ | Default — browser sign-in, no setup | `.\Start-M365Assessment.ps1` |
+| **DeviceCode** | Terminal-only environments | `.\Start-M365Assessment.ps1 -AuthMethod DeviceCode` |
+| **Certificate** | Automation with app registration | `.\Start-M365Assessment.ps1 -AuthMethod Certificate -ClientId "app-id" -TenantId "tenant-id" -CertificateThumbprint "thumbprint"` |
 | **ManagedIdentity** | Azure-hosted (VMs, Functions) | `.\Start-M365Assessment.ps1 -AuthMethod ManagedIdentity` |
-
-### Certificate Authentication Setup (Recommended)
-
-Certificate auth provides the most reliable experience across all terminal environments.
-
-```powershell
-# Run the setup script to create app registration with certificate
-.\Setup-AppRegistration-CLI.ps1
-
-# After setup, simply run without parameters - auth config auto-loads
-.\Start-M365Assessment.ps1
-```
-
-The setup creates:
-
-- Entra ID App Registration with required permissions
-- Self-signed certificate (valid 2 years)
-- `.auth-config.json` file with saved credentials
 
 ### Assessing Other Tenants
 
-To assess a different tenant, pass explicit parameters:
+To assess a different tenant, pass the `-TenantId` parameter:
 
 ```powershell
-# Device code flow (recommended for ad-hoc access)
-.\Start-M365Assessment.ps1 -TenantId "other.onmicrosoft.com" -AuthMethod DeviceCode
-
-# Certificate auth (requires app registration in target tenant)
-.\Start-M365Assessment.ps1 -TenantId "tenant-id" -AuthMethod Certificate `
-    -ClientId "app-id" -CertificateThumbprint "thumbprint"
+.\Start-M365Assessment.ps1 -TenantId "other.onmicrosoft.com"
 ```
 
 ---
@@ -115,19 +92,11 @@ To assess a different tenant, pass explicit parameters:
 
 This tool requires specific permissions in Microsoft Entra ID and Exchange Online. **Global Administrator is not required** — the permissions below are sufficient.
 
-### Quick Setup (Recommended)
-
-Run the setup script to automatically create an App Registration with all required permissions:
-
-```powershell
-.\Setup-AppRegistration-CLI.ps1
-```
-
-This creates an Entra ID App Registration with certificate authentication and grants all necessary permissions with admin consent.
-
 ### Permission Summary
 
-**Microsoft Graph API (Application Permissions):**
+**Microsoft Graph API (Delegated Permissions):**
+
+When you sign in interactively, the tool requests these scopes on your behalf:
 
 - `User.Read.All` - Read user profiles and MFA status
 - `Directory.Read.All` - Read directory data and privileged roles
@@ -138,6 +107,8 @@ This creates an Entra ID App Registration with certificate authentication and gr
 - `RoleManagement.Read.Directory` - Read PIM and role assignments
 - `SharePointTenantSettings.Read.All` - Read external sharing config
 - `SecurityEvents.Read.All` - Read Secure Score (E5 license required)
+
+> You may be prompted to consent to these permissions on first run. An admin can pre-consent for the organization via the Microsoft Graph PowerShell enterprise app.
 
 **Exchange Online Role:**
 
@@ -328,7 +299,6 @@ Each assessment generates timestamped reports:
 - **PowerShell 7.0+** (install via `winget install Microsoft.PowerShell` or <https://aka.ms/powershell>)
 - **Microsoft Graph PowerShell SDK** v2.x
 - **ExchangeOnlineManagement** module v3.x
-- **Azure CLI** (for app registration setup only)
 
 ### Supported Environments
 
@@ -365,13 +335,12 @@ npx markdownlint-cli2 "**/*.md"
 
 ## Troubleshooting
 
-### "DeviceCodeCredential authentication failed" errors
+### Browser does not open for sign-in
 
-Use certificate authentication instead of device code:
+If Interactive auth fails to open a browser, try DeviceCode as a fallback:
 
 ```powershell
-.\Setup-AppRegistration-CLI.ps1  # Run once
-.\Start-M365Assessment.ps1       # Auto-uses certificate
+.\Start-M365Assessment.ps1 -AuthMethod DeviceCode
 ```
 
 ### "Secure Score API requires E5 license"
@@ -380,7 +349,11 @@ Microsoft Secure Score API is only available with E5 licensing. The custom Tenan
 
 ### Exchange Online connection issues
 
-The tool automatically uses device code flow for Exchange to avoid WAM broker issues across terminal environments.
+Exchange Online uses Interactive browser sign-in by default. If you experience issues, try using DeviceCode auth which forces the device code flow for Exchange:
+
+```powershell
+.\Start-M365Assessment.ps1 -AuthMethod DeviceCode
+```
 
 ---
 

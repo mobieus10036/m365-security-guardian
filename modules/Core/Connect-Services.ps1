@@ -5,8 +5,8 @@
 .DESCRIPTION
     Handles all connection lifecycle operations for Microsoft Graph and Exchange Online,
     including authentication, validation, disconnection, and pre-flight cleanup.
-    Supports multiple authentication methods: DeviceCode, Interactive, Certificate,
-    ClientSecret, and ManagedIdentity.
+    Default authentication is Interactive (browser sign-in). Also supports DeviceCode,
+    Certificate, ClientSecret, and ManagedIdentity for advanced scenarios.
 
 .NOTES
     This module is dot-sourced by the M365 Security Guardian main script.
@@ -89,16 +89,15 @@ function Connect-GraphService {
 
     switch ($AuthMethod) {
         'DeviceCode' {
-            # Device code flow - best for terminal/console use
-            # User sees a code and URL, authenticates in any browser
+            # Device code flow - for terminal-only environments
             Write-Info "Using Device Code flow - follow the prompts below"
             $connectParams['UseDeviceCode'] = $true
             $connectParams['Scopes'] = $graphScopes
         }
 
         'Interactive' {
-            # Interactive browser - may trigger WAM on Windows
-            Write-Info "Using Interactive browser authentication"
+            # Interactive browser sign-in - default, opens browser automatically
+            Write-Info "Opening browser for sign-in..."
             $connectParams['Scopes'] = $graphScopes
         }
 
@@ -252,9 +251,6 @@ function Connect-ExchangeService {
 
     # Note: Exchange Online requires separate authentication from Microsoft Graph
     # This is by design - the services use different auth libraries
-    if ($AuthMethod -eq 'DeviceCode') {
-        Write-Info "Exchange Online requires a separate device code (Microsoft limitation)"
-    }
 
     # Build Exchange connection parameters
     $exoParams = @{
@@ -266,18 +262,21 @@ function Connect-ExchangeService {
         $exoParams['Organization'] = $TenantId
     }
 
-    # Always use device authentication to avoid WAM broker issues across terminal environments
-    # WAM broker can fail in embedded, remote, or non-standard terminals
-    # For ManagedIdentity, use the -ManagedIdentity flag instead
-    if ($AuthMethod -eq 'ManagedIdentity') {
-        $exoParams['ManagedIdentity'] = $true
-        if ($ClientId) {
-            $exoParams['ManagedIdentityAccountId'] = $ClientId
+    switch ($AuthMethod) {
+        'ManagedIdentity' {
+            $exoParams['ManagedIdentity'] = $true
+            if ($ClientId) {
+                $exoParams['ManagedIdentityAccountId'] = $ClientId
+            }
         }
-    }
-    else {
-        # Device code works reliably in all terminal environments
-        $exoParams['Device'] = $true
+        'DeviceCode' {
+            Write-Info "Exchange Online requires a separate device code (Microsoft limitation)"
+            $exoParams['Device'] = $true
+        }
+        default {
+            # Interactive and Certificate/ClientSecret - no extra flags needed
+            # WAM broker is disabled via AZURE_IDENTITY_DISABLE_BROKER env var
+        }
     }
 
     Connect-ExchangeOnline @exoParams
@@ -317,7 +316,7 @@ function Connect-AllM365Services {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
-        [string]$AuthMethod = 'DeviceCode',
+        [string]$AuthMethod = 'Interactive',
 
         [Parameter(Mandatory = $false)]
         [string]$TenantId,
