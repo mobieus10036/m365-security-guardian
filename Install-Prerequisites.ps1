@@ -1,22 +1,23 @@
 <#
 .SYNOPSIS
-    Installs required PowerShell modules for M365 Security Guardian.
+    Installs PowerShell 7 and required modules for M365 Security Guardian.
 
 .DESCRIPTION
-    This script checks for and installs all PowerShell modules required to run
-    the Microsoft 365 tenant assessment. It handles both Windows PowerShell 5.1
-    and PowerShell 7+ environments.
+    This script ensures PowerShell 7+ is installed and then checks for and
+    installs all PowerShell modules required to run the Microsoft 365 tenant
+    assessment. If PowerShell 7 is not found it will attempt to install it
+    automatically via winget (or provide manual instructions).
 
 .PARAMETER Scope
-    Specifies the installation scope. Valid values are 'CurrentUser' (default) 
-    or 'AllUsers'. AllUsers requires administrative privileges.
+    Specifies the module installation scope. Valid values are 'CurrentUser'
+    (default) or 'AllUsers'. AllUsers requires administrative privileges.
 
 .PARAMETER Force
     Forces installation even if modules are already present (useful for updates).
 
 .EXAMPLE
     .\Install-Prerequisites.ps1
-    Installs modules for the current user.
+    Installs PowerShell 7 (if needed) and modules for the current user.
 
 .EXAMPLE
     .\Install-Prerequisites.ps1 -Scope AllUsers
@@ -30,9 +31,9 @@
     Project: M365 Security Guardian
     Repository: https://github.com/mobieus10036/m365-security-guardian
     Author: mobieus10036
-    Version: 3.0.0
+    Version: 3.1.0
     Created with assistance from GitHub Copilot
-    Requires: PowerShell 5.1 or later
+    Requires: PowerShell 7.0 or later
 #>
 
 [CmdletBinding()]
@@ -77,19 +78,11 @@ $chk = if ($script:CheckMark) { $script:CheckMark } else { '+' }
 $err = if ($script:CrossMark) { $script:CrossMark } else { 'x' }
 
 function Test-AdminPrivileges {
-    if ($PSVersionTable.PSVersion.Major -ge 6) {
-        # PowerShell 7+
-        if ($IsWindows) {
-            $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-            return $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-        }
-        return $true # Non-Windows systems
-    }
-    else {
-        # Windows PowerShell 5.1
-        $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+    if ($IsWindows) {
+        $currentPrincipal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
         return $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     }
+    return $true # Non-Windows systems
 }
 
 # Banner
@@ -97,17 +90,41 @@ Write-ColorOutput "`n╔══════════════════�
 Write-ColorOutput "║   M365 Tenant Assessment Toolkit - Prerequisites Setup    ║" -Color Cyan
 Write-ColorOutput "╚════════════════════════════════════════════════════════════╝`n" -Color Cyan
 
-# Check PowerShell version
+# Check PowerShell version — PowerShell 7+ is required
 Write-ColorOutput "Checking PowerShell version..." -Color Yellow
 $psVersion = $PSVersionTable.PSVersion
 $psBuild = if ($psVersion.PSObject.Properties['Patch']) { $psVersion.Patch } else { $psVersion.Build }
-Write-ColorOutput "  $chk PowerShell $($psVersion.Major).$($psVersion.Minor).$psBuild" -Color Green
+Write-ColorOutput "  PowerShell $($psVersion.Major).$($psVersion.Minor).$psBuild detected" -Color White
 
-if ($psVersion.Major -lt 5 -or ($psVersion.Major -eq 5 -and $psVersion.Minor -lt 1)) {
-    Write-ColorOutput "`n  $err ERROR: PowerShell 5.1 or later is required!" -Color Red
-    Write-ColorOutput "    Please upgrade PowerShell: https://aka.ms/powershell" -Color Red
+if ($psVersion.Major -lt 7) {
+    Write-ColorOutput "`n  $err PowerShell 7+ is required but was not found." -Color Red
+    Write-ColorOutput "    Attempting automatic install via winget...`n" -Color Yellow
+
+    $wingetAvailable = Get-Command winget -ErrorAction SilentlyContinue
+    if ($wingetAvailable) {
+        try {
+            winget install --id Microsoft.PowerShell --source winget --accept-source-agreements --accept-package-agreements
+            Write-ColorOutput "`n  $chk PowerShell 7 installed successfully!" -Color Green
+            Write-ColorOutput "`n  IMPORTANT: Please close this window and reopen a NEW terminal," -Color Magenta
+            Write-ColorOutput "  then run this script again using 'pwsh':" -Color Magenta
+            Write-ColorOutput "    pwsh -File .\Install-Prerequisites.ps1`n" -Color Cyan
+            exit 0
+        }
+        catch {
+            Write-ColorOutput "  $err Automatic install failed: $_" -Color Red
+        }
+    }
+    else {
+        Write-ColorOutput "  ! winget is not available on this system." -Color Yellow
+    }
+
+    Write-ColorOutput "`n  Please install PowerShell 7 manually:" -Color White
+    Write-ColorOutput "    https://aka.ms/powershell" -Color Cyan
+    Write-ColorOutput "    or: winget install Microsoft.PowerShell`n" -Color Cyan
     exit 1
 }
+
+Write-ColorOutput "  $chk PowerShell $($psVersion.Major).$($psVersion.Minor).$psBuild" -Color Green
 
 # Check admin privileges if AllUsers scope
 if ($Scope -eq 'AllUsers') {

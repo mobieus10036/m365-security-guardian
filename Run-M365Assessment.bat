@@ -2,26 +2,37 @@
 REM ============================================================================
 REM  M365 Security Guardian - Launcher
 REM  Double-click this file to run the assessment from any Windows environment.
-REM  This handles execution policy and locates PowerShell automatically.
+REM  This handles execution policy and locates PowerShell 7 automatically.
 REM ============================================================================
 
 title M365 Security Guardian
+
+REM Set console to UTF-8 for proper Unicode rendering.
+chcp 65001 >nul 2>&1
 
 echo.
 echo  M365 Security Guardian
 echo  ======================
 echo.
 
-REM Check for PowerShell 7 first, fall back to Windows PowerShell 5.1
+REM PowerShell 7 (pwsh) is required
 where /q pwsh 2>nul
 if %ERRORLEVEL% equ 0 (
     echo  Using PowerShell 7+
     echo.
     pwsh -NoProfile -ExecutionPolicy Bypass -File "%~dp0Start-M365Assessment.ps1" %*
 ) else (
-    echo  Using Windows PowerShell 5.1
+    echo  ERROR: PowerShell 7+ is required but 'pwsh' was not found.
     echo.
-    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Start-M365Assessment.ps1" %*
+    echo  Install PowerShell 7:
+    echo    winget install Microsoft.PowerShell
+    echo    -- or --
+    echo    https://aka.ms/powershell
+    echo.
+    echo  After installing, close this window and try again.
+    echo.
+    pause
+    exit /b 1
 )
 
 echo.

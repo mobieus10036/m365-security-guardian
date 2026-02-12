@@ -327,7 +327,7 @@ Each assessment generates timestamped reports:
 
 ## Requirements
 
-- **PowerShell 5.1+** (Windows PowerShell or PowerShell 7)
+- **PowerShell 7.0+** (install via `winget install Microsoft.PowerShell` or <https://aka.ms/powershell>)
 - **Microsoft Graph PowerShell SDK** v2.x
 - **ExchangeOnlineManagement** module v3.x
 - **Azure CLI** (for app registration setup only)
@@ -336,12 +336,11 @@ Each assessment generates timestamped reports:
 
 | Environment | Status |
 | ----------- | ------ |
-| **PowerShell Console (5.1)** | Fully supported |
 | **PowerShell 7+ (pwsh)** | Fully supported |
 | **Windows Terminal** | Fully supported |
-| **PowerShell ISE** | Fully supported (ASCII fallback for display chars) |
 | **VS Code Integrated Terminal** | Fully supported |
-| **Run-M365Assessment.bat** | Double-click launcher for any environment |
+| **PowerShell ISE** | Not supported (use pwsh) |
+| **Run-M365Assessment.bat** | Double-click launcher — requires pwsh on PATH |
 
 Install prerequisites:
 

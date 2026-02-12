@@ -87,7 +87,7 @@
     Author: mobieus10036
     Version: 3.1.0
     Created with assistance from GitHub Copilot
-    Requires: PowerShell 5.1+, Microsoft Graph, Exchange Online modules
+    Requires: PowerShell 7.0+, Microsoft Graph, Exchange Online modules
 #>
 
 [CmdletBinding()]
@@ -139,7 +139,7 @@ param(
     [string]$BaselinePath = (Join-Path $PSScriptRoot 'baselines')
 )
 
-#Requires -Version 5.1
+#Requires -Version 7.0
 
 # Disable WAM broker BEFORE loading modules to prevent token caching issues
 # This prevents "Object reference not set" errors across all terminal environments
