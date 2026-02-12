@@ -55,7 +55,8 @@ $config = New-PesterConfiguration
 
 # Test discovery
 $config.Run.Path = Join-Path $PSScriptRoot 'tests'
-$config.Run.Exit = $true
+$config.Run.Exit = $false
+$config.Run.PassThru = $true
 
 # Output
 $config.Output.Verbosity = 'Detailed'
@@ -88,4 +89,14 @@ Write-Host "`n╔═════════════════════
 Write-Host "║       M365 Security Guardian — Test Runner       ║" -ForegroundColor Cyan
 Write-Host "╚══════════════════════════════════════════════════╝`n" -ForegroundColor Cyan
 
-Invoke-Pester -Configuration $config
+$testResults = Invoke-Pester -Configuration $config
+
+# Set exit code for CI without killing the process
+if ($testResults.FailedCount -gt 0) {
+    Write-Host "`n  $($testResults.FailedCount) test(s) failed.`n" -ForegroundColor Red
+    exit 1
+}
+else {
+    Write-Host "`n  All $($testResults.PassedCount) tests passed.`n" -ForegroundColor Green
+    exit 0
+}
