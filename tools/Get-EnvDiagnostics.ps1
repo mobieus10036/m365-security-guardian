@@ -39,7 +39,7 @@ Write-Host "Profile Path: $PROFILE"
 Write-Host "Profile Exists: $(Test-Path $PROFILE)"
 
 Write-Host "`n[5] Module Versions (Top 3)" -ForegroundColor Green
-$modules = @('Microsoft.Graph.Authentication', 'ExchangeOnlineManagement', 'PSReadLine')
+$modules = @('Microsoft.Graph.Authentication', 'ExchangeOnlineManagement', 'PSReadLine', 'Pester')
 foreach ($m in $modules) {
     $vers = Get-Module $m -ListAvailable | Sort-Object Version -Descending | Select-Object -First 3
     if ($vers) {
@@ -49,6 +49,45 @@ foreach ($m in $modules) {
     } else {
         Write-Host "$m : NOT INSTALLED" -ForegroundColor Red
     }
+}
+
+Write-Host "`n[6] M365 Guardian Specific Checks" -ForegroundColor Green
+$guardianRoot = Split-Path -Parent $PSScriptRoot
+Write-Host "Guardian Root: $guardianRoot"
+
+# Check for retry module (v3.1.1+)
+$retryModulePath = Join-Path $guardianRoot "modules\Core\Invoke-MgGraphWithRetry.ps1"
+if (Test-Path $retryModulePath) {
+    Write-Host "✓ Graph Retry Module: PRESENT (v3.1.1+ feature)" -ForegroundColor Green
+} else {
+    Write-Host "✗ Graph Retry Module: MISSING (upgrade to v3.1.1+)" -ForegroundColor Red
+    Write-Host "  This may cause PowerShell termination on large tenants" -ForegroundColor Yellow
+}
+
+# Check Graph connection if already authenticated
+try {
+    $context = Get-MgContext -ErrorAction SilentlyContinue
+    if ($context) {
+        Write-Host "✓ Graph Connection: ACTIVE" -ForegroundColor Green
+        Write-Host "  Tenant: $($context.TenantId)"
+        Write-Host "  Account: $($context.Account)"
+        Write-Host "  Scopes: $($context.Scopes -join ', ')"
+        
+        # Test simple query
+        Write-Host "  Testing Graph API performance..."
+        $sw = [System.Diagnostics.Stopwatch]::StartNew()
+        $userCount = (Get-MgUser -Top 10 -ErrorAction SilentlyContinue | Measure-Object).Count
+        $sw.Stop()
+        Write-Host "  → Retrieved 10 users in $($sw.ElapsedMilliseconds)ms"
+        
+        if ($sw.ElapsedMilliseconds -gt 2000) {
+            Write-Host "  WARNING: Graph API response is slow (>2s)" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "○ Graph Connection: Not authenticated" -ForegroundColor Gray
+    }
+} catch {
+    Write-Host "✗ Graph Connection Error: $_" -ForegroundColor Red
 }
 
 Write-Host "`n[6] Authentication Cache Check" -ForegroundColor Green

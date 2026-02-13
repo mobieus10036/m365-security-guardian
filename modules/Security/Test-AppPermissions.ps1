@@ -62,8 +62,15 @@ function Test-AppPermissions {
             'Contacts.ReadWrite'
         )
 
-        # Get all service principals (Enterprise Apps)
-        $servicePrincipals = Get-MgServicePrincipal -All -Property Id, DisplayName, AppId, ServicePrincipalType, AccountEnabled, CreatedDateTime, SignInAudience, AppRoles, Oauth2PermissionScopes -ErrorAction Stop
+        # Get all service principals (Enterprise Apps) with retry wrapper
+        $servicePrincipals = if (Get-Command Invoke-MgGraphWithRetry -ErrorAction SilentlyContinue) {
+            Invoke-MgGraphWithRetry -ScriptBlock {
+                Get-MgServicePrincipal -All -Property Id, DisplayName, AppId, ServicePrincipalType, AccountEnabled, CreatedDateTime, SignInAudience, AppRoles, Oauth2PermissionScopes -ErrorAction Stop
+            } -OperationName "Retrieving service principals" -TimeoutSeconds 300
+        } else {
+            Write-Verbose "Retry wrapper not available, using direct call"
+            Get-MgServicePrincipal -All -Property Id, DisplayName, AppId, ServicePrincipalType, AccountEnabled, CreatedDateTime, SignInAudience, AppRoles, Oauth2PermissionScopes -ErrorAction Stop
+        }
 
         # Filter to application type (exclude Microsoft first-party where possible)
         $enterpriseApps = $servicePrincipals | Where-Object { 
@@ -95,7 +102,13 @@ function Test-AppPermissions {
         # Get OAuth2 permission grants (delegated permissions with admin consent)
         $oauth2Grants = @()
         try {
-            $oauth2Grants = Get-MgOauth2PermissionGrant -All -ErrorAction SilentlyContinue
+            if (Get-Command Invoke-MgGraphWithRetry -ErrorAction SilentlyContinue) {
+                $oauth2Grants = Invoke-MgGraphWithRetry -ScriptBlock {
+                    Get-MgOauth2PermissionGrant -All -ErrorAction Stop
+                } -OperationName "Retrieving OAuth2 grants" -TimeoutSeconds 180
+            } else {
+                $oauth2Grants = Get-MgOauth2PermissionGrant -All -ErrorAction SilentlyContinue
+            }
         }
         catch {
             Write-Verbose "Could not retrieve OAuth2 permission grants: $_"

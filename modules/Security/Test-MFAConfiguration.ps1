@@ -33,9 +33,16 @@ function Test-MFAConfiguration {
     try {
         Write-Verbose "Analyzing MFA configuration..."
 
-        # Get all users
-        $allUsers = Get-MgUser -All -Property Id, DisplayName, UserPrincipalName, AccountEnabled |
+        # Get all users with retry wrapper for large tenants
+        $allUsers = if (Get-Command Invoke-MgGraphWithRetry -ErrorAction SilentlyContinue) {
+            Invoke-MgGraphWithRetry -ScriptBlock {
+                Get-MgUser -All -Property Id, DisplayName, UserPrincipalName, AccountEnabled -ErrorAction Stop |
                     Where-Object { $_.AccountEnabled -eq $true }
+            } -OperationName "Retrieving users for MFA analysis" -TimeoutSeconds 300
+        } else {
+            Get-MgUser -All -Property Id, DisplayName, UserPrincipalName, AccountEnabled |
+                Where-Object { $_.AccountEnabled -eq $true }
+        }
         
         $totalUsers = $allUsers.Count
 

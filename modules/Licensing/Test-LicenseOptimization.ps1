@@ -32,8 +32,15 @@ function Test-LicenseOptimization {
 
         # Get all users with licenses, handle 403 Forbidden (non-premium/B2C tenant)
         try {
-            $licensedUsers = Get-MgUser -All -Property Id, DisplayName, UserPrincipalName, AccountEnabled, AssignedLicenses, SignInActivity |
-                             Where-Object { $_.AssignedLicenses.Count -gt 0 }
+            $licensedUsers = if (Get-Command Invoke-MgGraphWithRetry -ErrorAction SilentlyContinue) {
+                Invoke-MgGraphWithRetry -ScriptBlock {
+                    Get-MgUser -All -Property Id, DisplayName, UserPrincipalName, AccountEnabled, AssignedLicenses, SignInActivity -ErrorAction Stop |
+                        Where-Object { $_.AssignedLicenses.Count -gt 0 }
+                } -OperationName "Retrieving licensed users" -TimeoutSeconds 300
+            } else {
+                Get-MgUser -All -Property Id, DisplayName, UserPrincipalName, AccountEnabled, AssignedLicenses, SignInActivity |
+                    Where-Object { $_.AssignedLicenses.Count -gt 0 }
+            }
         } catch {
             if ($_.Exception.Message -match 'Authentication_RequestFromNonPremiumTenantOrB2CTenant' -or $_.Exception.Message -match 'Status: 403') {
                 return [PSCustomObject]@{

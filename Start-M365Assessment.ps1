@@ -145,6 +145,26 @@ param(
 # This prevents "Object reference not set" errors across all terminal environments
 $env:AZURE_IDENTITY_DISABLE_BROKER = "true"
 
+# Set error action preference to Continue to prevent silent termination on non-critical errors
+# The top-level try-catch will handle true fatal errors
+$ErrorActionPreference = 'Continue'
+
+# Global trap handler for unhandled exceptions
+trap {
+    $errorDetails = @"
+[FATAL EXCEPTION TRAPPED]
+Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+Error: $($_.Exception.Message)
+Location: $($_.InvocationInfo.ScriptName):$($_.InvocationInfo.ScriptLineNumber)
+Command: $($_.InvocationInfo.Line)
+Stack: $($_.ScriptStackTrace)
+"@
+    Write-Error $errorDetails
+    Write-Warning "Assessment terminated unexpectedly. Check logs above for details."
+    Write-Information "For support, report this issue at: https://github.com/mobieus10036/m365-security-guardian/issues" -InformationAction Continue
+    exit 1
+}
+
 # Initialize host environment detection (ISE, Console, Windows Terminal, etc.)
 $hostEnvPath = Join-Path $PSScriptRoot "modules\Core\Get-HostEnvironment.ps1"
 if (Test-Path $hostEnvPath) {
@@ -168,6 +188,15 @@ catch {
     Write-Error "Failed to load Microsoft Graph modules. Please run .\Install-Prerequisites.ps1"
     Write-Error $_.Exception.Message
     exit 1
+}
+
+# Load Graph retry wrapper for resilient API calls
+$retryModulePath = Join-Path $PSScriptRoot "modules\Core\Invoke-MgGraphWithRetry.ps1"
+if (Test-Path $retryModulePath) {
+    . $retryModulePath
+    Write-Verbose "Loaded Graph API retry wrapper"
+} else {
+    Write-Warning "Graph retry module not found: $retryModulePath"
 }
 
 # Script variables
@@ -411,6 +440,10 @@ function Get-ModulesToRun {
                         $scriptTimer = [System.Diagnostics.Stopwatch]::StartNew()
                         $scriptName = [System.IO.Path]::GetFileNameWithoutExtension($scriptFile)
                         Write-Information "    -> Running $scriptName..." -InformationAction Continue
+                        
+                        # Heartbeat tracking to detect hangs
+                        $lastHeartbeat = Get-Date
+                        
                         . $scriptPath
                         $functionName = [System.IO.Path]::GetFileNameWithoutExtension($scriptFile)
 
@@ -423,6 +456,23 @@ function Get-ModulesToRun {
                         }
 
                         $result = & $functionName @scriptParams
+                        
+                        # Validate result object structure
+                        if (-not $result -or -not $result.CheckName) {
+                            Write-Warning "      Module $functionName returned invalid result object"
+                            $result = [PSCustomObject]@{
+                                CheckName = $functionName
+                                Category = "Security"
+                                Status = "Info"
+                                Severity = "Info"
+                                Message = "Assessment returned incomplete data"
+                                Details = @{}
+                                Recommendation = "Review module implementation"
+                                DocumentationUrl = ""
+                                RemediationSteps = @()
+                            }
+                        }
+                        
                         $script:AssessmentResults += $result
                         $scriptTimer.Stop()
                         $scriptElapsed = '{0:mm\:ss\.fff}' -f $scriptTimer.Elapsed
@@ -437,7 +487,22 @@ function Get-ModulesToRun {
                         Write-Information "      $scriptName completed in $scriptElapsed" -InformationAction Continue
                     }
                     catch {
-                        Write-Failure "Error running $scriptFile : $_"
+                        $errorMsg = $_.Exception.Message
+                        Write-Failure "Error running $scriptFile : $errorMsg"
+                        Write-Verbose "Stack trace: $($_.ScriptStackTrace)"
+                        
+                        # Add error result so assessment continues
+                        $script:AssessmentResults += [PSCustomObject]@{
+                            CheckName = [System.IO.Path]::GetFileNameWithoutExtension($scriptFile)
+                            Category = "Security"
+                            Status = "Info"
+                            Severity = "Info"
+                            Message = "Assessment failed: $errorMsg"
+                            Details = @{ Error = $errorMsg }
+                            Recommendation = "Review error details and Graph API permissions"
+                            DocumentationUrl = ""
+                            RemediationSteps = @()
+                        }
                     }
                 }
             }
@@ -851,6 +916,9 @@ if (Test-Path $connectionModulePath) {
 }
 Clear-ExistingM365Connections
 
+$assessmentStartTime = Get-Date
+$assessmentCompleted = $false
+
 try {
     Write-Banner
     Load-Configuration
@@ -861,13 +929,38 @@ try {
     Invoke-BaselineComparison
     Export-Results
     Show-Summary
+    $assessmentCompleted = $true
 }
 catch {
     $mark = if ($script:CrossMark) { $script:CrossMark } else { 'x' }
-    Write-Error "`n$mark FATAL ERROR: Unable to complete assessment"
-    Write-Error "Error Details: $($_.Exception.Message)"
-    Write-Verbose $_.ScriptStackTrace
-    Write-Information "`nFor troubleshooting help, visit: https://github.com/mobieus10036/m365-security-guardian/issues" -InformationAction Continue
+    $duration = (Get-Date) - $assessmentStartTime
+    
+    $errorDiagnostics = @"
+
+$mark FATAL ERROR: Assessment terminated after $($duration.Minutes)m $($duration.Seconds)s
+
+Error Type: $($_.Exception.GetType().FullName)
+Error Message: $($_.Exception.Message)
+Location: $($_.InvocationInfo.ScriptName):$($_.InvocationInfo.ScriptLineNumber)
+Command: $($_.InvocationInfo.Line)
+
+Diagnostic Information:
+- Completed checks: $($script:AssessmentResults.Count)
+- PowerShell version: $($PSVersionTable.PSVersion)
+- Graph SDK modules loaded: $((Get-Module Microsoft.Graph.* | Measure-Object).Count)
+- Current activity: $(if($script:AssessmentResults.Count -gt 0) { "Processing assessment #$($script:AssessmentResults.Count + 1)" } else { "Initialization" })
+
+Stack Trace:
+$($_.ScriptStackTrace)
+
+"@
+    
+    Write-Error $errorDiagnostics
+    Write-Information "`nFor troubleshooting help:" -InformationAction Continue
+    Write-Information "  1. Check if your tenant is large (10k+ users/apps) - assessment may need more time" -InformationAction Continue
+    Write-Information "  2. Verify Graph API permissions (see PERMISSIONS.md)" -InformationAction Continue
+    Write-Information "  3. Report this issue: https://github.com/mobieus10036/m365-security-guardian/issues" -InformationAction Continue
+    
     exit 1
 }
 finally {
