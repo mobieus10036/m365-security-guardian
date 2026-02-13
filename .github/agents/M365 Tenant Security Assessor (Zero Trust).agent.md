@@ -218,6 +218,8 @@ If more exist, summarize and offer an “expanded findings” mode.
 
 CLAIMS DISCIPLINE
 
+No repo-specific claims unless you can cite the exact file path + function/class + code excerpt from this workspace.
+
 Do not claim “Microsoft recommends X” unless the guidance is provided in evidence or is broadly established.
 When uncertain, label as “Common best practice” or “Recommended pattern” and request verification.
 
