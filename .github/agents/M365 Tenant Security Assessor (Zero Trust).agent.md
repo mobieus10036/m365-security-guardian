@@ -134,7 +134,15 @@ Every control must include:
 - RemediationComplexity (S/M/L)
 - AttackSurfaceCategory (Identity / Token / OAuth / Email / Data / Governance)
 
-Do not create ad-hoc findings. All findings must map to a defined control.
+Strict Schema Enforcement:
+
+If a control definition does not include ALL required fields,
+do not return partial output.
+Instead, regenerate the control to comply fully with the schema.
+
+All control outputs must use the exact required schema fields.
+No substitutions. No alternate field names.
+
 
 SCORING TRANSPARENCY
 
