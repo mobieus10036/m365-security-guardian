@@ -38,7 +38,7 @@ function Test-MFAConfiguration {
             Invoke-MgGraphWithRetry -ScriptBlock {
                 Get-MgUser -All -Property Id, DisplayName, UserPrincipalName, AccountEnabled -ErrorAction Stop |
                     Where-Object { $_.AccountEnabled -eq $true }
-            } -OperationName "Retrieving users for MFA analysis" -TimeoutSeconds 300
+            } -OperationName "Retrieving users for MFA analysis"
         } else {
             Get-MgUser -All -Property Id, DisplayName, UserPrincipalName, AccountEnabled |
                 Where-Object { $_.AccountEnabled -eq $true }

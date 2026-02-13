@@ -1,48 +1,48 @@
 ﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
-<testsuites xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="junit_schema_4.xsd" name="Pester" tests="19" errors="0" failures="0" disabled="0" time="2.558">
-  <testsuite name="C:\dev\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" tests="8" errors="0" failures="0" hostname="ProdEus2VM-IDE-" id="0" skipped="0" disabled="0" package="C:\dev\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" time="1.188">
+<testsuites xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="junit_schema_4.xsd" name="Pester" tests="19" errors="0" failures="0" disabled="0" time="2.781">
+  <testsuite name="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" tests="8" errors="0" failures="0" hostname="HELIOS-1" id="0" skipped="0" disabled="0" package="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" time="0.969">
     <properties>
-      <property name="cwd" value="C:\dev\m365-security-guardian" />
-      <property name="clr-version" value="9.0.10" />
-      <property name="platform" value="Microsoft Windows 11 Pro|C:\Windows|\Device\Harddisk0\Partition4" />
-      <property name="machine-name" value="ProdEus2VM-IDE-" />
-      <property name="user-domain" value="ProdEus2VM-IDE-" />
-      <property name="framework-version" value="5.7.1" />
-      <property name="os-version" value="10.0.26200" />
       <property name="junit-version" value="4" />
+      <property name="os-version" value="10.0.26200" />
+      <property name="machine-name" value="HELIOS-1" />
+      <property name="framework-version" value="5.7.1" />
       <property name="user" value="wchomak" />
+      <property name="user-domain" value="MOBIEUS" />
+      <property name="platform" value="Microsoft Windows 11 Business|C:\WINDOWS|\Device\Harddisk0\Partition3" />
+      <property name="clr-version" value="9.0.10" />
+      <property name="cwd" value="E:\development\m365-security-guardian" />
     </properties>
-    <testcase name="Get-TenantSecurityScore.Grade boundaries.Returns grade A for score &gt;= 90" status="Passed" classname="C:\dev\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.220" />
-    <testcase name="Get-TenantSecurityScore.Grade boundaries.Returns grade F when all checks fail with Critical severity" status="Passed" classname="C:\dev\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.017" />
-    <testcase name="Get-TenantSecurityScore.Output shape.Returns all required score properties" status="Passed" classname="C:\dev\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.029" />
-    <testcase name="Get-TenantSecurityScore.Output shape.Summary counts match input results" status="Passed" classname="C:\dev\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.075" />
-    <testcase name="Get-TenantSecurityScore.Category mapping.Maps checks to correct categories" status="Passed" classname="C:\dev\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.039" />
-    <testcase name="Get-TenantSecurityScore.Priority identification.Identifies failed checks as top priorities" status="Passed" classname="C:\dev\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.025" />
-    <testcase name="Get-TenantSecurityScore.Priority identification.Identifies warnings with medium/low severity as quick wins" status="Passed" classname="C:\dev\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.021" />
-    <testcase name="Get-TenantSecurityScore.Info status handling.Treats Info status as neutral (does not penalize score)" status="Passed" classname="C:\dev\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.069" />
+    <testcase name="Get-TenantSecurityScore.Grade boundaries.Returns grade A for score &gt;= 90" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.131" />
+    <testcase name="Get-TenantSecurityScore.Grade boundaries.Returns grade F when all checks fail with Critical severity" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.011" />
+    <testcase name="Get-TenantSecurityScore.Output shape.Returns all required score properties" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.047" />
+    <testcase name="Get-TenantSecurityScore.Output shape.Summary counts match input results" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.011" />
+    <testcase name="Get-TenantSecurityScore.Category mapping.Maps checks to correct categories" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.010" />
+    <testcase name="Get-TenantSecurityScore.Priority identification.Identifies failed checks as top priorities" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.011" />
+    <testcase name="Get-TenantSecurityScore.Priority identification.Identifies warnings with medium/low severity as quick wins" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.009" />
+    <testcase name="Get-TenantSecurityScore.Info status handling.Treats Info status as neutral (does not penalize score)" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.016" />
   </testsuite>
-  <testsuite name="C:\dev\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" tests="11" errors="0" failures="0" hostname="ProdEus2VM-IDE-" id="1" skipped="0" disabled="0" package="C:\dev\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" time="1.370">
+  <testsuite name="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" tests="11" errors="0" failures="0" hostname="HELIOS-1" id="1" skipped="0" disabled="0" package="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" time="1.812">
     <properties>
-      <property name="cwd" value="C:\dev\m365-security-guardian" />
-      <property name="clr-version" value="9.0.10" />
-      <property name="platform" value="Microsoft Windows 11 Pro|C:\Windows|\Device\Harddisk0\Partition4" />
-      <property name="machine-name" value="ProdEus2VM-IDE-" />
-      <property name="user-domain" value="ProdEus2VM-IDE-" />
-      <property name="framework-version" value="5.7.1" />
-      <property name="os-version" value="10.0.26200" />
       <property name="junit-version" value="4" />
+      <property name="os-version" value="10.0.26200" />
+      <property name="machine-name" value="HELIOS-1" />
+      <property name="framework-version" value="5.7.1" />
       <property name="user" value="wchomak" />
+      <property name="user-domain" value="MOBIEUS" />
+      <property name="platform" value="Microsoft Windows 11 Business|C:\WINDOWS|\Device\Harddisk0\Partition3" />
+      <property name="clr-version" value="9.0.10" />
+      <property name="cwd" value="E:\development\m365-security-guardian" />
     </properties>
-    <testcase name="Test-MFAConfiguration.Result contract.Returns an object with all required properties" status="Passed" classname="C:\dev\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="1.038" />
-    <testcase name="Test-MFAConfiguration.Status logic at threshold boundaries.Returns Pass when MFA adoption &gt;= threshold (95%)" status="Passed" classname="C:\dev\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.046" />
-    <testcase name="Test-MFAConfiguration.Status logic at threshold boundaries.Returns Warning when MFA adoption is 75-94%" status="Passed" classname="C:\dev\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.017" />
-    <testcase name="Test-MFAConfiguration.Status logic at threshold boundaries.Returns Fail when MFA adoption &lt; 75%" status="Passed" classname="C:\dev\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.022" />
-    <testcase name="Test-MFAConfiguration.Severity logic.Returns Critical severity when MFA adoption &lt; 50%" status="Passed" classname="C:\dev\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.027" />
-    <testcase name="Test-MFAConfiguration.Severity logic.Returns Low severity when MFA adoption &gt;= 90%" status="Passed" classname="C:\dev\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.019" />
-    <testcase name="Test-MFAConfiguration.UsersWithoutMFA detail property.Populates UsersWithoutMFA with correct user objects" status="Passed" classname="C:\dev\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.017" />
-    <testcase name="Test-MFAConfiguration.Edge cases.Returns Info status when no enabled users exist" status="Passed" classname="C:\dev\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.017" />
-    <testcase name="Test-MFAConfiguration.Edge cases.Returns Info status on Graph API error (never throws)" status="Passed" classname="C:\dev\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.025" />
-    <testcase name="Test-MFAConfiguration.Edge cases.Uses default threshold when Config is null" status="Passed" classname="C:\dev\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.030" />
-    <testcase name="Test-MFAConfiguration.Edge cases.Respects custom threshold from Config" status="Passed" classname="C:\dev\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.017" />
+    <testcase name="Test-MFAConfiguration.Result contract.Returns an object with all required properties" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="1.312" />
+    <testcase name="Test-MFAConfiguration.Status logic at threshold boundaries.Returns Pass when MFA adoption &gt;= threshold (95%)" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.057" />
+    <testcase name="Test-MFAConfiguration.Status logic at threshold boundaries.Returns Warning when MFA adoption is 75-94%" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.039" />
+    <testcase name="Test-MFAConfiguration.Status logic at threshold boundaries.Returns Fail when MFA adoption &lt; 75%" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.042" />
+    <testcase name="Test-MFAConfiguration.Severity logic.Returns Critical severity when MFA adoption &lt; 50%" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.041" />
+    <testcase name="Test-MFAConfiguration.Severity logic.Returns Low severity when MFA adoption &gt;= 90%" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.041" />
+    <testcase name="Test-MFAConfiguration.UsersWithoutMFA detail property.Populates UsersWithoutMFA with correct user objects" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.039" />
+    <testcase name="Test-MFAConfiguration.Edge cases.Returns Info status when no enabled users exist" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.037" />
+    <testcase name="Test-MFAConfiguration.Edge cases.Returns Info status on Graph API error (never throws)" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.044" />
+    <testcase name="Test-MFAConfiguration.Edge cases.Uses default threshold when Config is null" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.048" />
+    <testcase name="Test-MFAConfiguration.Edge cases.Respects custom threshold from Config" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.040" />
   </testsuite>
 </testsuites>

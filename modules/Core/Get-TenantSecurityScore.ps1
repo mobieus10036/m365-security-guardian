@@ -25,7 +25,7 @@
     Project: M365 Security Guardian
     Repository: https://github.com/mobieus10036/m365-security-guardian
     Author: mobieus10036
-    Version: 3.1.0
+    Version: 3.1.2
     Created with assistance from GitHub Copilot
 #>
 

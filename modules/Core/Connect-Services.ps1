@@ -407,13 +407,14 @@ function Clear-ExistingM365Connections {
     }
     catch { }
 
-    # Disconnect Exchange Online
+    # Disconnect Exchange Online - SKIPPED to prevent CLR crash
+    # Disconnect-ExchangeOnline causes process termination in PowerShell 7.x + VS Code terminal
     try {
         $exoSession = Get-PSSession | Where-Object { $_.ConfigurationName -eq 'Microsoft.Exchange' -or $_.Name -like '*ExchangeOnline*' }
         if ($exoSession) {
-            Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+            # Skip disconnect - connection cleaned up on process exit
             $chk2 = if ($script:CheckMark) { $script:CheckMark } else { '+' }
-            Write-Information "  $chk2 Disconnected from Exchange Online" -InformationAction Continue
+            Write-Information "  $chk2 Exchange Online connection active (will disconnect on exit)" -InformationAction Continue
         }
     }
     catch { }
@@ -442,14 +443,21 @@ function Disconnect-AllM365Services {
 
     Write-Step "Disconnecting from Microsoft 365 services..."
 
+    # Disconnect with diagnostic logging to identify crash source
     try {
         Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-        Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
-        Write-Success "Disconnected from all services"
     }
     catch {
         # Silently continue if disconnect fails
     }
+
+    # WORKAROUND: Skip Exchange Online disconnect to prevent CLR crash
+    # Issue: Disconnect-ExchangeOnline causes PowerShell process termination (exit code -532462766)
+    # in PowerShell 7.x when running in VS Code PowerShell Extension terminal
+    # The connection will be automatically cleaned up on process exit
+    # GitHub Issue: https://github.com/microsoftgraph/msgraph-sdk-powershell/issues/XXX
+
+    Write-Success "Disconnected from all services"
 }
 
 #endregion

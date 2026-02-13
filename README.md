@@ -2,11 +2,16 @@
 
 **Rapid, actionable Microsoft 365 security assessment for modern enterprises.**
 
-[![Version](https://img.shields.io/badge/version-3.1.0-blue)](https://github.com/mobieus10036/m365-security-guardian/releases)
+[![Version](https://img.shields.io/badge/version-3.1.2-blue)](https://github.com/mobieus10036/m365-security-guardian/releases)
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue)](https://docs.microsoft.com/powershell/)
 [![License](https://img.shields.io/github/license/mobieus10036/m365-security-guardian)](LICENSE)
 
 ---
+
+## What's New in v3.1.2
+
+- **Critical Fix** — Resolved PowerShell CLR crash (exit code -532462766) caused by `Disconnect-ExchangeOnline` in PS7 terminal environments
+- **Improved Reliability** — Assessment now completes cleanly without process termination during cleanup
 
 ## What's New in v3.1.0
 
@@ -353,6 +358,29 @@ Exchange Online uses Interactive browser sign-in by default. If you experience i
 
 ```powershell
 .\Start-M365Assessment.ps1 -AuthMethod DeviceCode
+```
+
+### Enabling Diagnostic Logging (Advanced)
+
+If you encounter unexpected issues or crashes, enable transcript logging to capture full execution details:
+
+```powershell
+# Add to the beginning of Start-M365Assessment.ps1 (after line 143):
+$transcriptPath = Join-Path $PSScriptRoot "logs\assessment-transcript-$(Get-Date -Format 'yyyyMMdd-HHmmss').log"
+$logsDir = Join-Path $PSScriptRoot "logs"
+if (-not (Test-Path $logsDir)) {
+    New-Item -ItemType Directory -Path $logsDir -Force | Out-Null
+}
+Start-Transcript -Path $transcriptPath -Append
+
+# Add to the finally block (before the closing brace):
+Stop-Transcript
+```
+
+This captures all output and can help diagnose intermittent failures. View the log:
+
+```powershell
+Get-ChildItem .\logs\assessment-transcript-*.log | Sort-Object LastWriteTime -Descending | Select-Object -First 1 | Get-Content
 ```
 
 ---

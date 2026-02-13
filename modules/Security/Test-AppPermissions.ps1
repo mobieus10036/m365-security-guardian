@@ -66,7 +66,7 @@ function Test-AppPermissions {
         $servicePrincipals = if (Get-Command Invoke-MgGraphWithRetry -ErrorAction SilentlyContinue) {
             Invoke-MgGraphWithRetry -ScriptBlock {
                 Get-MgServicePrincipal -All -Property Id, DisplayName, AppId, ServicePrincipalType, AccountEnabled, CreatedDateTime, SignInAudience, AppRoles, Oauth2PermissionScopes -ErrorAction Stop
-            } -OperationName "Retrieving service principals" -TimeoutSeconds 300
+            } -OperationName "Retrieving service principals"
         } else {
             Write-Verbose "Retry wrapper not available, using direct call"
             Get-MgServicePrincipal -All -Property Id, DisplayName, AppId, ServicePrincipalType, AccountEnabled, CreatedDateTime, SignInAudience, AppRoles, Oauth2PermissionScopes -ErrorAction Stop
@@ -105,7 +105,7 @@ function Test-AppPermissions {
             if (Get-Command Invoke-MgGraphWithRetry -ErrorAction SilentlyContinue) {
                 $oauth2Grants = Invoke-MgGraphWithRetry -ScriptBlock {
                     Get-MgOauth2PermissionGrant -All -ErrorAction Stop
-                } -OperationName "Retrieving OAuth2 grants" -TimeoutSeconds 180
+                } -OperationName "Retrieving OAuth2 grants"
             } else {
                 $oauth2Grants = Get-MgOauth2PermissionGrant -All -ErrorAction SilentlyContinue
             }

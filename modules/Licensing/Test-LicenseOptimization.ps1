@@ -36,7 +36,7 @@ function Test-LicenseOptimization {
                 Invoke-MgGraphWithRetry -ScriptBlock {
                     Get-MgUser -All -Property Id, DisplayName, UserPrincipalName, AccountEnabled, AssignedLicenses, SignInActivity -ErrorAction Stop |
                         Where-Object { $_.AssignedLicenses.Count -gt 0 }
-                } -OperationName "Retrieving licensed users" -TimeoutSeconds 300
+                } -OperationName "Retrieving licensed users"
             } else {
                 Get-MgUser -All -Property Id, DisplayName, UserPrincipalName, AccountEnabled, AssignedLicenses, SignInActivity |
                     Where-Object { $_.AssignedLicenses.Count -gt 0 }

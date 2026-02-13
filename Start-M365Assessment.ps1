@@ -85,7 +85,7 @@
     Project: M365 Security Guardian
     Repository: https://github.com/mobieus10036/m365-security-guardian
     Author: mobieus10036
-    Version: 3.1.0
+    Version: 3.1.2
     Created with assistance from GitHub Copilot
     Requires: PowerShell 7.0+, Microsoft Graph, Exchange Online modules
 #>
@@ -666,7 +666,7 @@ function Disconnect-M365Services {
         # Fallback if module wasn't loaded (e.g., connection failed early)
         try {
             Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
-            Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+            # Skip Exchange disconnect - causes CLR crash in PS7
         } catch { }
     }
 }

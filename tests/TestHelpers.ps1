@@ -166,7 +166,7 @@ function New-MockConfig {
         }
         CISBenchmark = [PSCustomObject]@{
             Enabled       = $true
-            Version       = "3.1.0"
+            Version       = "3.1.2"
             IncludeLevels = @(1, 2)
         }
     }

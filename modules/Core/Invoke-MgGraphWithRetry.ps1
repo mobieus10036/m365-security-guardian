@@ -1,23 +1,21 @@
 <#
 .SYNOPSIS
-    Resilient wrapper for Microsoft Graph API calls with timeout and retry logic.
+    Resilient wrapper for Microsoft Graph API calls with retry logic.
 
 .DESCRIPTION
     Wraps Graph cmdlets that use -All parameter to add:
-    - Configurable timeout (default 5 minutes)
     - Exponential backoff retry (3 attempts)
     - Progress indication for long operations
     - Graceful handling of throttling (429) and transient errors
-    - Memory-efficient pagination
+    
+    Note: No custom timeout is implemented. Graph SDK cmdlets manage their own HTTP timeouts 
+    (~300s per request). This function only handles retry logic for transient failures.
 
 .PARAMETER ScriptBlock
     The Graph cmdlet to execute (e.g., { Get-MgUser -All }).
 
 .PARAMETER OperationName
     Descriptive name for progress tracking (e.g., "Retrieving users").
-
-.PARAMETER TimeoutSeconds
-    Maximum execution time before timeout (default: 300 seconds / 5 minutes).
 
 .PARAMETER MaxRetries
     Number of retry attempts on transient failures (default: 3).
@@ -27,8 +25,11 @@
 
 .NOTES
     Project: M365 Security Guardian
-    Version: 3.1.1
+    Version: 3.1.2
     Created: 2026-02-13
+    
+    IMPORTANT: Graph SDK cmdlets MUST execute in the main PowerShell runspace.
+    Background jobs, tasks, or threading mechanisms cause CLR crashes (exit code -532462766).
 #>
 
 function Invoke-MgGraphWithRetry {
@@ -41,9 +42,6 @@ function Invoke-MgGraphWithRetry {
         [string]$OperationName = "Graph API operation",
 
         [Parameter(Mandatory = $false)]
-        [int]$TimeoutSeconds = 300,
-
-        [Parameter(Mandatory = $false)]
         [int]$MaxRetries = 3
     )
 
@@ -51,78 +49,67 @@ function Invoke-MgGraphWithRetry {
     $result = @()
     $completed = $false
 
+    Write-Verbose "[$OperationName] Starting operation with retry protection..."
+    
     while (-not $completed -and $attempt -lt $MaxRetries) {
         $attempt++
         
         try {
-            Write-Verbose "[$OperationName] Attempt $attempt of $MaxRetries..."
+            Write-Verbose "[$OperationName] Attempt $attempt of $MaxRetries"
             Write-Progress -Activity $OperationName -Status "Retrieving data from Microsoft Graph..." -PercentComplete -1
 
-            # Execute with timeout using System.Threading.Tasks
-            $cts = [System.Threading.CancellationTokenSource]::new($TimeoutSeconds * 1000)
+            # Execute directly in current runspace (no background threads/jobs)
+            # Graph SDK cmdlets MUST run in PowerShell runspace to work correctly
+            # The SDK has its own HTTP timeout handling (default ~300s per request)
+            $result = & $ScriptBlock
             
-            try {
-                # For test compatibility: check if we're in a test environment
-                $isTestEnvironment = $null -ne (Get-Variable -Name PesterPreference -Scope Global -ErrorAction SilentlyContinue)
-                
-                if ($isTestEnvironment) {
-                    # In tests: execute directly without timeout (mocks need same runspace)
-                    Write-Verbose "[$OperationName] Test environment detected, executing directly"
-                    $result = & $ScriptBlock
-                }
-                else {
-                    # In production: use Task-based async execution with timeout
-                    $task = [System.Threading.Tasks.Task]::Run({
-                        try {
-                            & $ScriptBlock
-                        }
-                        catch {
-                            throw
-                        }
-                    }, $cts.Token)
-                    
-                    # Wait for completion with timeout
-                    if ($task.Wait($TimeoutSeconds * 1000)) {
-                        $result = $task.Result
-                    }
-                    else {
-                        $cts.Cancel()
-                        throw "Operation timed out after $TimeoutSeconds seconds"
-                    }
-                }
-                
-                Write-Progress -Activity $OperationName -Completed
-                Write-Verbose "[$OperationName] Successfully retrieved $(@($result).Count) items"
-                $completed = $true
-            }
-            finally {
-                if ($cts) { $cts.Dispose() }
-            }
+            Write-Progress -Activity $OperationName -Completed
+            Write-Verbose "[$OperationName] Successfully retrieved $(@($result).Count) items"
+            $completed = $true
         }
         catch {
             $errorMessage = $_.Exception.Message
+            $errorType = $_.Exception.GetType().FullName
+            
+            Write-Verbose "[$OperationName] Error type: $errorType"
+            Write-Verbose "[$OperationName] Error message: $errorMessage"
             
             # Check if it's a retryable error
             $isRetryable = $false
-            if ($errorMessage -like "*429*" -or $errorMessage -like "*throttl*") {
+            
+            # HTTP 429 - Too Many Requests (throttling)
+            if ($errorMessage -like "*429*" -or $errorMessage -like "*throttl*" -or $errorMessage -like "*TooManyRequests*") {
                 Write-Warning "[$OperationName] Graph API throttling detected (attempt $attempt/$MaxRetries)"
                 $isRetryable = $true
             }
-            elseif ($errorMessage -like "*timeout*" -or $errorMessage -like "*timed out*") {
-                Write-Warning "[$OperationName] Operation timed out (attempt $attempt/$MaxRetries)"
-                $isRetryable = $true
-            }
-            elseif ($errorMessage -like "*Service Unavailable*" -or $errorMessage -like "*503*") {
+            # HTTP 503 - Service Unavailable  
+            elseif ($errorMessage -like "*Service Unavailable*" -or $errorMessage -like "*503*" -or $errorMessage -like "*ServiceUnavailable*") {
                 Write-Warning "[$OperationName] Service temporarily unavailable (attempt $attempt/$MaxRetries)"
                 $isRetryable = $true
             }
+            # HTTP 502 - Bad Gateway
             elseif ($errorMessage -like "*BadGateway*" -or $errorMessage -like "*502*") {
                 Write-Warning "[$OperationName] Gateway error (attempt $attempt/$MaxRetries)"
                 $isRetryable = $true
             }
+            # HTTP 504 - Gateway Timeout
+            elseif ($errorMessage -like "*GatewayTimeout*" -or $errorMessage -like "*504*") {
+                Write-Warning "[$OperationName] Gateway timeout (attempt $attempt/$MaxRetries)"
+                $isRetryable = $true
+            }
+            # Connection errors
+            elseif ($errorMessage -like "*connection*" -or $errorMessage -like "*network*") {
+                Write-Warning "[$OperationName] Network connectivity issue (attempt $attempt/$MaxRetries)"
+                $isRetryable = $true
+            }
+            # Generic timeout
+            elseif ($errorMessage -like "*timeout*" -or $errorMessage -like "*timed out*") {
+                Write-Warning "[$OperationName] Operation timed out (attempt $attempt/$MaxRetries)"
+                $isRetryable = $true
+            }
             else {
-                # Non-retryable error - log and return empty
-                Write-Verbose "[$OperationName] Non-retryable error: $errorMessage"
+                # Non-retryable error (permissions, invalid query, etc.)
+                Write-Warning "[$OperationName] Non-retryable error: $errorMessage"
                 Write-Progress -Activity $OperationName -Completed
                 return @()
             }
@@ -130,7 +117,7 @@ function Invoke-MgGraphWithRetry {
             # Retry logic with exponential backoff
             if ($isRetryable -and $attempt -lt $MaxRetries) {
                 $backoffSeconds = [Math]::Pow(2, $attempt) * 5  # 10s, 20s, 40s
-                Write-Verbose "[$OperationName] Waiting $backoffSeconds seconds before retry..."
+                Write-Information "[$OperationName] Waiting $backoffSeconds seconds before retry..." -InformationAction Continue
                 Start-Sleep -Seconds $backoffSeconds
             }
             elseif ($attempt -ge $MaxRetries) {
