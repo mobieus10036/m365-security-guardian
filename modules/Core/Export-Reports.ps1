@@ -1015,6 +1015,187 @@ function Build-BaselineComparisonHtml {
 "@
 }
 
+function Build-AttackChainsSectionHtml {
+    <#
+    .SYNOPSIS
+        Builds the attack chains section HTML for the report.
+    
+    .PARAMETER AttackChains
+        The attack chain analysis results object.
+    #>
+    param([object]$AttackChains)
+    
+    if (-not $AttackChains -or $AttackChains.EnabledChainCount -eq 0) { return "" }
+    
+    # Determine overall risk level styling
+    $riskLevel = if ($AttackChains.CriticalChains -gt 0) { 'CRITICAL' }
+                 elseif ($AttackChains.HighChains -gt 0) { 'HIGH' }
+                 elseif ($AttackChains.EnabledChainCount -gt 0) { 'ELEVATED' }
+                 else { 'LOW' }
+    
+    $riskClass = switch ($riskLevel) {
+        'CRITICAL' { 'risk-critical' }
+        'HIGH'     { 'risk-high' }
+        'ELEVATED' { 'risk-elevated' }
+        default    { 'risk-low' }
+    }
+    $riskIcon = switch ($riskLevel) {
+        'CRITICAL' { '🔴' }
+        'HIGH'     { '🟠' }
+        'ELEVATED' { '🟡' }
+        default    { '🟢' }
+    }
+    
+    # Build attack chain cards
+    $chainCardsHtml = ""
+    foreach ($chain in $AttackChains.EnabledChains) {
+        $severityClass = switch ($chain.Severity) {
+            'Critical' { 'severity-critical' }
+            'High'     { 'severity-high' }
+            'Medium'   { 'severity-medium' }
+            default    { 'severity-low' }
+        }
+        $severityIcon = switch ($chain.Severity) {
+            'Critical' { '🔴' }
+            'High'     { '🟠' }
+            'Medium'   { '🟡' }
+            default    { '🟢' }
+        }
+        
+        $chainNameSafe = ConvertTo-HtmlSafe $chain.Name
+        $narrativeSafe = ConvertTo-HtmlSafe $chain.ExecutiveNarrative
+        $tacticsHtml = ($chain.Tactics | ForEach-Object { "<span class='attack-tactic'>$_</span>" }) -join ' → '
+        
+        # MITRE techniques badges
+        $mitreBadges = ($chain.MitreTechniques | ForEach-Object { "<span class='mitre-badge'>$_</span>" }) -join ' '
+        
+        # Kill chain phases
+        $killChainHtml = ""
+        if ($chain.KillChain) {
+            $killChainHtml = "<div class='kill-chain-phases'>"
+            $phaseOrder = @('initialAccess', 'execution', 'persistence', 'privilegeEscalation', 'defenseEvasion', 'collection', 'exfiltration', 'impact')
+            foreach ($phase in $phaseOrder) {
+                $phaseValue = $chain.KillChain.$phase
+                if ($phaseValue) {
+                    $phaseName = switch ($phase) {
+                        'initialAccess' { 'Initial Access' }
+                        'execution' { 'Execution' }
+                        'persistence' { 'Persistence' }
+                        'privilegeEscalation' { 'Privilege Escalation' }
+                        'defenseEvasion' { 'Defense Evasion' }
+                        'collection' { 'Collection' }
+                        'exfiltration' { 'Exfiltration' }
+                        'impact' { 'Impact' }
+                        default { $phase }
+                    }
+                    $phaseValueSafe = ConvertTo-HtmlSafe $phaseValue
+                    $killChainHtml += "<div class='kill-chain-phase'><strong>$($phaseName):</strong> $phaseValueSafe</div>"
+                }
+            }
+            $killChainHtml += "</div>"
+        }
+        
+        # Blast radius
+        $blastRadiusHtml = ""
+        if ($chain.BlastRadius) {
+            $dataAtRisk = if ($chain.BlastRadius.dataAtRisk) { 
+                ($chain.BlastRadius.dataAtRisk | ForEach-Object { ConvertTo-HtmlSafe $_ }) -join ', ' 
+            } else { 'Unknown' }
+            $usersAffected = if ($chain.BlastRadius.usersAffected) { ConvertTo-HtmlSafe $chain.BlastRadius.usersAffected } else { 'Unknown' }
+            $blastRadiusHtml = @"
+            <div class='blast-radius'>
+                <span class='blast-label'>Blast Radius:</span>
+                <span class='blast-data'>$dataAtRisk</span>
+                <span class='blast-users'>($usersAffected)</span>
+            </div>
+"@
+        }
+        
+        $chainCardsHtml += @"
+        <div class='attack-chain-card $severityClass'>
+            <div class='attack-chain-header'>
+                <span class='attack-chain-severity'>$severityIcon $($chain.Severity)</span>
+                <span class='attack-chain-id'>$($chain.ChainId)</span>
+            </div>
+            <h4 class='attack-chain-name'>$chainNameSafe</h4>
+            <div class='attack-chain-tactics'>$tacticsHtml</div>
+            <div class='attack-chain-mitre'>$mitreBadges</div>
+            <div class='attack-chain-enablement'>
+                <span class='enablement-label'>Enablement:</span>
+                <span class='enablement-value'>$($chain.EnablementScore)%</span>
+                <span class='fix-time'>Fix Time: $($chain.EstimatedFixTime)</span>
+            </div>
+            <div class='attack-chain-narrative'>$narrativeSafe</div>
+            $killChainHtml
+            $blastRadiusHtml
+        </div>
+"@
+    }
+    
+    # Build remediation priorities
+    $prioritiesHtml = ""
+    if ($AttackChains.RemediationPriorities -and $AttackChains.RemediationPriorities.Count -gt 0) {
+        $prioritiesHtml = "<div class='remediation-priorities'><h4>🔧 Top Remediation Priorities</h4><ul>"
+        $topPriorities = $AttackChains.RemediationPriorities | Select-Object -First 5
+        foreach ($priority in $topPriorities) {
+            $prioritiesHtml += "<li><strong>Control $($priority.ControlId)</strong> - Breaks $($priority.ChainsAffected) attack chain(s)</li>"
+        }
+        $prioritiesHtml += "</ul></div>"
+    }
+    
+    # Build MITRE matrix summary
+    $mitreHtml = ""
+    if ($AttackChains.MitreMatrix -and $AttackChains.MitreMatrix.TacticsExploitable) {
+        $mitreHtml = "<div class='mitre-summary'><h4>📊 MITRE ATT&CK Coverage</h4>"
+        $mitreHtml += "<p>$($AttackChains.MitreMatrix.TotalTactics) tactics and $($AttackChains.MitreMatrix.TotalTechniques) techniques exploitable</p>"
+        $mitreHtml += "<div class='tactic-list'>"
+        foreach ($tactic in $AttackChains.MitreMatrix.TacticsExploitable) {
+            $tacticName = ConvertTo-HtmlSafe $tactic.Tactic
+            $mitreHtml += "<span class='tactic-badge'>$tacticName ($($tactic.Chains.Count) chains)</span>"
+        }
+        $mitreHtml += "</div></div>"
+    }
+    
+    return @"
+    <div class='attack-chains-section'>
+        <div class='attack-chains-header'>
+            <h2 class='attack-chains-title'>⚔️ Attack Chain Analysis</h2>
+            <div class='attack-risk-level $riskClass'>
+                <span class='risk-icon'>$riskIcon</span>
+                <span class='risk-text'>$riskLevel RISK</span>
+            </div>
+        </div>
+        
+        <div class='attack-chains-summary'>
+            <div class='chains-stat'>
+                <span class='stat-value'>$($AttackChains.EnabledChainCount)</span>
+                <span class='stat-label'>Enabled Chains</span>
+            </div>
+            <div class='chains-stat'>
+                <span class='stat-value'>$($AttackChains.CriticalChains)</span>
+                <span class='stat-label'>Critical</span>
+            </div>
+            <div class='chains-stat'>
+                <span class='stat-value'>$($AttackChains.HighChains)</span>
+                <span class='stat-label'>High</span>
+            </div>
+            <div class='chains-stat'>
+                <span class='stat-value'>$($AttackChains.TotalChainsAnalyzed)</span>
+                <span class='stat-label'>Total Analyzed</span>
+            </div>
+        </div>
+        
+        $prioritiesHtml
+        
+        <div class='attack-chains-grid'>
+            $chainCardsHtml
+        </div>
+        
+        $mitreHtml
+    </div>
+"@
+}
+
 #endregion
 
 #region Main HTML Export Function
@@ -1043,6 +1224,9 @@ function Export-HtmlReport {
     .PARAMETER BaselineComparison
         Baseline comparison object (optional).
     
+    .PARAMETER AttackChains
+        Attack chain analysis results (optional).
+    
     .PARAMETER TemplatePath
         Path to the HTML template file.
     #>
@@ -1061,6 +1245,9 @@ function Export-HtmlReport {
         
         [Parameter(Mandatory = $false)]
         $BaselineComparison,
+        
+        [Parameter(Mandatory = $false)]
+        $AttackChains,
         
         [Parameter(Mandatory = $false)]
         [string]$TemplatePath
@@ -1109,6 +1296,7 @@ function Export-HtmlReport {
     # Build dashboard sections
     $securityScoreHtml = Build-SecurityScoreDashboardHtml -SecurityScore $SecurityScore
     $baselineComparisonHtml = Build-BaselineComparisonHtml -BaselineComparison $BaselineComparison
+    $attackChainsHtml = Build-AttackChainsSectionHtml -AttackChains $AttackChains
     
     # Replace placeholders
     $tenantName = if ($TenantInfo) { $TenantInfo.DisplayName } else { "Not Connected" }
@@ -1126,6 +1314,7 @@ function Export-HtmlReport {
     $html = $html -replace '{{SEVERITY_COUNTS}}', $severityValuesJson
     $html = $html -replace '{{SECURITY_SCORE_SECTION}}', $securityScoreHtml
     $html = $html -replace '{{BASELINE_COMPARISON_SECTION}}', $baselineComparisonHtml
+    $html = $html -replace '{{ATTACK_CHAINS_SECTION}}', $attackChainsHtml
     $html = $html -replace '{{RESULTS_CARDS}}', $resultsHtml
     
     $html | Out-File $OutputPath -Encoding UTF8

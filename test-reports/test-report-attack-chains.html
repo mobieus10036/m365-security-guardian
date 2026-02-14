@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src https://cdn.jsdelivr.net 'unsafe-inline'; img-src data:; font-src 'none';">
-    <title>M365 Security Guardian Report - {{TENANT_NAME}}</title>
+    <title>M365 Security Guardian Report - Contoso.onmicrosoft.com</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous"></script>
     <style>
         :root {
@@ -1282,15 +1282,15 @@
                 <div class="header-meta">
                     <div class="header-meta-item">
                         <span class="header-meta-label">Tenant:</span>
-                        <span>{{TENANT_NAME}}</span>
+                        <span>Contoso.onmicrosoft.com</span>
                     </div>
                     <div class="header-meta-item">
                         <span class="header-meta-label">Assessment Date:</span>
-                        <span>{{ASSESSMENT_DATE}}</span>
+                        <span>2026-02-14 12:47:34</span>
                     </div>
                     <div class="header-meta-item">
                         <span class="header-meta-label">Compliance Score:</span>
-                        <span>{{PASS_PERCENTAGE}}%</span>
+                        <span>0%</span>
                     </div>
                 </div>
             </div>
@@ -1302,23 +1302,23 @@
             <div class="metrics-grid">
                 <div class="metric-card total">
                     <div class="metric-card-header">Total Checks</div>
-                    <div class="metric-card-value">{{TOTAL_CHECKS}}</div>
+                    <div class="metric-card-value">8</div>
                 </div>
                 <div class="metric-card pass">
                     <div class="metric-card-header">Passed</div>
-                    <div class="metric-card-value">{{PASS_COUNT}}</div>
+                    <div class="metric-card-value">0</div>
                 </div>
                 <div class="metric-card fail">
                     <div class="metric-card-header">Failed</div>
-                    <div class="metric-card-value">{{FAIL_COUNT}}</div>
+                    <div class="metric-card-value">5</div>
                 </div>
                 <div class="metric-card warn">
                     <div class="metric-card-header">Warnings</div>
-                    <div class="metric-card-value">{{WARN_COUNT}}</div>
+                    <div class="metric-card-value">3</div>
                 </div>
                 <div class="metric-card info">
                     <div class="metric-card-header">Informational</div>
-                    <div class="metric-card-value">{{INFO_COUNT}}</div>
+                    <div class="metric-card-value">0</div>
                 </div>
             </div>
             
@@ -1338,11 +1338,220 @@
             </div>
         </div>
         
-        {{SECURITY_SCORE_SECTION}}
+            <div class="security-score-dashboard">
+        <h2 class="summary-title">🛡️ Tenant Security Score</h2>
+        <div class="score-main-display">
+            <div class="score-circle grade-f">
+                <div class="score-value">21%</div>
+                <div class="score-grade">Grade: F</div>
+            </div>
+            <div class="score-details">
+                <div class="score-description">Critical - Immediate action required to secure tenant</div>
+                <div class="score-potential">
+                    <span class="potential-label">Potential Score:</span>
+                    <span class="potential-value">53%</span>
+                    <span class="potential-gain">(+31.8 pts available)</span>
+                </div>
+            </div>
+        </div>
+        <div class="score-categories">
+            <h3>Category Breakdown</h3>
+                    <div class="score-category">
+            <div class="score-category-name">Email Security</div>
+            <div class="score-category-bar">
+                <div class="score-category-fill grade-f" style="width: 16.7%"></div>
+            </div>
+            <div class="score-category-value">16.7%</div>
+        </div>        <div class="score-category">
+            <div class="score-category-name">Application Security</div>
+            <div class="score-category-bar">
+                <div class="score-category-fill grade-a" style="width: 100%"></div>
+            </div>
+            <div class="score-category-value">100%</div>
+        </div>        <div class="score-category">
+            <div class="score-category-name">Identity &amp; Access</div>
+            <div class="score-category-bar">
+                <div class="score-category-fill grade-f" style="width: 18.5%"></div>
+            </div>
+            <div class="score-category-value">18.5%</div>
+        </div>        <div class="score-category">
+            <div class="score-category-name">Governance</div>
+            <div class="score-category-bar">
+                <div class="score-category-fill grade-f" style="width: 0%"></div>
+            </div>
+            <div class="score-category-value">0%</div>
+        </div>        <div class="score-category">
+            <div class="score-category-name">Conditional Access</div>
+            <div class="score-category-bar">
+                <div class="score-category-fill grade-f" style="width: 30%"></div>
+            </div>
+            <div class="score-category-value">30%</div>
+        </div>
+        </div>
+        <div class="score-actions-grid">
+            <div class='priorities-section'><h4>🎯 Top Priorities</h4><ul><li><span class='priority-severity critical'>Critical</span> MFA Enforcement <span class='priority-gain'>+12 pts</span></li><li><span class='priority-severity high'>High</span> External Sharing Configuration <span class='priority-gain'>+7.5 pts</span></li><li><span class='priority-severity high'>High</span> Email Authentication (SPF/DKIM/DMARC) <span class='priority-gain'>+6 pts</span></li><li><span class='priority-severity high'>High</span> Legacy Authentication <span class='priority-gain'>+3.8 pts</span></li><li><span class='priority-severity medium'>Medium</span> Application Permissions Audit <span class='priority-gain'>+2.5 pts</span></li></ul></div>
+            <div class='quickwins-section'><h4>⚡ Quick Wins</h4><ul><li>Mailbox Auditing <span class='priority-gain'>+2 pts</span></li></ul></div>
+        </div>
+    </div>
         
-        {{BASELINE_COMPARISON_SECTION}}
         
-        {{ATTACK_CHAINS_SECTION}}
+        
+            <div class='attack-chains-section'>
+        <div class='attack-chains-header'>
+            <h2 class='attack-chains-title'>⚔️ Attack Chain Analysis</h2>
+            <div class='attack-risk-level risk-critical'>
+                <span class='risk-icon'>🔴</span>
+                <span class='risk-text'>CRITICAL RISK</span>
+            </div>
+        </div>
+        
+        <div class='attack-chains-summary'>
+            <div class='chains-stat'>
+                <span class='stat-value'>6</span>
+                <span class='stat-label'>Enabled Chains</span>
+            </div>
+            <div class='chains-stat'>
+                <span class='stat-value'>2</span>
+                <span class='stat-label'>Critical</span>
+            </div>
+            <div class='chains-stat'>
+                <span class='stat-value'>4</span>
+                <span class='stat-label'>High</span>
+            </div>
+            <div class='chains-stat'>
+                <span class='stat-value'>6</span>
+                <span class='stat-label'>Total Analyzed</span>
+            </div>
+        </div>
+        
+        <div class='remediation-priorities'><h4>🔧 Top Remediation Priorities</h4><ul><li><strong>Control 1.2.1</strong> - Breaks 2 attack chain(s)</li><li><strong>Control 2.1.2</strong> - Breaks 2 attack chain(s)</li><li><strong>Control 6.5.3</strong> - Breaks 2 attack chain(s)</li><li><strong>Control 5.1.5.1</strong> - Breaks 2 attack chain(s)</li><li><strong>Control 5.1.1.1</strong> - Breaks 1 attack chain(s)</li></ul></div>
+        
+        <div class='attack-chains-grid'>
+                    <div class='attack-chain-card severity-critical'>
+            <div class='attack-chain-header'>
+                <span class='attack-chain-severity'>🔴 Critical</span>
+                <span class='attack-chain-id'>AC-001</span>
+            </div>
+            <h4 class='attack-chain-name'>Password Spray to Global Admin Takeover</h4>
+            <div class='attack-chain-tactics'><span class='attack-tactic'>Initial Access</span> → <span class='attack-tactic'>Privilege Escalation</span> → <span class='attack-tactic'>Persistence</span></div>
+            <div class='attack-chain-mitre'><span class='mitre-badge'>T1110.003</span> <span class='mitre-badge'>T1078.004</span> <span class='mitre-badge'>T1098</span></div>
+            <div class='attack-chain-enablement'>
+                <span class='enablement-label'>Enablement:</span>
+                <span class='enablement-value'>100%</span>
+                <span class='fix-time'>Fix Time: 4 hours</span>
+            </div>
+            <div class='attack-chain-narrative'>An attacker can use automated password spraying tools to compromise administrator accounts that lack multi-factor authentication. Once inside, they gain complete control of your Microsoft 365 environment, including access to all emails, files, and the ability to create persistent backdoor access. This is the most common path to full tenant compromise.</div>
+            <div class='kill-chain-phases'><div class='kill-chain-phase'><strong>Initial Access:</strong> Password spray against admin accounts lacking MFA</div><div class='kill-chain-phase'><strong>Execution:</strong> Access Azure/M365 admin portals</div><div class='kill-chain-phase'><strong>Persistence:</strong> Create backdoor admin accounts or app registrations</div><div class='kill-chain-phase'><strong>Privilege Escalation:</strong> Already admin - no escalation needed</div><div class='kill-chain-phase'><strong>Impact:</strong> Full tenant compromise, data exfiltration, ransomware deployment</div></div>
+                        <div class='blast-radius'>
+                <span class='blast-label'>Blast Radius:</span>
+                <span class='blast-data'>All tenant data, Email content, SharePoint/OneDrive files, Azure resources</span>
+                <span class='blast-users'>(All users)</span>
+            </div>
+        </div>        <div class='attack-chain-card severity-critical'>
+            <div class='attack-chain-header'>
+                <span class='attack-chain-severity'>🔴 Critical</span>
+                <span class='attack-chain-id'>AC-005</span>
+            </div>
+            <h4 class='attack-chain-name'>Persistent Backdoor via App Registration</h4>
+            <div class='attack-chain-tactics'><span class='attack-tactic'>Persistence</span> → <span class='attack-tactic'>Privilege Escalation</span> → <span class='attack-tactic'>Defense Evasion</span></div>
+            <div class='attack-chain-mitre'><span class='mitre-badge'>T1098.001</span> <span class='mitre-badge'>T1550.001</span> <span class='mitre-badge'>T1528</span></div>
+            <div class='attack-chain-enablement'>
+                <span class='enablement-label'>Enablement:</span>
+                <span class='enablement-value'>100%</span>
+                <span class='fix-time'>Fix Time: 8 hours</span>
+            </div>
+            <div class='attack-chain-narrative'>Once an attacker compromises an admin account, they can create an application registration with powerful permissions and admin consent. This app becomes a persistent backdoor that survives password resets, MFA enrollment, and even admin account deletion. Detection requires regular app permission audits, which many organizations don&#39;t perform.</div>
+            <div class='kill-chain-phases'><div class='kill-chain-phase'><strong>Initial Access:</strong> Admin account compromise (any method)</div><div class='kill-chain-phase'><strong>Persistence:</strong> Create new app registration with Mail.Read, Files.Read.All, Directory.ReadWrite.All</div><div class='kill-chain-phase'><strong>Privilege Escalation:</strong> Grant admin consent to app permissions</div><div class='kill-chain-phase'><strong>Defense Evasion:</strong> App appears legitimate, no user sign-in logs</div><div class='kill-chain-phase'><strong>Impact:</strong> Persistent access surviving password resets and MFA enrollment</div></div>
+                        <div class='blast-radius'>
+                <span class='blast-label'>Blast Radius:</span>
+                <span class='blast-data'>All data accessible via Graph API permissions granted</span>
+                <span class='blast-users'>(All users (if directory permissions granted))</span>
+            </div>
+        </div>        <div class='attack-chain-card severity-high'>
+            <div class='attack-chain-header'>
+                <span class='attack-chain-severity'>🟠 High</span>
+                <span class='attack-chain-id'>AC-002</span>
+            </div>
+            <h4 class='attack-chain-name'>OAuth App Consent Phishing</h4>
+            <div class='attack-chain-tactics'><span class='attack-tactic'>Initial Access</span> → <span class='attack-tactic'>Collection</span> → <span class='attack-tactic'>Exfiltration</span></div>
+            <div class='attack-chain-mitre'><span class='mitre-badge'>T1528</span> <span class='mitre-badge'>T1550.001</span> <span class='mitre-badge'>T1114.002</span></div>
+            <div class='attack-chain-enablement'>
+                <span class='enablement-label'>Enablement:</span>
+                <span class='enablement-value'>100%</span>
+                <span class='fix-time'>Fix Time: 2 hours</span>
+            </div>
+            <div class='attack-chain-narrative'>When users can consent to third-party applications, attackers can trick them into granting access to malicious apps disguised as legitimate services. These apps then silently exfiltrate email, files, and calendar data without triggering traditional security alerts. The attack persists until the app is discovered and revoked.</div>
+            <div class='kill-chain-phases'><div class='kill-chain-phase'><strong>Initial Access:</strong> Phishing email with OAuth consent link</div><div class='kill-chain-phase'><strong>Execution:</strong> User grants permissions to malicious app</div><div class='kill-chain-phase'><strong>Collection:</strong> App reads emails, calendar, files via Graph API</div><div class='kill-chain-phase'><strong>Exfiltration:</strong> Data continuously synced to attacker infrastructure</div><div class='kill-chain-phase'><strong>Impact:</strong> Silent, persistent data theft without credential compromise</div></div>
+                        <div class='blast-radius'>
+                <span class='blast-label'>Blast Radius:</span>
+                <span class='blast-data'>Email content, Calendar data, Contacts, OneDrive files</span>
+                <span class='blast-users'>(Users who consent to malicious app)</span>
+            </div>
+        </div>        <div class='attack-chain-card severity-high'>
+            <div class='attack-chain-header'>
+                <span class='attack-chain-severity'>🟠 High</span>
+                <span class='attack-chain-id'>AC-003</span>
+            </div>
+            <h4 class='attack-chain-name'>Business Email Compromise (BEC)</h4>
+            <div class='attack-chain-tactics'><span class='attack-tactic'>Initial Access</span> → <span class='attack-tactic'>Collection</span> → <span class='attack-tactic'>Impact</span></div>
+            <div class='attack-chain-mitre'><span class='mitre-badge'>T1078</span> <span class='mitre-badge'>T1114</span> <span class='mitre-badge'>T1566.002</span> <span class='mitre-badge'>T1534</span></div>
+            <div class='attack-chain-enablement'>
+                <span class='enablement-label'>Enablement:</span>
+                <span class='enablement-value'>100%</span>
+                <span class='fix-time'>Fix Time: 6 hours</span>
+            </div>
+            <div class='attack-chain-narrative'>Business Email Compromise is the most financially damaging cyberattack type, with billions in losses annually. Attackers compromise employee accounts, monitor financial communications, and then impersonate executives or vendors to redirect payments. Without MFA, mailbox auditing, and email authentication, your organization is highly vulnerable to this attack.</div>
+            <div class='kill-chain-phases'><div class='kill-chain-phase'><strong>Initial Access:</strong> Credential theft via phishing or password spray</div><div class='kill-chain-phase'><strong>Execution:</strong> Send fraudulent payment instructions</div><div class='kill-chain-phase'><strong>Persistence:</strong> Create email forwarding rules to external address</div><div class='kill-chain-phase'><strong>Collection:</strong> Monitor email for financial transactions</div><div class='kill-chain-phase'><strong>Impact:</strong> Wire transfer fraud, invoice manipulation</div></div>
+                        <div class='blast-radius'>
+                <span class='blast-label'>Blast Radius:</span>
+                <span class='blast-data'>Email content, Financial records, Vendor/customer data</span>
+                <span class='blast-users'>(Finance, executives, accounts payable staff)</span>
+            </div>
+        </div>        <div class='attack-chain-card severity-high'>
+            <div class='attack-chain-header'>
+                <span class='attack-chain-severity'>🟠 High</span>
+                <span class='attack-chain-id'>AC-004</span>
+            </div>
+            <h4 class='attack-chain-name'>External Data Exfiltration via Sharing</h4>
+            <div class='attack-chain-tactics'><span class='attack-tactic'>Collection</span> → <span class='attack-tactic'>Exfiltration</span></div>
+            <div class='attack-chain-mitre'><span class='mitre-badge'>T1530</span> <span class='mitre-badge'>T1537</span> <span class='mitre-badge'>T1567</span></div>
+            <div class='attack-chain-enablement'>
+                <span class='enablement-label'>Enablement:</span>
+                <span class='enablement-value'>100%</span>
+                <span class='fix-time'>Fix Time: 3 hours</span>
+            </div>
+            <div class='attack-chain-narrative'>When external sharing is unrestricted, any compromised account or malicious insider can exfiltrate sensitive data by simply sharing it externally. This bypasses DLP controls and can lead to intellectual property theft, competitive disadvantage, and regulatory penalties. Restricting external sharing to approved domains significantly reduces this risk.</div>
+            <div class='kill-chain-phases'><div class='kill-chain-phase'><strong>Initial Access:</strong> Compromised user account or malicious insider</div><div class='kill-chain-phase'><strong>Collection:</strong> Identify sensitive data in SharePoint/OneDrive</div><div class='kill-chain-phase'><strong>Exfiltration:</strong> Share files/folders externally or sync to personal device</div><div class='kill-chain-phase'><strong>Impact:</strong> Intellectual property theft, regulatory violations</div></div>
+                        <div class='blast-radius'>
+                <span class='blast-label'>Blast Radius:</span>
+                <span class='blast-data'>SharePoint documents, OneDrive files, Teams files</span>
+                <span class='blast-users'>(Any user with access to sensitive data)</span>
+            </div>
+        </div>        <div class='attack-chain-card severity-high'>
+            <div class='attack-chain-header'>
+                <span class='attack-chain-severity'>🟠 High</span>
+                <span class='attack-chain-id'>AC-006</span>
+            </div>
+            <h4 class='attack-chain-name'>Email Spoofing and Impersonation</h4>
+            <div class='attack-chain-tactics'><span class='attack-tactic'>Initial Access</span> → <span class='attack-tactic'>Defense Evasion</span></div>
+            <div class='attack-chain-mitre'><span class='mitre-badge'>T1566.001</span> <span class='mitre-badge'>T1566.002</span> <span class='mitre-badge'>T1534</span></div>
+            <div class='attack-chain-enablement'>
+                <span class='enablement-label'>Enablement:</span>
+                <span class='enablement-value'>100%</span>
+                <span class='fix-time'>Fix Time: 4 hours</span>
+            </div>
+            <div class='attack-chain-narrative'>Without proper email authentication (SPF, DKIM, DMARC), attackers can send emails that appear to come from your domain. These spoofed emails can target your employees, customers, and partners for phishing attacks. Proper DMARC enforcement prevents unauthorized use of your domain and protects your brand reputation.</div>
+            <div class='kill-chain-phases'><div class='kill-chain-phase'><strong>Impact:</strong> Credential theft, malware delivery, BEC enablement</div></div>
+                        <div class='blast-radius'>
+                <span class='blast-label'>Blast Radius:</span>
+                <span class='blast-data'>Credentials, Any data disclosed via phishing</span>
+                <span class='blast-users'>(All email recipients (internal and external))</span>
+            </div>
+        </div>
+        </div>
+        
+        <div class='mitre-summary'><h4>📊 MITRE ATT&CK Coverage</h4><p>7 tactics and 15 techniques exploitable</p><div class='tactic-list'><span class='tactic-badge'>Initial Access (4 chains)</span><span class='tactic-badge'>Collection (3 chains)</span><span class='tactic-badge'>Persistence (2 chains)</span><span class='tactic-badge'>Defense Evasion (2 chains)</span><span class='tactic-badge'>Privilege Escalation (2 chains)</span><span class='tactic-badge'>Exfiltration (2 chains)</span><span class='tactic-badge'>Impact (1 chains)</span></div></div>
+    </div>
         
         <div class="controls">
             <div class="search-box">
@@ -1361,11 +1570,235 @@
         <div class="results-section">
             <div class="results-header">
                 <h2 class="results-title">Detailed Findings</h2>
-                <div class="results-count"><span id="visibleCount">{{TOTAL_CHECKS}}</span> of {{TOTAL_CHECKS}} findings</div>
+                <div class="results-count"><span id="visibleCount">8</span> of 8 findings</div>
             </div>
             
             <div class="findings-grid" id="findingsGrid">
-                {{RESULTS_CARDS}}
+                <div class="finding-card" data-status="fail">
+    <div class="finding-header">
+        <div class="finding-title-group">
+            <div class="finding-name">MFA Enforcement</div>
+            <div class="finding-badges">
+                <span class="badge badge-category">Security</span>
+                <span class="badge badge-status-fail">Fail</span>
+                <span class="badge badge-severity-critical">Critical</span>
+            </div>
+        </div>
+    </div>
+    <div class="finding-body">
+        <div class="finding-section">
+            <div class="finding-label">Finding</div>
+            <div class="finding-content"><div class='mfa-summary'><div class='mfa-stat'><span class='mfa-label'>Adoption</span><span class='mfa-value'>N/A</span></div><div class='mfa-stat'><span class='mfa-label'>Users With MFA</span><span class='mfa-value'></span></div><div class='mfa-stat'><span class='mfa-label'>Users Without MFA</span><span class='mfa-value'></span></div><div class='mfa-stat'><span class='mfa-label'>Target Threshold</span><span class='mfa-value'>N/A</span></div></div><br><br><strong>Users without MFA (2):</strong><br><table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'><tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>Item</td></tr><tr><td style='padding: 8px; border: 1px solid var(--gray-300);'><code>user1@contoso.com</code> - User One</td></tr><tr><td style='padding: 8px; border: 1px solid var(--gray-300);'><code>user2@contoso.com</code> - User Two</td></tr></table></div>
+        </div>
+        <div class="finding-section">
+            <div class="finding-label">Recommendation</div>
+            <div class="finding-content">Enable MFA for all users immediately</div>
+        </div>
+        <div class="finding-section">
+            <a href="https://learn.microsoft.com/en-us/entra/identity/authentication/concept-mfa-howitworks" target="_blank" class="doc-link">
+                <span>📘</span>
+                <span>View Documentation</span>
+            </a>
+        </div>
+    </div>
+</div>
+<div class="finding-card" data-status="warning">
+    <div class="finding-header">
+        <div class="finding-title-group">
+            <div class="finding-name">Privileged Account Security</div>
+            <div class="finding-badges">
+                <span class="badge badge-category">Security</span>
+                <span class="badge badge-status-warning">Warning</span>
+                <span class="badge badge-severity-high">High</span>
+            </div>
+        </div>
+    </div>
+    <div class="finding-body">
+        <div class="finding-section">
+            <div class="finding-label">Finding</div>
+            <div class="finding-content">8 global administrators found; recommend limiting count to 2-3<br><br><strong>Privileged Accounts (1):</strong><br><table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'><tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>User Principal Name</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Roles</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>MFA Status</td></tr><tr><td style='padding: 8px; border: 1px solid var(--gray-300);'><code>admin1@contoso.com</code></td><td style='padding: 8px; border: 1px solid var(--gray-300); font-size: 12px;'></td><td style='padding: 8px; border: 1px solid var(--gray-300); color: var(--danger-color); font-weight: 600;'>❌ Not Enabled</td></tr></table></div>
+        </div>
+        <div class="finding-section">
+            <div class="finding-label">Recommendation</div>
+            <div class="finding-content">Reduce global admin count and use Privileged Identity Management</div>
+        </div>
+        <div class="finding-section">
+            <a href="https://learn.microsoft.com/en-us/entra/identity/role-based-access-control/best-practices" target="_blank" class="doc-link">
+                <span>📘</span>
+                <span>View Documentation</span>
+            </a>
+        </div>
+    </div>
+</div>
+<div class="finding-card" data-status="fail">
+    <div class="finding-header">
+        <div class="finding-title-group">
+            <div class="finding-name">Legacy Authentication</div>
+            <div class="finding-badges">
+                <span class="badge badge-category">Security</span>
+                <span class="badge badge-status-fail">Fail</span>
+                <span class="badge badge-severity-high">High</span>
+            </div>
+        </div>
+    </div>
+    <div class="finding-body">
+        <div class="finding-section">
+            <div class="finding-label">Finding</div>
+            <div class="finding-content">Legacy authentication not blocked; 8 sign-ins detected</div>
+        </div>
+        <div class="finding-section">
+            <div class="finding-label">Recommendation</div>
+            <div class="finding-content">Block legacy authentication immediately</div>
+        </div>
+        <div class="finding-section">
+            <a href="https://learn.microsoft.com/en-us/entra/identity/conditional-access/block-legacy-authentication" target="_blank" class="doc-link">
+                <span>📘</span>
+                <span>View Documentation</span>
+            </a>
+        </div>
+    </div>
+</div>
+<div class="finding-card" data-status="warning">
+    <div class="finding-header">
+        <div class="finding-title-group">
+            <div class="finding-name">Conditional Access Policies</div>
+            <div class="finding-badges">
+                <span class="badge badge-category">Security</span>
+                <span class="badge badge-status-warning">Warning</span>
+                <span class="badge badge-severity-high">High</span>
+            </div>
+        </div>
+    </div>
+    <div class="finding-body">
+        <div class="finding-section">
+            <div class="finding-label">Finding</div>
+            <div class="finding-content">Only 3 of 5 recommended CA policies enabled</div>
+        </div>
+        <div class="finding-section">
+            <div class="finding-label">Recommendation</div>
+            <div class="finding-content">Enable additional CA policies for better coverage</div>
+        </div>
+        <div class="finding-section">
+            <a href="https://learn.microsoft.com/en-us/entra/identity/conditional-access/overview" target="_blank" class="doc-link">
+                <span>📘</span>
+                <span>View Documentation</span>
+            </a>
+        </div>
+    </div>
+</div>
+<div class="finding-card" data-status="fail">
+    <div class="finding-header">
+        <div class="finding-title-group">
+            <div class="finding-name">Application Permissions Audit</div>
+            <div class="finding-badges">
+                <span class="badge badge-category">Security</span>
+                <span class="badge badge-status-fail">Fail</span>
+                <span class="badge badge-severity-medium">Medium</span>
+            </div>
+        </div>
+    </div>
+    <div class="finding-body">
+        <div class="finding-section">
+            <div class="finding-label">Finding</div>
+            <div class="finding-content">User consent for apps is enabled; 15 risky apps detected<br><br><strong>Risky Applications (1):</strong><br><table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'><tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>Application</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Type</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Risk Reasons</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>High-Risk Permissions</td></tr><tr><td style='padding: 8px; border: 1px solid var(--gray-300);'><code>Suspicious App</code></td><td style='padding: 8px; border: 1px solid var(--gray-300);'></td><td style='padding: 8px; border: 1px solid var(--gray-300); color: var(--danger-color);'></td><td style='padding: 8px; border: 1px solid var(--gray-300); font-size: 11px;'>-</td></tr></table></div>
+        </div>
+        <div class="finding-section">
+            <div class="finding-label">Recommendation</div>
+            <div class="finding-content">Disable user consent and audit high-privilege apps</div>
+        </div>
+        <div class="finding-section">
+            <a href="https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/configure-user-consent" target="_blank" class="doc-link">
+                <span>📘</span>
+                <span>View Documentation</span>
+            </a>
+        </div>
+    </div>
+</div>
+<div class="finding-card" data-status="fail">
+    <div class="finding-header">
+        <div class="finding-title-group">
+            <div class="finding-name">Email Authentication (SPF/DKIM/DMARC)</div>
+            <div class="finding-badges">
+                <span class="badge badge-category">Exchange</span>
+                <span class="badge badge-status-fail">Fail</span>
+                <span class="badge badge-severity-high">High</span>
+            </div>
+        </div>
+    </div>
+    <div class="finding-body">
+        <div class="finding-section">
+            <div class="finding-label">Finding</div>
+            <div class="finding-content">DMARC not enforced for domain contoso.com<br><br><strong>Domain Email Authentication Details:</strong><br><table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'><tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>Domain</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>SPF</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>DKIM</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>DMARC</td></tr><tr><td style='padding: 8px; border: 1px solid var(--gray-300);'><code>contoso.com</code></td><td style='padding: 8px; border: 1px solid var(--gray-300);'><span style='display:inline-block;width:10px;height:10px;border-radius:50%;background:#8a8886;'></span> Configured</td><td style='padding: 8px; border: 1px solid var(--gray-300);'><span style='display:inline-block;width:10px;height:10px;border-radius:50%;background:#107c10;'></span> Enabled</td><td style='padding: 8px; border: 1px solid var(--gray-300);'><span style='display:inline-block;width:10px;height:10px;border-radius:50%;background:#8a8886;'></span> Not Enforced</td></tr></table></div>
+        </div>
+        <div class="finding-section">
+            <div class="finding-label">Recommendation</div>
+            <div class="finding-content">Enforce DMARC policy for domain protection</div>
+        </div>
+        <div class="finding-section">
+            <a href="https://learn.microsoft.com/en-us/microsoft-365/security/office-365-security/email-authentication-about" target="_blank" class="doc-link">
+                <span>📘</span>
+                <span>View Documentation</span>
+            </a>
+        </div>
+    </div>
+</div>
+<div class="finding-card" data-status="warning">
+    <div class="finding-header">
+        <div class="finding-title-group">
+            <div class="finding-name">Mailbox Auditing</div>
+            <div class="finding-badges">
+                <span class="badge badge-category">Exchange</span>
+                <span class="badge badge-status-warning">Warning</span>
+                <span class="badge badge-severity-medium">Medium</span>
+            </div>
+        </div>
+    </div>
+    <div class="finding-body">
+        <div class="finding-section">
+            <div class="finding-label">Finding</div>
+            <div class="finding-content">Mailbox auditing is not enabled for all mailboxes; 12 non-compliant<br><br><strong>Non-Compliant Mailboxes (1):</strong><br><table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'><tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>Item</td></tr><tr><td style='padding: 8px; border: 1px solid var(--gray-300);'><code></code> - Unaudited User</td></tr></table></div>
+        </div>
+        <div class="finding-section">
+            <div class="finding-label">Recommendation</div>
+            <div class="finding-content">Enable mailbox auditing for all mailboxes</div>
+        </div>
+        <div class="finding-section">
+            <a href="https://learn.microsoft.com/en-us/microsoft-365/compliance/enable-mailbox-auditing" target="_blank" class="doc-link">
+                <span>📘</span>
+                <span>View Documentation</span>
+            </a>
+        </div>
+    </div>
+</div>
+<div class="finding-card" data-status="fail">
+    <div class="finding-header">
+        <div class="finding-title-group">
+            <div class="finding-name">External Sharing Configuration</div>
+            <div class="finding-badges">
+                <span class="badge badge-category">Security</span>
+                <span class="badge badge-status-fail">Fail</span>
+                <span class="badge badge-severity-high">High</span>
+            </div>
+        </div>
+    </div>
+    <div class="finding-body">
+        <div class="finding-section">
+            <div class="finding-label">Finding</div>
+            <div class="finding-content">External sharing is unrestricted; anyone can share</div>
+        </div>
+        <div class="finding-section">
+            <div class="finding-label">Recommendation</div>
+            <div class="finding-content">Restrict external sharing to approved domains</div>
+        </div>
+        <div class="finding-section">
+            <a href="https://learn.microsoft.com/en-us/sharepoint/external-sharing-overview" target="_blank" class="doc-link">
+                <span>📘</span>
+                <span>View Documentation</span>
+            </a>
+        </div>
+    </div>
+</div>
+
             </div>
         </div>
     </div>
@@ -1375,17 +1808,17 @@
         const statusData = {
             labels: ['Passed', 'Failed', 'Warning', 'Info'],
             datasets: [{
-                data: [{{PASS_COUNT}}, {{FAIL_COUNT}}, {{WARN_COUNT}}, {{INFO_COUNT}}],
+                data: [0, 5, 3, 0],
                 backgroundColor: ['#107c10', '#d13438', '#ff8c00', '#0078d4'],
                 borderWidth: 0
             }]
         };
         
         const severityData = {
-            labels: {{SEVERITY_LABELS}},
+            labels: ['Critical', 'High', 'Medium'],
             datasets: [{
                 label: 'Findings',
-                data: {{SEVERITY_COUNTS}},
+                data: [1, 5, 2],
                 backgroundColor: ['#d13438', '#ff8c00', '#ffd700', '#90ee90', '#e1f5fe'],
                 borderWidth: 0
             }]
@@ -1459,3 +1892,4 @@
     </script>
 </body>
 </html>
+

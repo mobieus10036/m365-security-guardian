@@ -592,6 +592,14 @@ function Export-Results {
             Export-CISComplianceReport -ComplianceSummary $script:CISCompliance -OutputPath $basePath -Format @('JSON', 'CSV')
             Write-Info "  → $($script:CISCompliance.TotalControls) CIS controls assessed"
         }
+        
+        # Export Attack Chain analysis
+        if ($script:AttackChains) {
+            $attackChainPath = "${basePath}_AttackChains.json"
+            $script:AttackChains | ConvertTo-Json -Depth 10 | Out-File -FilePath $attackChainPath -Encoding UTF8
+            Write-Success "Attack Chains JSON: $attackChainPath"
+            Write-Info "  → $($script:AttackChains.EnabledChainCount) attack chains enabled"
+        }
     }
 
     # HTML Export
@@ -604,6 +612,7 @@ function Export-Results {
             -TenantInfo $script:TenantInfo `
             -SecurityScore $script:SecurityScore `
             -BaselineComparison $script:BaselineComparison `
+            -AttackChains $script:AttackChains `
             -TemplatePath $templatePath
         
         Write-Success "HTML report: $htmlPath"
@@ -750,6 +759,50 @@ function Invoke-CISCompliance {
     }
     else {
         Write-Info "CIS compliance module not found. Skipping benchmark mapping."
+    }
+}
+
+function Invoke-AttackChainAnalysis {
+    Write-Step "Analyzing attack chains and exploitation paths..."
+    
+    $attackChainModulePath = Join-Path $PSScriptRoot "modules\Core\Get-AttackChains.ps1"
+    
+    if (Test-Path $attackChainModulePath) {
+        try {
+            . $attackChainModulePath
+            
+            $attackChainConfigPath = Join-Path $PSScriptRoot "config\attack-chains.json"
+            
+            $script:AttackChains = Get-AttackChains `
+                -AssessmentResults $script:AssessmentResults `
+                -CISCompliance $script:CISCompliance `
+                -ConfigPath $attackChainConfigPath
+            
+            if ($script:AttackChains) {
+                # Display attack chain summary in console
+                $displayChains = if ($null -ne $script:Config.AttackChains.DisplayInConsole) {
+                    $script:Config.AttackChains.DisplayInConsole
+                } else { $true }
+                
+                if ($displayChains -and $script:AttackChains.EnabledChainCount -gt 0) {
+                    $chainDisplay = Format-AttackChainConsole -AttackChainResults $script:AttackChains
+                    Write-Information $chainDisplay -InformationAction Continue
+                }
+                
+                $criticalMsg = if ($script:AttackChains.CriticalChains -gt 0) {
+                    " ($($script:AttackChains.CriticalChains) CRITICAL)"
+                } else { "" }
+                
+                Write-Success "Attack Chain Analysis: $($script:AttackChains.EnabledChainCount) of $($script:AttackChains.TotalChainsAnalyzed) chains enabled$criticalMsg"
+            }
+        }
+        catch {
+            Write-Warning "Could not complete attack chain analysis: $_"
+            Write-Verbose $_.ScriptStackTrace
+        }
+    }
+    else {
+        Write-Info "Attack chain module not found. Skipping threat analysis."
     }
 }
 
@@ -935,6 +988,7 @@ try {
     Invoke-AssessmentModules
     Invoke-SecurityScoring
     Invoke-CISCompliance
+    Invoke-AttackChainAnalysis
     Invoke-BaselineComparison
     Export-Results
     Show-Summary
