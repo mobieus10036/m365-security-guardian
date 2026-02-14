@@ -1,9 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
-<testsuites xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="junit_schema_4.xsd" name="Pester" tests="51" errors="0" failures="0" disabled="0" time="3.286">
-  <testsuite name="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" tests="19" errors="0" failures="0" hostname="HELIOS-1" id="0" skipped="0" disabled="0" package="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" time="1.160">
+<testsuites xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="junit_schema_4.xsd" name="Pester" tests="51" errors="0" failures="0" disabled="0" time="4.725">
+  <testsuite name="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" tests="19" errors="0" failures="0" hostname="HELIOS-1" id="0" skipped="0" disabled="0" package="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" time="2.031">
     <properties>
-      <property name="machine-name" value="HELIOS-1" />
-      <property name="os-version" value="10.0.26200" />
       <property name="junit-version" value="4" />
       <property name="user-domain" value="MOBIEUS" />
       <property name="platform" value="Microsoft Windows 11 Business|C:\WINDOWS|\Device\Harddisk0\Partition3" />
@@ -11,31 +9,31 @@
       <property name="cwd" value="E:\development\m365-security-guardian" />
       <property name="framework-version" value="5.7.1" />
       <property name="user" value="wchomak" />
+      <property name="os-version" value="10.0.26200" />
+      <property name="machine-name" value="HELIOS-1" />
     </properties>
-    <testcase name="Get-TenantSecurityScore.Grade boundaries.Returns grade A for score &gt;= 90" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.174" />
-    <testcase name="Get-TenantSecurityScore.Grade boundaries.Returns grade F when all checks fail with Critical severity" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.011" />
-    <testcase name="Get-TenantSecurityScore.Output shape.Returns all required score properties" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.013" />
-    <testcase name="Get-TenantSecurityScore.Output shape.Summary counts match input results" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.014" />
-    <testcase name="Get-TenantSecurityScore.Category mapping.Maps checks to correct categories" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.012" />
-    <testcase name="Get-TenantSecurityScore.Priority identification.Identifies failed checks as top priorities" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.021" />
-    <testcase name="Get-TenantSecurityScore.Priority identification.Identifies warnings with medium/low severity as quick wins" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.008" />
-    <testcase name="Get-TenantSecurityScore.Info status handling.Treats Info status as neutral (does not penalize score)" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.009" />
-    <testcase name="Get-TenantSecurityScore.Status-based scoring (no severity adjustment).Failed critical checks earn 0 points (not 25%)" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.011" />
-    <testcase name="Get-TenantSecurityScore.Status-based scoring (no severity adjustment).Warning checks earn exactly 50% of weight" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.010" />
-    <testcase name="Get-TenantSecurityScore.Status-based scoring (no severity adjustment).Mixed 50% fail / 50% pass results in ~50% score" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.029" />
-    <testcase name="Get-TenantSecurityScore.Status-based scoring (no severity adjustment).Severity does NOT inflate failed check scores" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.019" />
-    <testcase name="Get-TenantSecurityScore.Status-based scoring (no severity adjustment).All-fail tenant scores 0-10% (not 25-75%)" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.012" />
-    <testcase name="Get-TenantSecurityScore.Configuration externalization - weights.Uses custom weights from config over defaults" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.013" />
-    <testcase name="Get-TenantSecurityScore.Configuration externalization - weights.Falls back to defaults when config is null" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.011" />
-    <testcase name="Get-TenantSecurityScore.Configuration externalization - status scores.Uses custom status scores from config" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.012" />
-    <testcase name="Get-TenantSecurityScore.Configuration externalization - status scores.Falls back to default status scores when missing from config" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.014" />
-    <testcase name="Get-TenantSecurityScore.Configuration externalization - category mapping.Uses custom check-to-category mappings from config" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.009" />
-    <testcase name="Get-TenantSecurityScore.Configuration externalization - category mapping.Falls back to default category mapping when missing" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.009" />
+    <testcase name="Get-TenantSecurityScore.Grade boundaries.Returns grade A for score &gt;= 90" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.325" />
+    <testcase name="Get-TenantSecurityScore.Grade boundaries.Returns grade F when all checks fail with Critical severity" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.022" />
+    <testcase name="Get-TenantSecurityScore.Output shape.Returns all required score properties" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.026" />
+    <testcase name="Get-TenantSecurityScore.Output shape.Summary counts match input results" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.026" />
+    <testcase name="Get-TenantSecurityScore.Category mapping.Maps checks to correct categories" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.051" />
+    <testcase name="Get-TenantSecurityScore.Priority identification.Identifies failed checks as top priorities" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.030" />
+    <testcase name="Get-TenantSecurityScore.Priority identification.Identifies warnings with medium/low severity as quick wins" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.018" />
+    <testcase name="Get-TenantSecurityScore.Info status handling.Treats Info status as neutral (does not penalize score)" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.019" />
+    <testcase name="Get-TenantSecurityScore.Status-based scoring (no severity adjustment).Failed critical checks earn 0 points (not 25%)" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.022" />
+    <testcase name="Get-TenantSecurityScore.Status-based scoring (no severity adjustment).Warning checks earn exactly 50% of weight" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.020" />
+    <testcase name="Get-TenantSecurityScore.Status-based scoring (no severity adjustment).Mixed 50% fail / 50% pass results in ~50% score" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.034" />
+    <testcase name="Get-TenantSecurityScore.Status-based scoring (no severity adjustment).Severity does NOT inflate failed check scores" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.042" />
+    <testcase name="Get-TenantSecurityScore.Status-based scoring (no severity adjustment).All-fail tenant scores 0-10% (not 25-75%)" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.019" />
+    <testcase name="Get-TenantSecurityScore.Configuration externalization - weights.Uses custom weights from config over defaults" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.023" />
+    <testcase name="Get-TenantSecurityScore.Configuration externalization - weights.Falls back to defaults when config is null" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.021" />
+    <testcase name="Get-TenantSecurityScore.Configuration externalization - status scores.Uses custom status scores from config" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.024" />
+    <testcase name="Get-TenantSecurityScore.Configuration externalization - status scores.Falls back to default status scores when missing from config" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.025" />
+    <testcase name="Get-TenantSecurityScore.Configuration externalization - category mapping.Uses custom check-to-category mappings from config" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.022" />
+    <testcase name="Get-TenantSecurityScore.Configuration externalization - category mapping.Falls back to default category mapping when missing" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Get-TenantSecurityScore.Tests.ps1" assertions="0" time="0.019" />
   </testsuite>
-  <testsuite name="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" tests="21" errors="0" failures="0" hostname="HELIOS-1" id="1" skipped="0" disabled="0" package="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" time="0.221">
+  <testsuite name="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" tests="21" errors="0" failures="0" hostname="HELIOS-1" id="1" skipped="0" disabled="0" package="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" time="0.574">
     <properties>
-      <property name="machine-name" value="HELIOS-1" />
-      <property name="os-version" value="10.0.26200" />
       <property name="junit-version" value="4" />
       <property name="user-domain" value="MOBIEUS" />
       <property name="platform" value="Microsoft Windows 11 Business|C:\WINDOWS|\Device\Harddisk0\Partition3" />
@@ -43,33 +41,33 @@
       <property name="cwd" value="E:\development\m365-security-guardian" />
       <property name="framework-version" value="5.7.1" />
       <property name="user" value="wchomak" />
+      <property name="os-version" value="10.0.26200" />
+      <property name="machine-name" value="HELIOS-1" />
     </properties>
-    <testcase name="Validate-AssessmentResult.Valid assessment results.Accepts a completely valid result" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.013" />
-    <testcase name="Validate-AssessmentResult.Valid assessment results.Accepts all valid Status values" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.005" />
-    <testcase name="Validate-AssessmentResult.Valid assessment results.Accepts all valid Severity values" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.007" />
-    <testcase name="Validate-AssessmentResult.Valid assessment results.Accepts all valid Category values" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.005" />
-    <testcase name="Validate-AssessmentResult.Valid assessment results.Accepts empty RemediationSteps array" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.004" />
-    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects result missing CheckName property" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.005" />
-    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects result with null CheckName" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.004" />
-    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects result with empty CheckName" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.004" />
-    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects invalid Status value" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.005" />
-    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects invalid Severity value" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.004" />
-    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects invalid Category value" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.004" />
-    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects result with null Message" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.004" />
-    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects result with null Recommendation" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.004" />
-    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects result with null DocumentationUrl" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.012" />
-    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects result with null Details" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.005" />
-    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects result with non-array RemediationSteps" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.005" />
-    <testcase name="Validate-AssessmentResult.Strict mode.Throws on schema violation in strict mode" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.022" />
-    <testcase name="Validate-AssessmentResult.Strict mode.Returns false on violation in non-strict mode" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.004" />
-    <testcase name="Validate-AssessmentResult.Assert-AssessmentResult pipeline.Passes valid result through pipeline" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.006" />
-    <testcase name="Validate-AssessmentResult.Assert-AssessmentResult pipeline.Throws on invalid result in pipeline" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.006" />
-    <testcase name="Validate-AssessmentResult.Schema contract documentation.Returns schema documentation string" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.007" />
+    <testcase name="Validate-AssessmentResult.Valid assessment results.Accepts a completely valid result" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.023" />
+    <testcase name="Validate-AssessmentResult.Valid assessment results.Accepts all valid Status values" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.016" />
+    <testcase name="Validate-AssessmentResult.Valid assessment results.Accepts all valid Severity values" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.018" />
+    <testcase name="Validate-AssessmentResult.Valid assessment results.Accepts all valid Category values" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.015" />
+    <testcase name="Validate-AssessmentResult.Valid assessment results.Accepts empty RemediationSteps array" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.014" />
+    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects result missing CheckName property" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.016" />
+    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects result with null CheckName" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.016" />
+    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects result with empty CheckName" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.014" />
+    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects invalid Status value" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.014" />
+    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects invalid Severity value" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.013" />
+    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects invalid Category value" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.015" />
+    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects result with null Message" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.015" />
+    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects result with null Recommendation" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.016" />
+    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects result with null DocumentationUrl" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.016" />
+    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects result with null Details" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.018" />
+    <testcase name="Validate-AssessmentResult.Invalid result violations.Rejects result with non-array RemediationSteps" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.017" />
+    <testcase name="Validate-AssessmentResult.Strict mode.Throws on schema violation in strict mode" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.044" />
+    <testcase name="Validate-AssessmentResult.Strict mode.Returns false on violation in non-strict mode" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.017" />
+    <testcase name="Validate-AssessmentResult.Assert-AssessmentResult pipeline.Passes valid result through pipeline" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.016" />
+    <testcase name="Validate-AssessmentResult.Assert-AssessmentResult pipeline.Throws on invalid result in pipeline" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.023" />
+    <testcase name="Validate-AssessmentResult.Schema contract documentation.Returns schema documentation string" status="Passed" classname="E:\development\m365-security-guardian\tests\Core\Validate-AssessmentResult.Tests.ps1" assertions="0" time="0.017" />
   </testsuite>
-  <testsuite name="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" tests="11" errors="0" failures="0" hostname="HELIOS-1" id="2" skipped="0" disabled="0" package="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" time="1.905">
+  <testsuite name="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" tests="11" errors="0" failures="0" hostname="HELIOS-1" id="2" skipped="0" disabled="0" package="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" time="2.120">
     <properties>
-      <property name="machine-name" value="HELIOS-1" />
-      <property name="os-version" value="10.0.26200" />
       <property name="junit-version" value="4" />
       <property name="user-domain" value="MOBIEUS" />
       <property name="platform" value="Microsoft Windows 11 Business|C:\WINDOWS|\Device\Harddisk0\Partition3" />
@@ -77,17 +75,19 @@
       <property name="cwd" value="E:\development\m365-security-guardian" />
       <property name="framework-version" value="5.7.1" />
       <property name="user" value="wchomak" />
+      <property name="os-version" value="10.0.26200" />
+      <property name="machine-name" value="HELIOS-1" />
     </properties>
-    <testcase name="Test-MFAConfiguration.Result contract.Returns an object with all required properties" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="1.360" />
-    <testcase name="Test-MFAConfiguration.Status logic at threshold boundaries.Returns Pass when MFA adoption &gt;= threshold (95%)" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.057" />
-    <testcase name="Test-MFAConfiguration.Status logic at threshold boundaries.Returns Warning when MFA adoption is 75-94%" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.041" />
-    <testcase name="Test-MFAConfiguration.Status logic at threshold boundaries.Returns Fail when MFA adoption &lt; 75%" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.042" />
-    <testcase name="Test-MFAConfiguration.Severity logic.Returns Critical severity when MFA adoption &lt; 50%" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.049" />
-    <testcase name="Test-MFAConfiguration.Severity logic.Returns Low severity when MFA adoption &gt;= 90%" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.052" />
-    <testcase name="Test-MFAConfiguration.UsersWithoutMFA detail property.Populates UsersWithoutMFA with correct user objects" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.041" />
-    <testcase name="Test-MFAConfiguration.Edge cases.Returns Info status when no enabled users exist" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.038" />
-    <testcase name="Test-MFAConfiguration.Edge cases.Returns Info status on Graph API error (never throws)" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.041" />
-    <testcase name="Test-MFAConfiguration.Edge cases.Uses default threshold when Config is null" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.049" />
-    <testcase name="Test-MFAConfiguration.Edge cases.Respects custom threshold from Config" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.042" />
+    <testcase name="Test-MFAConfiguration.Result contract.Returns an object with all required properties" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="1.359" />
+    <testcase name="Test-MFAConfiguration.Status logic at threshold boundaries.Returns Pass when MFA adoption &gt;= threshold (95%)" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.087" />
+    <testcase name="Test-MFAConfiguration.Status logic at threshold boundaries.Returns Warning when MFA adoption is 75-94%" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.048" />
+    <testcase name="Test-MFAConfiguration.Status logic at threshold boundaries.Returns Fail when MFA adoption &lt; 75%" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.059" />
+    <testcase name="Test-MFAConfiguration.Severity logic.Returns Critical severity when MFA adoption &lt; 50%" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.059" />
+    <testcase name="Test-MFAConfiguration.Severity logic.Returns Low severity when MFA adoption &gt;= 90%" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.054" />
+    <testcase name="Test-MFAConfiguration.UsersWithoutMFA detail property.Populates UsersWithoutMFA with correct user objects" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.049" />
+    <testcase name="Test-MFAConfiguration.Edge cases.Returns Info status when no enabled users exist" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.057" />
+    <testcase name="Test-MFAConfiguration.Edge cases.Returns Info status on Graph API error (never throws)" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.064" />
+    <testcase name="Test-MFAConfiguration.Edge cases.Uses default threshold when Config is null" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.054" />
+    <testcase name="Test-MFAConfiguration.Edge cases.Respects custom threshold from Config" status="Passed" classname="E:\development\m365-security-guardian\tests\Security\Test-MFAConfiguration.Tests.ps1" assertions="0" time="0.050" />
   </testsuite>
 </testsuites>
