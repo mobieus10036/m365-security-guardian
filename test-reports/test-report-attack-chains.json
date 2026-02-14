@@ -1,0 +1,372 @@
+{
+  "AssessmentDate": "2026-02-14 12:47:34",
+  "Findings": [
+    {
+      "CheckName": "MFA Enforcement",
+      "Category": "Security",
+      "Status": "Fail",
+      "Severity": "Critical",
+      "Message": "Only 45% of users have MFA enabled (18/40 users)",
+      "Details": {
+        "TotalUsers": 40,
+        "EnabledUsers": 18,
+        "MfaPercentage": 45
+      },
+      "Recommendation": "Enable MFA for all users immediately",
+      "DocumentationUrl": "https://learn.microsoft.com/en-us/entra/identity/authentication/concept-mfa-howitworks",
+      "RemediationSteps": [
+        "1. Go to Azure AD",
+        "2. Enable MFA",
+        "3. Enforce MFA"
+      ],
+      "UsersWithoutMFA": [
+        {
+          "UserPrincipalName": "user1@contoso.com",
+          "DisplayName": "User One"
+        },
+        {
+          "UserPrincipalName": "user2@contoso.com",
+          "DisplayName": "User Two"
+        }
+      ]
+    },
+    {
+      "CheckName": "Privileged Account Security",
+      "Category": "Security",
+      "Status": "Warning",
+      "Severity": "High",
+      "Message": "8 global administrators found; recommend limiting count to 2-3",
+      "Details": {
+        "GlobalAdminCount": 8,
+        "RecommendedCount": 3
+      },
+      "Recommendation": "Reduce global admin count and use Privileged Identity Management",
+      "DocumentationUrl": "https://learn.microsoft.com/en-us/entra/identity/role-based-access-control/best-practices",
+      "RemediationSteps": [
+        "1. Review admins",
+        "2. Enable PIM",
+        "3. Reduce admins"
+      ],
+      "PrivilegedAccounts": [
+        {
+          "DisplayName": "Admin One",
+          "RiskLevel": "High",
+          "UserPrincipalName": "admin1@contoso.com"
+        }
+      ]
+    },
+    {
+      "CheckName": "Legacy Authentication",
+      "Category": "Security",
+      "Status": "Fail",
+      "Severity": "High",
+      "Message": "Legacy authentication not blocked; 8 sign-ins detected",
+      "Details": {
+        "LegacySignIns": 8,
+        "Blocked": false
+      },
+      "Recommendation": "Block legacy authentication immediately",
+      "DocumentationUrl": "https://learn.microsoft.com/en-us/entra/identity/conditional-access/block-legacy-authentication",
+      "RemediationSteps": [
+        "1. Enable CA policy",
+        "2. Block legacy auth",
+        "3. Test clients"
+      ]
+    },
+    {
+      "CheckName": "Conditional Access Policies",
+      "Category": "Security",
+      "Status": "Warning",
+      "Severity": "High",
+      "Message": "Only 3 of 5 recommended CA policies enabled",
+      "Details": {
+        "RecommendedCount": 5,
+        "EnabledCount": 3
+      },
+      "Recommendation": "Enable additional CA policies for better coverage",
+      "DocumentationUrl": "https://learn.microsoft.com/en-us/entra/identity/conditional-access/overview",
+      "RemediationSteps": [
+        "1. Review policies",
+        "2. Create missing",
+        "3. Test thoroughly"
+      ],
+      "EnabledPolicies": [
+        {
+          "State": "Enabled",
+          "DisplayName": "Require MFA for admin"
+        }
+      ]
+    },
+    {
+      "CheckName": "Application Permissions Audit",
+      "Category": "Security",
+      "Status": "Fail",
+      "Severity": "Medium",
+      "Message": "User consent for apps is enabled; 15 risky apps detected",
+      "Details": {
+        "RiskyAppsCount": 15,
+        "UserConsentEnabled": true
+      },
+      "Recommendation": "Disable user consent and audit high-privilege apps",
+      "DocumentationUrl": "https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/configure-user-consent",
+      "RemediationSteps": [
+        "1. Disable user consent",
+        "2. Review apps",
+        "3. Remove risky apps"
+      ],
+      "RiskyApps": [
+        {
+          "AppId": "xyz123",
+          "DisplayName": "Suspicious App"
+        }
+      ]
+    },
+    {
+      "CheckName": "Email Authentication (SPF/DKIM/DMARC)",
+      "Category": "Exchange",
+      "Status": "Fail",
+      "Severity": "High",
+      "Message": "DMARC not enforced for domain contoso.com",
+      "Details": {
+        "DMARCEnforced": false,
+        "Domain": "contoso.com",
+        "SPFConfigured": true,
+        "DKIMEnabled": true
+      },
+      "Recommendation": "Enforce DMARC policy for domain protection",
+      "DocumentationUrl": "https://learn.microsoft.com/en-us/microsoft-365/security/office-365-security/email-authentication-about",
+      "RemediationSteps": [
+        "1. Create DMARC record",
+        "2. Set policy to enforce",
+        "3. Monitor reports"
+      ],
+      "DomainDetails": [
+        {
+          "DKIM": "Enabled",
+          "DMARC": "Not Enforced",
+          "Domain": "contoso.com",
+          "SPF": "Configured"
+        }
+      ]
+    },
+    {
+      "CheckName": "Mailbox Auditing",
+      "Category": "Exchange",
+      "Status": "Warning",
+      "Severity": "Medium",
+      "Message": "Mailbox auditing is not enabled for all mailboxes; 12 non-compliant",
+      "Details": {
+        "TotalMailboxes": 50,
+        "AuditedMailboxes": 38,
+        "NonCompliant": 12
+      },
+      "Recommendation": "Enable mailbox auditing for all mailboxes",
+      "DocumentationUrl": "https://learn.microsoft.com/en-us/microsoft-365/compliance/enable-mailbox-auditing",
+      "RemediationSteps": [
+        "1. Enable auditing",
+        "2. Monitor logs",
+        "3. Retain records"
+      ],
+      "NonCompliantMailboxes": [
+        {
+          "DisplayName": "Unaudited User",
+          "PrimarySmtpAddress": "user5@contoso.com"
+        }
+      ]
+    },
+    {
+      "CheckName": "External Sharing Configuration",
+      "Category": "Security",
+      "Status": "Fail",
+      "Severity": "High",
+      "Message": "External sharing is unrestricted; anyone can share",
+      "Details": {
+        "SharingRestricted": false,
+        "GuestAccessLimited": false
+      },
+      "Recommendation": "Restrict external sharing to approved domains",
+      "DocumentationUrl": "https://learn.microsoft.com/en-us/sharepoint/external-sharing-overview",
+      "RemediationSteps": [
+        "1. Enable restrictions",
+        "2. Set approved domains",
+        "3. Monitor sharing"
+      ]
+    }
+  ],
+  "TenantName": "Contoso.onmicrosoft.com",
+  "TenantId": null,
+  "SecurityScore": {
+    "CategoryBreakdown": [
+      {
+        "Category": "Email Security",
+        "Score": 16.7,
+        "Grade": "F",
+        "ChecksEvaluated": 2,
+        "PassedChecks": 0,
+        "FailedChecks": 1,
+        "Details": [
+          {
+            "CheckName": "Email Authentication (SPF/DKIM/DMARC)",
+            "Status": "Fail",
+            "Severity": "High",
+            "Score": 0.0
+          },
+          {
+            "CheckName": "Mailbox Auditing",
+            "Status": "Warning",
+            "Severity": "Medium",
+            "Score": 50.0
+          }
+        ]
+      },
+      {
+        "Category": "Application Security",
+        "Score": 100,
+        "Grade": "A",
+        "ChecksEvaluated": 0,
+        "PassedChecks": 0,
+        "FailedChecks": 0,
+        "Details": []
+      },
+      {
+        "Category": "Identity & Access",
+        "Score": 18.5,
+        "Grade": "F",
+        "ChecksEvaluated": 3,
+        "PassedChecks": 0,
+        "FailedChecks": 2,
+        "Details": [
+          {
+            "CheckName": "MFA Enforcement",
+            "Status": "Fail",
+            "Severity": "Critical",
+            "Score": 0.0
+          },
+          {
+            "CheckName": "Privileged Account Security",
+            "Status": "Warning",
+            "Severity": "High",
+            "Score": 50.0
+          },
+          {
+            "CheckName": "Legacy Authentication",
+            "Status": "Fail",
+            "Severity": "High",
+            "Score": 0.0
+          }
+        ]
+      },
+      {
+        "Category": "Governance",
+        "Score": 0.0,
+        "Grade": "F",
+        "ChecksEvaluated": 1,
+        "PassedChecks": 0,
+        "FailedChecks": 1,
+        "Details": [
+          {
+            "CheckName": "Application Permissions Audit",
+            "Status": "Fail",
+            "Severity": "Medium",
+            "Score": 0.0
+          }
+        ]
+      },
+      {
+        "Category": "Conditional Access",
+        "Score": 30.0,
+        "Grade": "F",
+        "ChecksEvaluated": 2,
+        "PassedChecks": 0,
+        "FailedChecks": 1,
+        "Details": [
+          {
+            "CheckName": "Conditional Access Policies",
+            "Status": "Warning",
+            "Severity": "High",
+            "Score": 50.0
+          },
+          {
+            "CheckName": "External Sharing Configuration",
+            "Status": "Fail",
+            "Severity": "High",
+            "Score": 0.0
+          }
+        ]
+      }
+    ],
+    "TopPriorities": [
+      {
+        "CheckName": "MFA Enforcement",
+        "Category": "Identity & Access",
+        "Severity": "Critical",
+        "ImpactScore": 12.0,
+        "Message": "Only 45% of users have MFA enabled (18/40 users)",
+        "Recommendation": "Enable MFA for all users immediately",
+        "DocumentationUrl": "https://learn.microsoft.com/en-us/entra/identity/authentication/concept-mfa-howitworks",
+        "PotentialGain": 12.0
+      },
+      {
+        "CheckName": "External Sharing Configuration",
+        "Category": "Conditional Access",
+        "Severity": "High",
+        "ImpactScore": 7.5,
+        "Message": "External sharing is unrestricted; anyone can share",
+        "Recommendation": "Restrict external sharing to approved domains",
+        "DocumentationUrl": "https://learn.microsoft.com/en-us/sharepoint/external-sharing-overview",
+        "PotentialGain": 7.5
+      },
+      {
+        "CheckName": "Email Authentication (SPF/DKIM/DMARC)",
+        "Category": "Email Security",
+        "Severity": "High",
+        "ImpactScore": 6.0,
+        "Message": "DMARC not enforced for domain contoso.com",
+        "Recommendation": "Enforce DMARC policy for domain protection",
+        "DocumentationUrl": "https://learn.microsoft.com/en-us/microsoft-365/security/office-365-security/email-authentication-about",
+        "PotentialGain": 6.0
+      },
+      {
+        "CheckName": "Legacy Authentication",
+        "Category": "Identity & Access",
+        "Severity": "High",
+        "ImpactScore": 3.75,
+        "Message": "Legacy authentication not blocked; 8 sign-ins detected",
+        "Recommendation": "Block legacy authentication immediately",
+        "DocumentationUrl": "https://learn.microsoft.com/en-us/entra/identity/conditional-access/block-legacy-authentication",
+        "PotentialGain": 3.8
+      },
+      {
+        "CheckName": "Application Permissions Audit",
+        "Category": "Governance",
+        "Severity": "Medium",
+        "ImpactScore": 2.5,
+        "Message": "User consent for apps is enabled; 15 risky apps detected",
+        "Recommendation": "Disable user consent and audit high-privilege apps",
+        "DocumentationUrl": "https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/configure-user-consent",
+        "PotentialGain": 2.5
+      }
+    ],
+    "OverallScore": 21.0,
+    "LetterGrade": "F",
+    "PotentialScore": 53,
+    "QuickWins": {
+      "CheckName": "Mailbox Auditing",
+      "Category": "Email Security",
+      "Severity": "Medium",
+      "Message": "Mailbox auditing is not enabled for all mailboxes; 12 non-compliant",
+      "Recommendation": "Enable mailbox auditing for all mailboxes",
+      "EffortLevel": "Low",
+      "PotentialGain": 2.0
+    },
+    "Summary": {
+      "PassedChecks": 0,
+      "CriticalFindings": 1,
+      "TotalChecks": 8,
+      "HighFindings": 5,
+      "WarningChecks": 3,
+      "FailedChecks": 5
+    },
+    "GradeDescription": "Critical - Immediate action required to secure tenant"
+  }
+}

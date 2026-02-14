@@ -49,7 +49,7 @@ function Initialize-CISBenchmark {
     )
     
     if (-not $ConfigPath) {
-        $ConfigPath = Join-Path $PSScriptRoot "..\config\cis-benchmark-mapping.json"
+        $ConfigPath = Join-Path $PSScriptRoot "..\..\config\cis-benchmark-mapping.json"
     }
     
     if (-not (Test-Path $ConfigPath)) {
