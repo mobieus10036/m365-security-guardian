@@ -132,24 +132,15 @@ function Get-TenantSecurityScore {
         $weight = if ($weights.ContainsKey($checkName)) { $weights[$checkName] } else { 5 }
         $category = if ($checkCategoryMap.ContainsKey($checkName)) { $checkCategoryMap[$checkName] } else { "Governance" }
         
-        # Get status score
+        # Get status score (Pass=1.0, Warning=0.5, Fail=0.0, Info=1.0)
         $statusScore = if ($statusScores.ContainsKey($result.Status)) { 
             $statusScores[$result.Status] 
-        } else { 0.5 }
+        } else { 0.0 }
 
-        # Calculate points
+        # Calculate earned points based strictly on status
+        # Pass checks: full weight | Warning: 50% weight | Fail: 0% weight | Info: neutral (1.0)
         $possiblePoints = $weight
         $earnedPoints = $weight * $statusScore
-
-        # Apply severity adjustment for failed/warning items
-        if ($result.Status -in @('Fail', 'Warning')) {
-            $severityMult = if ($severityMultipliers.ContainsKey($result.Severity)) {
-                $severityMultipliers[$result.Severity]
-            } else { 0.5 }
-            
-            # Higher severity = lower earned points
-            $earnedPoints = $weight * (1 - $severityMult) * (1 - $statusScore)
-        }
 
         $totalEarned += $earnedPoints
         $totalPossible += $possiblePoints
