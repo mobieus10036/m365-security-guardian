@@ -231,4 +231,109 @@ Describe 'Get-TenantSecurityScore' {
             $score.LetterGrade | Should -Be 'F'
         }
     }
+
+    Context 'Configuration externalization - weights' {
+        It 'Uses custom weights from config over defaults' {
+            $customConfig = New-MockConfig
+            # Override MFA weight to 50 (normally 12) - should significantly boost score
+            $customConfig.Scoring.RiskWeights.'MFA Enforcement' = 50
+
+            $results = @(
+                New-MockAssessmentResult -CheckName 'MFA Enforcement' -Status 'Pass' -Severity 'Critical'
+                New-MockAssessmentResult -CheckName 'License Optimization' -Status 'Fail' -Severity 'Low'
+            )
+
+            $scoreWithCustom = Get-TenantSecurityScore -AssessmentResults $results -Config $customConfig
+
+            $defaultConfig = New-MockConfig
+            $scoreWithDefault = Get-TenantSecurityScore -AssessmentResults $results -Config $defaultConfig
+
+            # Custom weight should produce higher score since MFA pass is weighted higher
+            $scoreWithCustom.OverallScore | Should -BeGreaterThan $scoreWithDefault.OverallScore
+        }
+
+        It 'Falls back to defaults when config is null' {
+            $results = @(
+                New-MockAssessmentResult -CheckName 'MFA Enforcement' -Status 'Pass' -Severity 'Critical'
+                New-MockAssessmentResult -CheckName 'License Optimization' -Status 'Fail' -Severity 'Low'
+            )
+
+            $scoreWithNull = Get-TenantSecurityScore -AssessmentResults $results -Config $null
+            $scoreWithDefault = Get-TenantSecurityScore -AssessmentResults $results -Config (New-MockConfig)
+
+            # Should produce identical results when using defaults
+            $scoreWithNull.OverallScore | Should -BeExactly $scoreWithDefault.OverallScore
+        }
+    }
+
+    Context 'Configuration externalization - status scores' {
+        It 'Uses custom status scores from config' {
+            $customConfig = New-MockConfig
+            # Make Warning worth 0.75 instead of 0.5 (should boost warnings)
+            $customConfig.Scoring.StatusScores.Warning = 0.75
+
+            $results = @(
+                New-MockAssessmentResult -CheckName 'MFA Enforcement' -Status 'Warning' -Severity 'High'
+            )
+
+            $scoreCustom = Get-TenantSecurityScore -AssessmentResults $results -Config $customConfig
+            $scoreDefault = Get-TenantSecurityScore -AssessmentResults $results -Config (New-MockConfig)
+
+            # Custom status score should produce higher score
+            $scoreCustom.OverallScore | Should -BeGreaterThan $scoreDefault.OverallScore
+        }
+
+        It 'Falls back to default status scores when missing from config' {
+            $sparsConfig = New-MockConfig
+            $sparsConfig.Scoring.PSObject.Properties.Remove('StatusScores')
+
+            $results = @(
+                New-MockAssessmentResult -CheckName 'MFA Enforcement' -Status 'Pass' -Severity 'Critical'
+                New-MockAssessmentResult -CheckName 'License Optimization' -Status 'Warning' -Severity 'Low'
+            )
+
+            $sparseScore = Get-TenantSecurityScore -AssessmentResults $results -Config $sparsConfig
+            $defaultScore = Get-TenantSecurityScore -AssessmentResults $results -Config (New-MockConfig)
+
+            # Should fall back to defaults and produce same score
+            $sparseScore.OverallScore | Should -BeExactly $defaultScore.OverallScore
+        }
+    }
+
+    Context 'Configuration externalization - category mapping' {
+        It 'Uses custom check-to-category mappings from config' {
+            $customConfig = New-MockConfig
+            # Remap License Optimization from Governance to Identity & Access
+            $customConfig.Scoring.CheckCategoryMap.'License Optimization' = 'Identity & Access'
+
+            $results = @(
+                New-MockAssessmentResult -CheckName 'License Optimization' -Status 'Pass' -Severity 'Low'
+            )
+
+            $score = Get-TenantSecurityScore -AssessmentResults $results -Config $customConfig
+
+            # Check should now be in Identity & Access category, not Governance
+            $identityCat = $score.CategoryBreakdown | Where-Object { $_.Category -eq 'Identity & Access' }
+            $govCat     = $score.CategoryBreakdown | Where-Object { $_.Category -eq 'Governance' }
+
+            $identityCat.ChecksEvaluated | Should -Be 1
+            $govCat.ChecksEvaluated     | Should -Be 0
+        }
+
+        It 'Falls back to default category mapping when missing' {
+            $sparseConfig = New-MockConfig
+            $sparseConfig.Scoring.PSObject.Properties.Remove('CheckCategoryMap')
+
+            $results = @(
+                New-MockAssessmentResult -CheckName 'License Optimization' -Status 'Pass' -Severity 'Low'
+            )
+
+            $score = Get-TenantSecurityScore -AssessmentResults $results -Config $sparseConfig
+
+            # Should still correctly categorize as Governance (default)
+            $govCat = $score.CategoryBreakdown | Where-Object { $_.Category -eq 'Governance' }
+            $govCat.ChecksEvaluated | Should -Be 1
+        }
+    }
 }
+

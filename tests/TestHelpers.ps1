@@ -157,6 +157,54 @@ function New-MockConfig {
                 'Email Authentication (SPF/DKIM/DMARC)' = 8
                 'License Optimization'                = 5
             }
+            StatusScores = [PSCustomObject]@{
+                'Pass'    = 1.0
+                'Warning' = 0.5
+                'Fail'    = 0.0
+                'Info'    = 1.0
+            }
+            SeverityMultipliers = [PSCustomObject]@{
+                'Critical' = 1.0
+                'High'     = 0.75
+                'Medium'   = 0.5
+                'Low'      = 0.25
+                'Info'     = 0.0
+            }
+            CheckCategoryMap = [PSCustomObject]@{
+                'MFA Enforcement'                     = 'Identity & Access'
+                'Privileged Account Security'         = 'Identity & Access'
+                'Conditional Access Policies'         = 'Conditional Access'
+                'Email Authentication (SPF/DKIM/DMARC)' = 'Email Security'
+                'License Optimization'                = 'Governance'
+            }
+            CategoryDefinitions = [PSCustomObject]@{
+                'Identity & Access' = [PSCustomObject]@{
+                    Description = 'User authentication, access controls, and privilege management'
+                    Weight      = 35
+                }
+                'Conditional Access' = [PSCustomObject]@{
+                    Description = 'Conditional access policies and external sharing controls'
+                    Weight      = 25
+                }
+                'Application Security' = [PSCustomObject]@{
+                    Description = 'Application permissions, OAuth, and API security'
+                    Weight      = 20
+                }
+                'Email Security' = [PSCustomObject]@{
+                    Description = 'Email authentication, mailbox auditing, and anti-phishing'
+                    Weight      = 15
+                }
+                'Governance' = [PSCustomObject]@{
+                    Description = 'Compliance, licensing, and data governance'
+                    Weight      = 5
+                }
+            }
+            GradeThresholds = [PSCustomObject]@{
+                'A' = 90
+                'B' = 80
+                'C' = 70
+                'D' = 60
+            }
         }
         Exchange = [PSCustomObject]@{
             SPFRecordRequired = $true
