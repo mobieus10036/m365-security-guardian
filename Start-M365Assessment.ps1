@@ -85,7 +85,7 @@
     Project: M365 Security Guardian
     Repository: https://github.com/mobieus10036/m365-security-guardian
     Author: mobieus10036
-    Version: 3.1.2
+    Version: 3.1.3
     Created with assistance from GitHub Copilot
     Requires: PowerShell 7.0+, Microsoft Graph, Exchange Online modules
 #>
@@ -199,6 +199,15 @@ if (Test-Path $retryModulePath) {
     Write-Warning "Graph retry module not found: $retryModulePath"
 }
 
+# Load schema validation module for assessment result enforcement
+$validationModulePath = Join-Path $PSScriptRoot "modules\Core\Validate-AssessmentResult.ps1"
+if (Test-Path $validationModulePath) {
+    . $validationModulePath
+    Write-Verbose "Loaded assessment result schema validation"
+} else {
+    Write-Warning "Schema validation module not found: $validationModulePath"
+}
+
 # Script variables
 $script:StartTime = Get-Date
 $script:AssessmentResults = @()
@@ -215,7 +224,7 @@ function Write-Banner {
 
 ╔══════════════════════════════════════════════════════════════════════╗
 ║                                                                      ║
-║              M365 Security Guardian v3.1.0                           ║
+║              M365 Security Guardian v3.1.3                           ║
 ║                                                                      ║
 ║         Security & Best Practice Assessment for Microsoft 365        ║
 ║                                                                      ║
@@ -456,19 +465,19 @@ function Get-ModulesToRun {
                         }
 
                         $result = & $functionName @scriptParams
-                        
-                        # Validate result object structure
-                        if (-not $result -or -not $result.CheckName) {
-                            Write-Warning "      Module $functionName returned invalid result object"
+
+                        # Validate result object against schema
+                        if (-not (Test-AssessmentResultSchema -Result $result -Strict $false)) {
+                            Write-Warning "      Module $functionName returned result that failed schema validation"
                             $result = [PSCustomObject]@{
                                 CheckName = $functionName
                                 Category = "Security"
                                 Status = "Info"
                                 Severity = "Info"
-                                Message = "Assessment returned incomplete data"
+                                Message = "Assessment module returned invalid schema"
                                 Details = @{}
-                                Recommendation = "Review module implementation"
-                                DocumentationUrl = ""
+                                Recommendation = "Review module implementation and ensure it follows the assessment result contract"
+                                DocumentationUrl = "https://github.com/mobieus10036/m365-security-guardian#assessment-result-schema"
                                 RemediationSteps = @()
                             }
                         }

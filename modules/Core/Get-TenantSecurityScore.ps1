@@ -64,6 +64,39 @@ function Get-TenantSecurityScore {
         "License Optimization" = 5
     }
 
+    # Default status scores
+    $defaultStatusScores = @{
+        "Pass" = 1.0        # Full points
+        "Warning" = 0.5     # Half points
+        "Fail" = 0.0        # No points
+        "Info" = 1.0        # Neutral - full points (informational only)
+    }
+
+    # Default severity multipliers
+    $defaultSeverityMultipliers = @{
+        "Critical" = 1.0    # Full weight deduction
+        "High" = 0.75       # 75% weight deduction
+        "Medium" = 0.5      # 50% weight deduction
+        "Low" = 0.25        # 25% weight deduction
+        "Info" = 0.0        # No deduction
+    }
+
+    # Default check category mappings
+    $defaultCheckCategoryMap = @{
+        "MFA Enforcement" = "Identity & Access"
+        "Privileged Account Security" = "Identity & Access"
+        "Privileged Identity Management (PIM)" = "Identity & Access"
+        "Legacy Authentication" = "Identity & Access"
+        "Conditional Access Policies" = "Conditional Access"
+        "External Sharing Configuration" = "Conditional Access"
+        "Application Permission Audit" = "Application Security"
+        "Microsoft Secure Score" = "Application Security"
+        "Email Authentication (SPF/DKIM/DMARC)" = "Email Security"
+        "Mailbox Auditing" = "Email Security"
+        "Email Security Configuration" = "Email Security"
+        "License Optimization" = "Governance"
+    }
+
     # Use configured weights or defaults (convert PSCustomObject to hashtable if needed)
     $weights = $defaultWeights
     if ($Config -and $Config.Scoring -and $Config.Scoring.RiskWeights) {
@@ -79,21 +112,46 @@ function Get-TenantSecurityScore {
         }
     }
 
-    # Severity multipliers (how much a failure impacts the score)
-    $severityMultipliers = @{
-        "Critical" = 1.0    # Full weight deduction
-        "High" = 0.75       # 75% weight deduction
-        "Medium" = 0.5      # 50% weight deduction
-        "Low" = 0.25        # 25% weight deduction
-        "Info" = 0.0        # No deduction
+    # Use configured status scores or defaults
+    $statusScores = $defaultStatusScores
+    if ($Config -and $Config.Scoring -and $Config.Scoring.StatusScores) {
+        $configStatusScores = $Config.Scoring.StatusScores
+        if ($configStatusScores -is [System.Management.Automation.PSCustomObject]) {
+            $statusScores = @{}
+            $configStatusScores.PSObject.Properties | ForEach-Object {
+                $statusScores[$_.Name] = $_.Value
+            }
+        } elseif ($configStatusScores -is [hashtable]) {
+            $statusScores = $configStatusScores
+        }
     }
 
-    # Status scoring
-    $statusScores = @{
-        "Pass" = 1.0        # Full points
-        "Warning" = 0.5     # Half points
-        "Fail" = 0.0        # No points
-        "Info" = 1.0        # Neutral - full points (informational only)
+    # Use configured severity multipliers or defaults
+    $severityMultipliers = $defaultSeverityMultipliers
+    if ($Config -and $Config.Scoring -and $Config.Scoring.SeverityMultipliers) {
+        $configSeverityMultipliers = $Config.Scoring.SeverityMultipliers
+        if ($configSeverityMultipliers -is [System.Management.Automation.PSCustomObject]) {
+            $severityMultipliers = @{}
+            $configSeverityMultipliers.PSObject.Properties | ForEach-Object {
+                $severityMultipliers[$_.Name] = $_.Value
+            }
+        } elseif ($configSeverityMultipliers -is [hashtable]) {
+            $severityMultipliers = $configSeverityMultipliers
+        }
+    }
+
+    # Use configured check-to-category mappings or defaults
+    $checkCategoryMap = $defaultCheckCategoryMap
+    if ($Config -and $Config.Scoring -and $Config.Scoring.CheckCategoryMap) {
+        $configCheckCategoryMap = $Config.Scoring.CheckCategoryMap
+        if ($configCheckCategoryMap -is [System.Management.Automation.PSCustomObject]) {
+            $checkCategoryMap = @{}
+            $configCheckCategoryMap.PSObject.Properties | ForEach-Object {
+                $checkCategoryMap[$_.Name] = $_.Value
+            }
+        } elseif ($configCheckCategoryMap -is [hashtable]) {
+            $checkCategoryMap = $configCheckCategoryMap
+        }
     }
 
     # Initialize category tracking
@@ -103,22 +161,6 @@ function Get-TenantSecurityScore {
         "Application Security" = @{ Earned = 0; Possible = 0; Checks = @() }
         "Email Security" = @{ Earned = 0; Possible = 0; Checks = @() }
         "Governance" = @{ Earned = 0; Possible = 0; Checks = @() }
-    }
-
-    # Map checks to categories
-    $checkCategoryMap = @{
-        "MFA Enforcement" = "Identity & Access"
-        "Privileged Account Security" = "Identity & Access"
-        "Privileged Identity Management (PIM)" = "Identity & Access"
-        "Legacy Authentication" = "Identity & Access"
-        "Conditional Access Policies" = "Conditional Access"
-        "External Sharing Configuration" = "Conditional Access"
-        "Application Permission Audit" = "Application Security"
-        "Microsoft Secure Score" = "Application Security"
-        "Email Authentication (SPF/DKIM/DMARC)" = "Email Security"
-        "Mailbox Auditing" = "Email Security"
-        "Email Security Configuration" = "Email Security"
-        "License Optimization" = "Governance"
     }
 
     # Calculate scores
@@ -132,24 +174,15 @@ function Get-TenantSecurityScore {
         $weight = if ($weights.ContainsKey($checkName)) { $weights[$checkName] } else { 5 }
         $category = if ($checkCategoryMap.ContainsKey($checkName)) { $checkCategoryMap[$checkName] } else { "Governance" }
         
-        # Get status score
+        # Get status score (Pass=1.0, Warning=0.5, Fail=0.0, Info=1.0)
         $statusScore = if ($statusScores.ContainsKey($result.Status)) { 
             $statusScores[$result.Status] 
-        } else { 0.5 }
+        } else { 0.0 }
 
-        # Calculate points
+        # Calculate earned points based strictly on status
+        # Pass checks: full weight | Warning: 50% weight | Fail: 0% weight | Info: neutral (1.0)
         $possiblePoints = $weight
         $earnedPoints = $weight * $statusScore
-
-        # Apply severity adjustment for failed/warning items
-        if ($result.Status -in @('Fail', 'Warning')) {
-            $severityMult = if ($severityMultipliers.ContainsKey($result.Severity)) {
-                $severityMultipliers[$result.Severity]
-            } else { 0.5 }
-            
-            # Higher severity = lower earned points
-            $earnedPoints = $weight * (1 - $severityMult) * (1 - $statusScore)
-        }
 
         $totalEarned += $earnedPoints
         $totalPossible += $possiblePoints

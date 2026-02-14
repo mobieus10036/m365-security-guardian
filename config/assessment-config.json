@@ -30,6 +30,55 @@
       "Email Security Configuration": 3,
       "License Optimization": 5
     },
+    "StatusScores": {
+      "Pass": 1.0,
+      "Warning": 0.5,
+      "Fail": 0.0,
+      "Info": 1.0
+    },
+    "SeverityMultipliers": {
+      "Critical": 1.0,
+      "High": 0.75,
+      "Medium": 0.5,
+      "Low": 0.25,
+      "Info": 0.0
+    },
+    "CheckCategoryMap": {
+      "MFA Enforcement": "Identity & Access",
+      "Privileged Account Security": "Identity & Access",
+      "Privileged Identity Management (PIM)": "Identity & Access",
+      "Legacy Authentication": "Identity & Access",
+      "Conditional Access Policies": "Conditional Access",
+      "External Sharing Configuration": "Conditional Access",
+      "Application Permission Audit": "Application Security",
+      "Microsoft Secure Score": "Application Security",
+      "Email Authentication (SPF/DKIM/DMARC)": "Email Security",
+      "Mailbox Auditing": "Email Security",
+      "Email Security Configuration": "Email Security",
+      "License Optimization": "Governance"
+    },
+    "CategoryDefinitions": {
+      "Identity & Access": {
+        "Description": "User authentication, access controls, and privilege management",
+        "Weight": 35
+      },
+      "Conditional Access": {
+        "Description": "Conditional access policies and external sharing controls",
+        "Weight": 25
+      },
+      "Application Security": {
+        "Description": "Application permissions, OAuth, and API security",
+        "Weight": 20
+      },
+      "Email Security": {
+        "Description": "Email authentication, mailbox auditing, and anti-phishing",
+        "Weight": 15
+      },
+      "Governance": {
+        "Description": "Compliance, licensing, and data governance",
+        "Weight": 5
+      }
+    },
     "GradeThresholds": {
       "A": 90,
       "B": 80,

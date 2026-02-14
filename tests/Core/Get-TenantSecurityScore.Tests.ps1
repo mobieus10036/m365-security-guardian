@@ -148,4 +148,192 @@ Describe 'Get-TenantSecurityScore' {
             $score.OverallScore | Should -BeGreaterOrEqual 90
         }
     }
+
+    Context 'Status-based scoring (no severity adjustment)' {
+        It 'Failed critical checks earn 0 points (not 25%)' {
+            # Single critical failure should result in very low score
+            $results = @(
+                New-MockAssessmentResult -CheckName 'MFA Enforcement' -Status 'Fail' -Severity 'Critical'
+            )
+
+            $score = Get-TenantSecurityScore -AssessmentResults $results -Config (New-MockConfig)
+
+            # With one critical failure (high weight), score should be near 0
+            # If severity adjustment was applied (BUGGY), would earn ~25%
+            $score.OverallScore | Should -BeLessThan 15
+        }
+
+        It 'Warning checks earn exactly 50% of weight' {
+            # Single warning should give exactly 50% (before other factors)
+            $results = @(
+                New-MockAssessmentResult -CheckName 'License Optimization' -Status 'Warning' -Severity 'Medium'
+            )
+
+            $score = Get-TenantSecurityScore -AssessmentResults $results -Config (New-MockConfig)
+
+            # Warning = 50% of points = ~50 score
+            $score.OverallScore | Should -BeGreaterOrEqual 40
+            $score.OverallScore | Should -BeLessThan 60
+        }
+
+        It 'Mixed 50% fail / 50% pass results in ~50% score' {
+            # 4 passes, 4 fails (equal weight) = 50% score
+            $results = @(
+                New-MockAssessmentResult -CheckName 'MFA Enforcement' -Status 'Pass' -Severity 'Critical'
+                New-MockAssessmentResult -CheckName 'Privileged Account Security' -Status 'Pass' -Severity 'High'
+                New-MockAssessmentResult -CheckName 'Conditional Access Policies' -Status 'Pass' -Severity 'High'
+                New-MockAssessmentResult -CheckName 'Application Permission Audit' -Status 'Pass' -Severity 'Medium'
+                New-MockAssessmentResult -CheckName 'Email Authentication (SPF/DKIM/DMARC)' -Status 'Fail' -Severity 'Critical'
+                New-MockAssessmentResult -CheckName 'Legacy Authentication (BasicAuth)' -Status 'Fail' -Severity 'High'
+                New-MockAssessmentResult -CheckName 'External User Sharing Policy' -Status 'Fail' -Severity 'High'
+                New-MockAssessmentResult -CheckName 'License Optimization' -Status 'Fail' -Severity 'Medium'
+            )
+
+            $score = Get-TenantSecurityScore -AssessmentResults $results -Config (New-MockConfig)
+
+            # 50/50 split with category weighting = ~60 score (allowing variance for weight distribution)
+            $score.OverallScore | Should -BeGreaterOrEqual 40
+            $score.OverallScore | Should -BeLessThan 75
+        }
+
+        It 'Severity does NOT inflate failed check scores' {
+            # Same check, compare Fail-Critical vs Fail-Low
+            # Both should score 0 (severity should not matter for failures)
+            $resultsCritical = @(
+                New-MockAssessmentResult -CheckName 'MFA Enforcement' -Status 'Fail' -Severity 'Critical'
+            )
+            $resultsLow = @(
+                New-MockAssessmentResult -CheckName 'MFA Enforcement' -Status 'Fail' -Severity 'Low'
+            )
+
+            $scoreCritical = Get-TenantSecurityScore -AssessmentResults $resultsCritical -Config (New-MockConfig)
+            $scoreLow = Get-TenantSecurityScore -AssessmentResults $resultsLow -Config (New-MockConfig)
+
+            # Both should be identically low (severity doesn't adjust failures)
+            $scoreCritical.OverallScore | Should -BeExactly $scoreLow.OverallScore
+        }
+
+        It 'All-fail tenant scores 0-10% (not 25-75%)' {
+            # Complete failure scenario - all critical failures
+            $results = @(
+                New-MockAssessmentResult -CheckName 'MFA Enforcement' -Status 'Fail' -Severity 'Critical'
+                New-MockAssessmentResult -CheckName 'Privileged Account Security' -Status 'Fail' -Severity 'Critical'
+                New-MockAssessmentResult -CheckName 'Conditional Access Policies' -Status 'Fail' -Severity 'Critical'
+                New-MockAssessmentResult -CheckName 'Application Permission Audit' -Status 'Fail' -Severity 'Critical'
+                New-MockAssessmentResult -CheckName 'Email Authentication (SPF/DKIM/DMARC)' -Status 'Fail' -Severity 'Critical'
+            )
+
+            $score = Get-TenantSecurityScore -AssessmentResults $results -Config (New-MockConfig)
+
+            # All failures = grade F, near-zero score
+            # If severity bug existed: Critical failures would earn ~25% each = 25% total (WRONG)
+            $score.OverallScore | Should -BeLessThan 15
+            $score.LetterGrade | Should -Be 'F'
+        }
+    }
+
+    Context 'Configuration externalization - weights' {
+        It 'Uses custom weights from config over defaults' {
+            $customConfig = New-MockConfig
+            # Override MFA weight to 50 (normally 12) - should significantly boost score
+            $customConfig.Scoring.RiskWeights.'MFA Enforcement' = 50
+
+            $results = @(
+                New-MockAssessmentResult -CheckName 'MFA Enforcement' -Status 'Pass' -Severity 'Critical'
+                New-MockAssessmentResult -CheckName 'License Optimization' -Status 'Fail' -Severity 'Low'
+            )
+
+            $scoreWithCustom = Get-TenantSecurityScore -AssessmentResults $results -Config $customConfig
+
+            $defaultConfig = New-MockConfig
+            $scoreWithDefault = Get-TenantSecurityScore -AssessmentResults $results -Config $defaultConfig
+
+            # Custom weight should produce higher score since MFA pass is weighted higher
+            $scoreWithCustom.OverallScore | Should -BeGreaterThan $scoreWithDefault.OverallScore
+        }
+
+        It 'Falls back to defaults when config is null' {
+            $results = @(
+                New-MockAssessmentResult -CheckName 'MFA Enforcement' -Status 'Pass' -Severity 'Critical'
+                New-MockAssessmentResult -CheckName 'License Optimization' -Status 'Fail' -Severity 'Low'
+            )
+
+            $scoreWithNull = Get-TenantSecurityScore -AssessmentResults $results -Config $null
+            $scoreWithDefault = Get-TenantSecurityScore -AssessmentResults $results -Config (New-MockConfig)
+
+            # Should produce identical results when using defaults
+            $scoreWithNull.OverallScore | Should -BeExactly $scoreWithDefault.OverallScore
+        }
+    }
+
+    Context 'Configuration externalization - status scores' {
+        It 'Uses custom status scores from config' {
+            $customConfig = New-MockConfig
+            # Make Warning worth 0.75 instead of 0.5 (should boost warnings)
+            $customConfig.Scoring.StatusScores.Warning = 0.75
+
+            $results = @(
+                New-MockAssessmentResult -CheckName 'MFA Enforcement' -Status 'Warning' -Severity 'High'
+            )
+
+            $scoreCustom = Get-TenantSecurityScore -AssessmentResults $results -Config $customConfig
+            $scoreDefault = Get-TenantSecurityScore -AssessmentResults $results -Config (New-MockConfig)
+
+            # Custom status score should produce higher score
+            $scoreCustom.OverallScore | Should -BeGreaterThan $scoreDefault.OverallScore
+        }
+
+        It 'Falls back to default status scores when missing from config' {
+            $sparsConfig = New-MockConfig
+            $sparsConfig.Scoring.PSObject.Properties.Remove('StatusScores')
+
+            $results = @(
+                New-MockAssessmentResult -CheckName 'MFA Enforcement' -Status 'Pass' -Severity 'Critical'
+                New-MockAssessmentResult -CheckName 'License Optimization' -Status 'Warning' -Severity 'Low'
+            )
+
+            $sparseScore = Get-TenantSecurityScore -AssessmentResults $results -Config $sparsConfig
+            $defaultScore = Get-TenantSecurityScore -AssessmentResults $results -Config (New-MockConfig)
+
+            # Should fall back to defaults and produce same score
+            $sparseScore.OverallScore | Should -BeExactly $defaultScore.OverallScore
+        }
+    }
+
+    Context 'Configuration externalization - category mapping' {
+        It 'Uses custom check-to-category mappings from config' {
+            $customConfig = New-MockConfig
+            # Remap License Optimization from Governance to Identity & Access
+            $customConfig.Scoring.CheckCategoryMap.'License Optimization' = 'Identity & Access'
+
+            $results = @(
+                New-MockAssessmentResult -CheckName 'License Optimization' -Status 'Pass' -Severity 'Low'
+            )
+
+            $score = Get-TenantSecurityScore -AssessmentResults $results -Config $customConfig
+
+            # Check should now be in Identity & Access category, not Governance
+            $identityCat = $score.CategoryBreakdown | Where-Object { $_.Category -eq 'Identity & Access' }
+            $govCat     = $score.CategoryBreakdown | Where-Object { $_.Category -eq 'Governance' }
+
+            $identityCat.ChecksEvaluated | Should -Be 1
+            $govCat.ChecksEvaluated     | Should -Be 0
+        }
+
+        It 'Falls back to default category mapping when missing' {
+            $sparseConfig = New-MockConfig
+            $sparseConfig.Scoring.PSObject.Properties.Remove('CheckCategoryMap')
+
+            $results = @(
+                New-MockAssessmentResult -CheckName 'License Optimization' -Status 'Pass' -Severity 'Low'
+            )
+
+            $score = Get-TenantSecurityScore -AssessmentResults $results -Config $sparseConfig
+
+            # Should still correctly categorize as Governance (default)
+            $govCat = $score.CategoryBreakdown | Where-Object { $_.Category -eq 'Governance' }
+            $govCat.ChecksEvaluated | Should -Be 1
+        }
+    }
 }
+

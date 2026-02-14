@@ -419,12 +419,13 @@ function Get-ProgressBar {
         [int]$Width = 20
     )
     
-    $filled = [math]::Floor($Percentage / 100 * $Width)
-    $empty = $Width - $filled
-    
-    $fillChar = if ($script:BlockFull) { $script:BlockFull } else { '#' }
-    $emptyChar = if ($script:BlockLight) { $script:BlockLight } else { '-' }
-    $bar = $fillChar * $filled + $emptyChar * $empty
+    $filled = [int][math]::Floor(($Percentage / 100) * $Width)
+    $empty = [int]($Width - $filled)
+
+    # Explicitly cast to string - PowerShell doesn't support [char] * [int]
+    [string]$fillChar = if ($script:BlockFull) { $script:BlockFull } else { '#' }
+    [string]$emptyChar = if ($script:BlockLight) { $script:BlockLight } else { '-' }
+    $bar = ($fillChar * $filled) + ($emptyChar * $empty)
     return "[$bar]"
 }
 
