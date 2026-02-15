@@ -472,7 +472,7 @@ Describe 'Get-CategoryTrends' {
 
         It 'Returns trend for each category' {
             $history = Get-AssessmentHistory -HistoryPath $script:CategoryHistoryPath
-            $result = Get-CategoryTrends -Entries $history.Entries
+            $result = Get-CategoryTrends -CurrentEntry $history.Entries[0] -PreviousEntry $history.Entries[1]
 
             $result.Count | Should -BeGreaterThan 0
             $result[0].PSObject.Properties.Name | Should -Contain 'Category'
@@ -482,7 +482,7 @@ Describe 'Get-CategoryTrends' {
 
         It 'Calculates correct deltas per category' {
             $history = Get-AssessmentHistory -HistoryPath $script:CategoryHistoryPath
-            $result = Get-CategoryTrends -Entries $history.Entries
+            $result = Get-CategoryTrends -CurrentEntry $history.Entries[0] -PreviousEntry $history.Entries[1]
 
             $identityTrend = $result | Where-Object { $_.Category -eq 'Identity' }
             $identityTrend.Delta | Should -Be 10.0
@@ -490,7 +490,7 @@ Describe 'Get-CategoryTrends' {
 
         It 'Includes trend icons' {
             $history = Get-AssessmentHistory -HistoryPath $script:CategoryHistoryPath
-            $result = Get-CategoryTrends -Entries $history.Entries
+            $result = Get-CategoryTrends -CurrentEntry $history.Entries[0] -PreviousEntry $history.Entries[1]
 
             $result | ForEach-Object { $_.TrendIcon | Should -Not -BeNullOrEmpty }
         }

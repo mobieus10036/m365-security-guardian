@@ -865,7 +865,7 @@ function Invoke-BaselineComparison {
                 -CISCompliance $cisForBaseline `
                 -BaselinePath $baselineFilePath `
                 -BaselineName $BaselineName `
-                -TenantId $script:TenantId
+                -TenantId $script:TenantInfo.TenantId
             
             if ($saveResult.Success) {
                 Write-Success "Baseline saved: $($saveResult.Path)"
@@ -949,14 +949,18 @@ function Invoke-TrendTracking {
     try {
         . $trendModulePath
         
+        # Get tenant info for history storage
+        $tenantId = if ($script:TenantInfo.TenantId) { $script:TenantInfo.TenantId } else { "" }
+        $tenantName = if ($script:TenantInfo.DisplayName) { $script:TenantInfo.DisplayName } else { "" }
+        
         # Auto-save current assessment to history
         $saveResult = Save-AssessmentToHistory `
             -Results $script:AssessmentResults `
             -SecurityScore $script:SecurityScore `
             -CISCompliance $script:CISCompliance `
             -AttackChains $script:AttackChains `
-            -TenantId $script:TenantId `
-            -TenantName $script:TenantName
+            -TenantId $tenantId `
+            -TenantName $tenantName
         
         if ($saveResult.Success) {
             Write-Verbose "Assessment saved to history: $($saveResult.EntryId)"
@@ -971,7 +975,7 @@ function Invoke-TrendTracking {
         } else { 30 }
         
         $script:TrendAnalysis = Get-SecurityTrends `
-            -TenantId $script:TenantId `
+            -TenantId $tenantId `
             -DaysBack $trendDays
         
         if ($script:TrendAnalysis -and $script:TrendAnalysis.HasSufficientData) {
