@@ -201,7 +201,10 @@ function Get-TenantSecurityScore {
 
         # Identify priority items (failed checks with high weight)
         if ($result.Status -eq 'Fail') {
+            # ImpactScore uses severity for prioritization (fix critical issues first)
             $impactScore = $weight * $severityMultipliers[$result.Severity]
+            # PotentialGain = weight - earnedPoints (for Fail: earnedPoints=0, so gain=weight)
+            $potentialGain = $weight - $earnedPoints
             $priorityItems += [PSCustomObject]@{
                 CheckName = $checkName
                 Category = $category
@@ -210,12 +213,14 @@ function Get-TenantSecurityScore {
                 Message = $result.Message
                 Recommendation = $result.Recommendation
                 DocumentationUrl = $result.DocumentationUrl
-                PotentialGain = [math]::Round($impactScore, 1)
+                PotentialGain = [math]::Round($potentialGain, 1)
             }
         }
 
         # Identify quick wins (warning status, medium/low severity, high weight)
         if ($result.Status -eq 'Warning' -and $result.Severity -in @('Medium', 'Low')) {
+            # PotentialGain = weight - earnedPoints (for Warning: earnedPoints=weight*0.5)
+            $potentialGain = $weight - $earnedPoints
             $quickWins += [PSCustomObject]@{
                 CheckName = $checkName
                 Category = $category
@@ -223,7 +228,7 @@ function Get-TenantSecurityScore {
                 Message = $result.Message
                 Recommendation = $result.Recommendation
                 EffortLevel = "Low"
-                PotentialGain = [math]::Round($weight * 0.5, 1)
+                PotentialGain = [math]::Round($potentialGain, 1)
             }
         }
     }
