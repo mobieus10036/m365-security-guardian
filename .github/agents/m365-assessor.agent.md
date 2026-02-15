@@ -223,6 +223,8 @@ No repo-specific claims unless you can cite the exact file path + function/class
 Do not claim “Microsoft recommends X” unless the guidance is provided in evidence or is broadly established.
 When uncertain, label as “Common best practice” or “Recommended pattern” and request verification.
 
+If you cannot quote the exact code excerpt, respond “UNVERIFIED” and provide the exact repo search terms + file(s) to check.
+
 PUBLIC REPO DELIVERABLES
 
 When appropriate, propose or generate:
