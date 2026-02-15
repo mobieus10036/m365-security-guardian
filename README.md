@@ -2,11 +2,24 @@
 
 **Rapid, actionable Microsoft 365 security assessment for modern enterprises.**
 
-[![Version](https://img.shields.io/badge/version-3.1.2-blue)](https://github.com/mobieus10036/m365-security-guardian/releases)
+[![Version](https://img.shields.io/badge/version-3.2.0-blue)](https://github.com/mobieus10036/m365-security-guardian/releases)
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue)](https://docs.microsoft.com/powershell/)
 [![License](https://img.shields.io/github/license/mobieus10036/m365-security-guardian)](LICENSE)
 
 ---
+
+## What's New in v3.2.0
+
+- **Attack Chain Analysis** — Identifies 6 real-world attack patterns enabled by misconfigurations
+  - MITRE ATT&CK mapping with kill chain phases
+  - Blast radius estimation and remediation priorities
+  - Executive narratives for each enabled attack path
+- **Historical Trend Tracking** — Track security posture changes over time
+  - Auto-saves assessments to history (up to 100 entries)
+  - Trend direction detection (Improving/Declining/Stable)
+  - Regression alerts for score drops
+  - Interactive trend charts in HTML reports
+  - Velocity metrics (weekly rate, estimated days to target)
 
 ## What's New in v3.1.2
 
@@ -393,7 +406,7 @@ MIT License - see [LICENSE](LICENSE)
 
 ## Roadmap
 
-- [ ] Historical trend tracking
+- [x] Historical trend tracking ✅ (v3.2.0)
 - [ ] Identity Protection integration
 - [ ] Defender for Office 365 checks
 - [ ] Power Platform security assessment

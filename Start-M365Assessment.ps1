@@ -224,7 +224,7 @@ function Write-Banner {
 
 ╔══════════════════════════════════════════════════════════════════════╗
 ║                                                                      ║
-║              M365 Security Guardian v3.1.3                           ║
+║              M365 Security Guardian v3.2.0                           ║
 ║                                                                      ║
 ║         Security & Best Practice Assessment for Microsoft 365        ║
 ║                                                                      ║
