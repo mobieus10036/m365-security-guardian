@@ -613,6 +613,7 @@ function Export-Results {
             -SecurityScore $script:SecurityScore `
             -BaselineComparison $script:BaselineComparison `
             -AttackChains $script:AttackChains `
+            -Trends $script:TrendAnalysis `
             -TemplatePath $templatePath
         
         Write-Success "HTML report: $htmlPath"
@@ -864,7 +865,7 @@ function Invoke-BaselineComparison {
                 -CISCompliance $cisForBaseline `
                 -BaselinePath $baselineFilePath `
                 -BaselineName $BaselineName `
-                -TenantId $script:TenantId
+                -TenantId $script:TenantInfo.TenantId
             
             if ($saveResult.Success) {
                 Write-Success "Baseline saved: $($saveResult.Path)"
@@ -931,6 +932,86 @@ function Invoke-BaselineComparison {
     }
 }
 
+function Invoke-TrendTracking {
+    <#
+    .SYNOPSIS
+        Saves assessment to history and displays trend analysis.
+    #>
+    Write-Step "Analyzing security trends..."
+    
+    $trendModulePath = Join-Path $PSScriptRoot "modules\Core\Get-SecurityTrends.ps1"
+    
+    if (-not (Test-Path $trendModulePath)) {
+        Write-Info "Trend tracking module not found. Skipping."
+        return
+    }
+    
+    try {
+        . $trendModulePath
+        
+        # Get tenant info for history storage
+        $tenantId = if ($script:TenantInfo.TenantId) { $script:TenantInfo.TenantId } else { "" }
+        $tenantName = if ($script:TenantInfo.DisplayName) { $script:TenantInfo.DisplayName } else { "" }
+        
+        # Auto-save current assessment to history
+        $saveResult = Save-AssessmentToHistory `
+            -Results $script:AssessmentResults `
+            -SecurityScore $script:SecurityScore `
+            -CISCompliance $script:CISCompliance `
+            -AttackChains $script:AttackChains `
+            -TenantId $tenantId `
+            -TenantName $tenantName
+        
+        if ($saveResult.Success) {
+            Write-Verbose "Assessment saved to history: $($saveResult.EntryId)"
+        }
+        else {
+            Write-Warning "Could not save assessment to history: $($saveResult.Error)"
+        }
+        
+        # Analyze trends
+        $trendDays = if ($script:Config.TrendTracking.AnalysisPeriodDays) {
+            $script:Config.TrendTracking.AnalysisPeriodDays
+        } else { 30 }
+        
+        $script:TrendAnalysis = Get-SecurityTrends `
+            -TenantId $tenantId `
+            -DaysBack $trendDays
+        
+        if ($script:TrendAnalysis -and $script:TrendAnalysis.HasSufficientData) {
+            # Display trend console output
+            $displayTrends = if ($null -ne $script:Config.TrendTracking.DisplayInConsole) {
+                $script:Config.TrendTracking.DisplayInConsole
+            } else { $true }
+            
+            if ($displayTrends) {
+                $trendDisplay = Format-TrendConsole -Trends $script:TrendAnalysis
+                Write-Information $trendDisplay -InformationAction Continue
+            }
+            
+            # Alerting for regressions
+            if ($script:TrendAnalysis.HasRegressions -and $script:TrendAnalysis.Regressions.HasCritical) {
+                Write-Warning "REGRESSION DETECTED: Security score has decreased significantly!"
+            }
+            
+            $trendIcon = switch ($script:TrendAnalysis.TrendDirection) {
+                "Improving" { "↑" }
+                "Declining" { "↓" }
+                default { "→" }
+            }
+            
+            Write-Success "Trend Analysis: $trendIcon $($script:TrendAnalysis.TrendDirection) ($($script:TrendAnalysis.DataPoints) data points)"
+        }
+        elseif ($script:TrendAnalysis) {
+            Write-Info "Trend tracking: Insufficient data. Run more assessments to enable trend analysis."
+        }
+    }
+    catch {
+        Write-Warning "Trend analysis failed: $_"
+        Write-Verbose $_.ScriptStackTrace
+    }
+}
+
 function Show-Summary {
     $duration = (Get-Date) - $script:StartTime
     
@@ -990,6 +1071,7 @@ try {
     Invoke-CISCompliance
     Invoke-AttackChainAnalysis
     Invoke-BaselineComparison
+    Invoke-TrendTracking
     Export-Results
     Show-Summary
     $assessmentCompleted = $true
