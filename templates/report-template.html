@@ -453,12 +453,449 @@
             font-weight: 600;
         }
         
+        /* Print Button */
+        .print-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 16px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            z-index: 1000;
+        }
+        
+        .print-button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 20px rgba(0,0,0,0.15);
+        }
+        
+        .print-button:active {
+            transform: translateY(0);
+        }
+        
         @media print {
-            body { padding: 0; background: white; }
-            .container { box-shadow: none; }
-            .controls { display: none; }
-            .finding-card { page-break-inside: avoid; }
-            .chart-wrapper { height: 200px; }
+            /* Reset page margins and background */
+            @page {
+                margin: 0.5in;
+                size: letter landscape;
+            }
+            
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+            
+            body { 
+                padding: 0; 
+                background: white;
+                margin: 0;
+                font-size: 10pt;
+            }
+            
+            /* Container adjustments */
+            .container { 
+                box-shadow: none;
+                border-radius: 0;
+                max-width: 100%;
+            }
+            
+            /* Header styling for print */
+            .header {
+                background: linear-gradient(135deg, #0078d4 0%, #005a9e 50%, #004578 100%) !important;
+                padding: 20px 30px;
+                margin-bottom: 0;
+                page-break-after: avoid;
+            }
+            
+            .header::before {
+                display: none;
+            }
+            
+            .header h1 {
+                font-size: 20pt;
+                margin-bottom: 6px;
+            }
+            
+            .header-meta {
+                font-size: 9pt;
+                gap: 20px;
+            }
+            
+            /* Executive Summary */
+            .executive-summary {
+                padding: 15px 20px;
+                page-break-after: avoid;
+                background: white !important;
+                border-bottom: none;
+            }
+            
+            .summary-title {
+                font-size: 14pt;
+                margin-bottom: 12px;
+            }
+            
+            /* Metrics Grid */
+            .metrics-grid {
+                grid-template-columns: repeat(5, 1fr);
+                gap: 10px;
+                margin-bottom: 15px;
+                page-break-inside: avoid;
+            }
+            
+            .metric-card {
+                padding: 10px;
+                box-shadow: none;
+                border: 1px solid #ddd;
+                page-break-inside: avoid;
+                background: white !important;
+            }
+            
+            .metric-card:hover {
+                transform: none;
+                box-shadow: none;
+            }
+            
+            .metric-card-header {
+                font-size: 8pt;
+                margin-bottom: 6px;
+            }
+            
+            .metric-card-value {
+                font-size: 20pt;
+            }
+            
+            /* Charts - significantly smaller and side by side */
+            .charts-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+                page-break-inside: avoid;
+                page-break-after: avoid;
+            }
+            
+            .chart-container {
+                padding: 12px;
+                box-shadow: none;
+                border: 1px solid #ddd;
+                page-break-inside: avoid;
+                background: white !important;
+            }
+            
+            .chart-title {
+                font-size: 10pt;
+                margin-bottom: 8px;
+            }
+            
+            .chart-wrapper {
+                height: 140px !important;
+            }
+            
+            .chart-wrapper canvas {
+                max-height: 140px !important;
+            }
+            
+            /* Security Score Dashboard */
+            .security-score-dashboard {
+                padding: 15px 20px;
+                page-break-before: auto;
+                page-break-after: avoid;
+                page-break-inside: avoid;
+                background: white !important;
+                border-bottom: 1px solid #ddd;
+            }
+            
+            .score-main-display {
+                gap: 15px;
+                margin-bottom: 15px;
+                page-break-inside: avoid;
+            }
+            
+            .score-circle {
+                width: 100px;
+                height: 100px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            }
+            
+            .score-value {
+                font-size: 22pt;
+            }
+            
+            .score-grade {
+                font-size: 10pt;
+            }
+            
+            .score-description {
+                font-size: 12pt;
+            }
+            
+            .score-potential {
+                gap: 8px;
+            }
+            
+            .potential-label {
+                font-size: 10pt;
+            }
+            
+            .potential-value {
+                font-size: 18pt;
+            }
+            
+            .score-categories {
+                page-break-inside: avoid;
+                margin-bottom: 15px;
+            }
+            
+            .score-categories h3 {
+                font-size: 11pt;
+                margin-bottom: 10px;
+            }
+            
+            .score-category {
+                margin-bottom: 8px;
+            }
+            
+            .score-category-name {
+                width: 160px;
+                font-size: 9pt;
+            }
+            
+            .score-category-bar {
+                height: 20px;
+            }
+            
+            .score-actions-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+                page-break-inside: avoid;
+            }
+            
+            .priorities-section, .quickwins-section {
+                box-shadow: none;
+                border: 1px solid #ddd;
+                page-break-inside: avoid;
+                padding: 15px;
+                background: white !important;
+            }
+            
+            .priorities-section h4, .quickwins-section h4 {
+                font-size: 11pt;
+                margin-bottom: 10px;
+            }
+            
+            .priorities-section li, .quickwins-section li {
+                padding: 6px 0;
+                font-size: 9pt;
+            }
+            
+            /* Baseline Comparison */
+            .baseline-comparison-section {
+                padding: 15px 20px;
+                page-break-before: auto;
+                page-break-after: avoid;
+                page-break-inside: avoid;
+                background: white !important;
+                border-bottom: 1px solid #ddd;
+            }
+            
+            .baseline-title {
+                font-size: 14pt;
+            }
+            
+            .baseline-meta {
+                font-size: 9pt;
+            }
+            
+            /* Attack Chains Section */
+            .attack-chains-section {
+                padding: 15px 20px;
+                page-break-before: auto;
+                background: white !important;
+            }
+            
+            /* Trends Section */
+            .trends-section {
+                padding: 15px 20px;
+                page-break-before: auto;
+                background: white !important;
+            }
+            
+            /* Hide interactive controls */
+            .controls,
+            .print-button,
+            .filter-btn,
+            .search-box {
+                display: none !important;
+            }
+            
+            /* Results Section */
+            .results-section {
+                padding: 15px 20px;
+            }
+            
+            .results-header {
+                margin-bottom: 12px;
+                page-break-after: avoid;
+            }
+            
+            .results-title {
+                font-size: 16pt;
+            }
+            
+            .results-count {
+                font-size: 9pt;
+                background: #f5f5f5 !important;
+            }
+            
+            /* Findings */
+            .findings-grid {
+                gap: 10px;
+            }
+            
+            .finding-card {
+                page-break-inside: avoid;
+                margin-bottom: 10px;
+                box-shadow: none;
+                border: 1px solid #ddd;
+                padding: 12px;
+                background: white !important;
+            }
+            
+            .finding-card:hover {
+                box-shadow: none;
+                border-color: #ddd;
+            }
+            
+            .finding-header {
+                margin-bottom: 10px;
+                gap: 10px;
+            }
+            
+            .finding-name {
+                font-size: 11pt;
+                margin-bottom: 6px;
+            }
+            
+            .finding-label {
+                font-size: 8pt;
+                margin-bottom: 4px;
+            }
+            
+            .finding-content {
+                font-size: 9pt;
+                line-height: 1.4;
+            }
+            
+            .finding-section {
+                margin-bottom: 8px;
+            }
+            
+            /* Badges */
+            .badge {
+                padding: 2px 6px;
+                font-size: 7pt;
+                border: 1px solid rgba(0,0,0,0.1);
+            }
+            
+            .badge-status-pass { 
+                background: #dff6dd !important; 
+                color: #107c10 !important; 
+            }
+            
+            .badge-status-fail { 
+                background: #fde7e9 !important; 
+                color: #d13438 !important; 
+            }
+            
+            .badge-status-warning { 
+                background: #fff4ce !important; 
+                color: #8a4600 !important; 
+            }
+            
+            .badge-status-info { 
+                background: #e1f5fe !important; 
+                color: #0078d4 !important; 
+            }
+            
+            .badge-severity-critical { 
+                background: #d13438 !important; 
+                color: white !important; 
+            }
+            
+            .badge-severity-high { 
+                background: #ff8c00 !important; 
+                color: white !important; 
+            }
+            
+            .badge-severity-medium { 
+                background: #ffd700 !important; 
+                color: #333 !important; 
+            }
+            
+            .badge-severity-low { 
+                background: #90ee90 !important; 
+                color: #333 !important; 
+            }
+            
+            .badge-category {
+                background: #0078d4 !important;
+                color: white !important;
+            }
+            
+            /* MFA Summary */
+            .mfa-summary {
+                grid-template-columns: repeat(5, 1fr);
+                gap: 6px;
+            }
+            
+            .mfa-stat {
+                background: #f5f5f5 !important;
+                padding: 6px 8px;
+            }
+            
+            .mfa-label {
+                font-size: 7pt;
+            }
+            
+            .mfa-value {
+                font-size: 12pt;
+            }
+            
+            .mfa-note {
+                font-size: 8pt;
+            }
+            
+            /* Links */
+            .doc-link {
+                color: #0078d4 !important;
+                text-decoration: underline;
+                font-size: 9pt;
+            }
+            
+            /* Ensure all filtered content is visible */
+            .finding-card[style*="display: none"] {
+                display: block !important;
+            }
+            
+            /* Prevent orphaned headings */
+            h1, h2, h3, h4, h5, h6 {
+                page-break-after: avoid;
+            }
+            
+            /* Keep lists together when possible */
+            ul, ol {
+                page-break-inside: avoid;
+            }
         }
         
         @media (max-width: 768px) {
@@ -1611,6 +2048,12 @@
             </div>
         </div>
     </div>
+    
+    <!-- Print Button -->
+    <button class="print-button" onclick="window.print()" title="Print Report">
+        <span>🖨️</span>
+        <span>Print Report</span>
+    </button>
     
     <script>
         // Chart.js configuration
