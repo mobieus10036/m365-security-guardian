@@ -1196,6 +1196,187 @@ function Build-AttackChainsSectionHtml {
 "@
 }
 
+function Build-TrendsSectionHtml {
+    <#
+    .SYNOPSIS
+        Builds the trend tracking section HTML for the report.
+    
+    .PARAMETER Trends
+        The trend analysis results object from Get-SecurityTrends.
+    #>
+    param([object]$Trends)
+    
+    if (-not $Trends -or -not $Trends.HasSufficientData) { return "" }
+    
+    # Trend direction styling
+    $trendClass = switch ($Trends.TrendDirection) {
+        'Improving' { 'trend-improving' }
+        'Declining' { 'trend-declining' }
+        default { 'trend-stable' }
+    }
+    $trendIcon = switch ($Trends.TrendDirection) {
+        'Improving' { '📈' }
+        'Declining' { '📉' }
+        default { '➡️' }
+    }
+    $trendColor = switch ($Trends.TrendDirection) {
+        'Improving' { '#107c10' }
+        'Declining' { '#d13438' }
+        default { '#605e5c' }
+    }
+    
+    # Score delta display
+    $scoreDelta = if ($Trends.ScoreDelta -gt 0) { "+$($Trends.ScoreDelta)" } else { "$($Trends.ScoreDelta)" }
+    $scoreDeltaClass = if ($Trends.ScoreDelta -gt 0) { 'delta-positive' } 
+                       elseif ($Trends.ScoreDelta -lt 0) { 'delta-negative' } 
+                       else { 'delta-neutral' }
+    
+    # Build regression alerts
+    $regressionHtml = ""
+    if ($Trends.HasRegressions -and $Trends.Regressions) {
+        $alertClass = if ($Trends.Regressions.HasCritical) { 'alert-critical' } else { 'alert-warning' }
+        $alertIcon = if ($Trends.Regressions.HasCritical) { '🚨' } else { '⚠️' }
+        
+        $regressionItems = @()
+        if ($Trends.Regressions.ScoreRegression) {
+            $regressionItems += "<li>Security score decreased by $([Math]::Abs($Trends.Regressions.ScoreRegression.Delta)) points</li>"
+        }
+        if ($Trends.Regressions.FailedChecksIncrease -and $Trends.Regressions.FailedChecksIncrease.Count -gt 0) {
+            $regressionItems += "<li>$($Trends.Regressions.FailedChecksIncrease.Count) check(s) regressed from Pass to Fail</li>"
+        }
+        if ($Trends.Regressions.NewAttackChains -and $Trends.Regressions.NewAttackChains.Count -gt 0) {
+            $regressionItems += "<li>$($Trends.Regressions.NewAttackChains.Count) new attack chain(s) enabled</li>"
+        }
+        
+        if ($regressionItems.Count -gt 0) {
+            $regressionHtml = @"
+            <div class='trend-alert $alertClass'>
+                <span class='alert-icon'>$alertIcon</span>
+                <div class='alert-content'>
+                    <strong>Regression Alert</strong>
+                    <ul>$($regressionItems -join '')</ul>
+                </div>
+            </div>
+"@
+        }
+    }
+    
+    # Build category trends
+    $categoryTrendsHtml = ""
+    if ($Trends.CategoryTrends) {
+        $categoryTrendsHtml = "<div class='category-trends'><h4>Category Performance</h4><div class='category-grid'>"
+        foreach ($cat in $Trends.CategoryTrends.GetEnumerator()) {
+            $catIcon = switch ($cat.Value.Trend) {
+                'Improving' { '↑' }
+                'Declining' { '↓' }
+                default { '→' }
+            }
+            $catClass = switch ($cat.Value.Trend) {
+                'Improving' { 'cat-improving' }
+                'Declining' { 'cat-declining' }
+                default { 'cat-stable' }
+            }
+            $catDelta = if ($cat.Value.Delta -gt 0) { "+$($cat.Value.Delta)" } else { "$($cat.Value.Delta)" }
+            $catName = ConvertTo-HtmlSafe $cat.Key
+            $categoryTrendsHtml += @"
+                <div class='category-trend-item $catClass'>
+                    <span class='cat-name'>$catName</span>
+                    <span class='cat-delta'>$catDelta% $catIcon</span>
+                </div>
+"@
+        }
+        $categoryTrendsHtml += "</div></div>"
+    }
+    
+    # Build velocity info
+    $velocityHtml = ""
+    if ($Trends.Velocity) {
+        $weeklyRate = if ($Trends.Velocity.WeeklyRate -gt 0) { "+$($Trends.Velocity.WeeklyRate)" } else { "$($Trends.Velocity.WeeklyRate)" }
+        $daysToTarget = if ($Trends.Velocity.DaysToTarget -gt 0 -and $Trends.Velocity.DaysToTarget -lt 9999) {
+            "$($Trends.Velocity.DaysToTarget) days"
+        } else { "N/A" }
+        $velocityHtml = @"
+            <div class='trend-velocity'>
+                <div class='velocity-item'>
+                    <span class='velocity-value'>$weeklyRate%</span>
+                    <span class='velocity-label'>Weekly Rate</span>
+                </div>
+                <div class='velocity-item'>
+                    <span class='velocity-value'>$daysToTarget</span>
+                    <span class='velocity-label'>Est. to Target (95%)</span>
+                </div>
+            </div>
+"@
+    }
+    
+    # Build timeline chart data
+    $timelineHtml = ""
+    if ($Trends.Timeline -and $Trends.Timeline.Labels) {
+        $labelsJson = ($Trends.Timeline.Labels | ForEach-Object { "'$_'" }) -join ', '
+        $dataJson = ($Trends.Timeline.DataPoints | ForEach-Object { $_ }) -join ', '
+        $timelineHtml = @"
+            <div class='trend-chart-container'>
+                <canvas id='trendChart'></canvas>
+                <script>
+                    if (typeof Chart !== 'undefined') {
+                        new Chart(document.getElementById('trendChart'), {
+                            type: 'line',
+                            data: {
+                                labels: [$labelsJson],
+                                datasets: [{
+                                    label: 'Security Score',
+                                    data: [$dataJson],
+                                    borderColor: '$trendColor',
+                                    backgroundColor: '$($trendColor)20',
+                                    fill: true,
+                                    tension: 0.3
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                scales: { y: { min: 0, max: 100 } },
+                                plugins: { legend: { display: false } }
+                            }
+                        });
+                    }
+                </script>
+            </div>
+"@
+    }
+    
+    return @"
+    <div class='trends-section'>
+        <div class='trends-header'>
+            <h2 class='trends-title'>📊 Security Trend Analysis</h2>
+            <div class='trend-direction $trendClass'>
+                <span class='trend-icon'>$trendIcon</span>
+                <span class='trend-text'>$($Trends.TrendDirection)</span>
+            </div>
+        </div>
+        
+        <div class='trend-summary'>
+            <div class='trend-stat'>
+                <span class='stat-value $scoreDeltaClass'>$scoreDelta%</span>
+                <span class='stat-label'>Score Change</span>
+            </div>
+            <div class='trend-stat'>
+                <span class='stat-value'>$($Trends.DataPoints)</span>
+                <span class='stat-label'>Data Points</span>
+            </div>
+            <div class='trend-stat'>
+                <span class='stat-value'>$($Trends.AnalysisPeriod) days</span>
+                <span class='stat-label'>Analysis Period</span>
+            </div>
+        </div>
+        
+        $regressionHtml
+        $velocityHtml
+        $timelineHtml
+        $categoryTrendsHtml
+    </div>
+"@
+}
+
 #endregion
 
 #region Main HTML Export Function
@@ -1227,6 +1408,9 @@ function Export-HtmlReport {
     .PARAMETER AttackChains
         Attack chain analysis results (optional).
     
+    .PARAMETER Trends
+        Trend analysis results (optional).
+    
     .PARAMETER TemplatePath
         Path to the HTML template file.
     #>
@@ -1248,6 +1432,9 @@ function Export-HtmlReport {
         
         [Parameter(Mandatory = $false)]
         $AttackChains,
+        
+        [Parameter(Mandatory = $false)]
+        $Trends,
         
         [Parameter(Mandatory = $false)]
         [string]$TemplatePath
@@ -1297,6 +1484,7 @@ function Export-HtmlReport {
     $securityScoreHtml = Build-SecurityScoreDashboardHtml -SecurityScore $SecurityScore
     $baselineComparisonHtml = Build-BaselineComparisonHtml -BaselineComparison $BaselineComparison
     $attackChainsHtml = Build-AttackChainsSectionHtml -AttackChains $AttackChains
+    $trendsHtml = Build-TrendsSectionHtml -Trends $Trends
     
     # Replace placeholders
     $tenantName = if ($TenantInfo) { $TenantInfo.DisplayName } else { "Not Connected" }
@@ -1315,6 +1503,7 @@ function Export-HtmlReport {
     $html = $html -replace '{{SECURITY_SCORE_SECTION}}', $securityScoreHtml
     $html = $html -replace '{{BASELINE_COMPARISON_SECTION}}', $baselineComparisonHtml
     $html = $html -replace '{{ATTACK_CHAINS_SECTION}}', $attackChainsHtml
+    $html = $html -replace '{{TRENDS_SECTION}}', $trendsHtml
     $html = $html -replace '{{RESULTS_CARDS}}', $resultsHtml
     
     $html | Out-File $OutputPath -Encoding UTF8
