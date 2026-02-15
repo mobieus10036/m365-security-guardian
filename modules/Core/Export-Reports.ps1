@@ -1313,7 +1313,7 @@ function Build-TrendsSectionHtml {
     $timelineHtml = ""
     if ($Trends.Timeline -and $Trends.Timeline.Labels) {
         $labelsJson = ($Trends.Timeline.Labels | ForEach-Object { "'$_'" }) -join ', '
-        $dataJson = ($Trends.Timeline.DataPoints | ForEach-Object { $_ }) -join ', '
+        $dataJson = ($Trends.Timeline.SecurityScores | ForEach-Object { $_ }) -join ', '
         $timelineHtml = @"
             <div class='trend-chart-container'>
                 <canvas id='trendChart'></canvas>
@@ -1364,7 +1364,7 @@ function Build-TrendsSectionHtml {
                 <span class='stat-label'>Data Points</span>
             </div>
             <div class='trend-stat'>
-                <span class='stat-value'>$($Trends.AnalysisPeriod) days</span>
+                <span class='stat-value'>$($Trends.AnalysisPeriod)</span>
                 <span class='stat-label'>Analysis Period</span>
             </div>
         </div>
