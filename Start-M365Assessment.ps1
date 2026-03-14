@@ -10,7 +10,7 @@
 .PARAMETER Modules
     Specifies which assessment modules to run. Valid values:
     - Security (MFA, Conditional Access, Privileged Accounts)
-    - Compliance (DLP, Retention, Sensitivity Labels) [Disabled in v3.0]
+    - Compliance (DLP, Retention, Sensitivity Labels)
     - Exchange (Email security, SPF/DKIM/DMARC)
     - Licensing (License optimization)
     - All (default - runs all modules)
@@ -93,7 +93,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $false)]
-    [ValidateSet('All', 'Security', 'Exchange', 'Licensing')]
+    [ValidateSet('All', 'Security', 'Compliance', 'Exchange', 'Licensing')]
     [string[]]$Modules = @('All'),
 
     [Parameter(Mandatory = $false)]
@@ -377,7 +377,7 @@ function Connect-M365Services {
 
 function Get-ModulesToRun {
     if ($Modules -contains 'All') {
-        return @('Security', 'Exchange', 'Licensing')
+        return @('Security', 'Compliance', 'Exchange', 'Licensing')
     }
     return $Modules
 }function Invoke-AssessmentModules {
@@ -424,6 +424,9 @@ function Get-ModulesToRun {
             'Security\Test-LegacyAuth.ps1',
             'Security\Test-AppPermissions.ps1',
             'Security\Test-ExternalSharing.ps1'
+        )
+        'Compliance' = @(
+            'Compliance\Test-CompliancePolicies.ps1'
         )
         'Exchange' = @(
             'Exchange\Test-EmailSecurity.ps1',

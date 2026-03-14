@@ -62,6 +62,7 @@ function Get-TenantSecurityScore {
         
         # Licensing & Governance (5% of total)
         "License Optimization" = 5
+        "Compliance Policy Coverage" = 5
     }
 
     # Default status scores
@@ -95,6 +96,7 @@ function Get-TenantSecurityScore {
         "Mailbox Auditing" = "Email Security"
         "Email Security Configuration" = "Email Security"
         "License Optimization" = "Governance"
+        "Compliance Policy Coverage" = "Governance"
     }
 
     # Use configured weights or defaults (convert PSCustomObject to hashtable if needed)

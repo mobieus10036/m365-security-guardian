@@ -28,7 +28,8 @@
       "Email Authentication (SPF/DKIM/DMARC)": 8,
       "Mailbox Auditing": 4,
       "Email Security Configuration": 3,
-      "License Optimization": 5
+      "License Optimization": 5,
+      "Compliance Policy Coverage": 5
     },
     "StatusScores": {
       "Pass": 1.0,
@@ -55,7 +56,8 @@
       "Email Authentication (SPF/DKIM/DMARC)": "Email Security",
       "Mailbox Auditing": "Email Security",
       "Email Security Configuration": "Email Security",
-      "License Optimization": "Governance"
+      "License Optimization": "Governance",
+      "Compliance Policy Coverage": "Governance"
     },
     "CategoryDefinitions": {
       "Identity & Access": {
