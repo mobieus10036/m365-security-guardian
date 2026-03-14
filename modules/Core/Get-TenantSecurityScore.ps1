@@ -69,7 +69,7 @@ function Get-TenantSecurityScore {
         "Pass" = 1.0        # Full points
         "Warning" = 0.5     # Half points
         "Fail" = 0.0        # No points
-        "Info" = 1.0        # Neutral - full points (informational only)
+        "Info" = 0.0        # Neutral - informational only (excluded from scoring denominator)
     }
 
     # Default severity multipliers
@@ -174,15 +174,15 @@ function Get-TenantSecurityScore {
         $weight = if ($weights.ContainsKey($checkName)) { $weights[$checkName] } else { 5 }
         $category = if ($checkCategoryMap.ContainsKey($checkName)) { $checkCategoryMap[$checkName] } else { "Governance" }
         
-        # Get status score (Pass=1.0, Warning=0.5, Fail=0.0, Info=1.0)
+        # Get status score (Pass=1.0, Warning=0.5, Fail=0.0, Info is excluded from denominator)
         $statusScore = if ($statusScores.ContainsKey($result.Status)) { 
             $statusScores[$result.Status] 
         } else { 0.0 }
 
         # Calculate earned points based strictly on status
-        # Pass checks: full weight | Warning: 50% weight | Fail: 0% weight | Info: neutral (1.0)
-        $possiblePoints = $weight
-        $earnedPoints = $weight * $statusScore
+        # Pass checks: full weight | Warning: 50% weight | Fail: 0% weight | Info: neutral (not scored)
+        $possiblePoints = if ($result.Status -eq 'Info') { 0 } else { $weight }
+        $earnedPoints = if ($result.Status -eq 'Info') { 0 } else { $weight * $statusScore }
 
         $totalEarned += $earnedPoints
         $totalPossible += $possiblePoints
@@ -191,11 +191,16 @@ function Get-TenantSecurityScore {
         if ($categoryScores.ContainsKey($category)) {
             $categoryScores[$category].Earned += $earnedPoints
             $categoryScores[$category].Possible += $possiblePoints
+            $scoreValue = if ($possiblePoints -gt 0) {
+                [math]::Round(($earnedPoints / $possiblePoints) * 100, 1)
+            } else {
+                $null
+            }
             $categoryScores[$category].Checks += [PSCustomObject]@{
                 CheckName = $checkName
                 Status = $result.Status
                 Severity = $result.Severity
-                Score = [math]::Round(($earnedPoints / $possiblePoints) * 100, 1)
+                Score = $scoreValue
             }
         }
 

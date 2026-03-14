@@ -144,8 +144,25 @@ Describe 'Get-TenantSecurityScore' {
 
             $score = Get-TenantSecurityScore -AssessmentResults $results -Config (New-MockConfig)
 
-            # Info gets full points, so score should still be very high
+            # Info is excluded from denominator, so score should still be very high
             $score.OverallScore | Should -BeGreaterOrEqual 90
+        }
+
+        It 'Does not let Info status inflate score when failures exist' {
+            $resultsFailOnly = @(
+                New-MockAssessmentResult -CheckName 'MFA Enforcement' -Status 'Fail' -Severity 'Critical'
+            )
+
+            $resultsFailPlusInfo = @(
+                New-MockAssessmentResult -CheckName 'MFA Enforcement' -Status 'Fail' -Severity 'Critical'
+                New-MockAssessmentResult -CheckName 'Microsoft Secure Score' -Status 'Info' -Severity 'Info'
+            )
+
+            $scoreFailOnly = Get-TenantSecurityScore -AssessmentResults $resultsFailOnly -Config (New-MockConfig)
+            $scoreFailPlusInfo = Get-TenantSecurityScore -AssessmentResults $resultsFailPlusInfo -Config (New-MockConfig)
+
+            # Info findings should not increase the score when compared to fail-only baseline
+            $scoreFailPlusInfo.OverallScore | Should -BeExactly $scoreFailOnly.OverallScore
         }
     }
 

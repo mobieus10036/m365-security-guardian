@@ -471,7 +471,7 @@ function Get-ModulesToRun {
                             Write-Warning "      Module $functionName returned result that failed schema validation"
                             $result = [PSCustomObject]@{
                                 CheckName = $functionName
-                                Category = "Security"
+                                Category = $module
                                 Status = "Info"
                                 Severity = "Info"
                                 Message = "Assessment module returned invalid schema"
@@ -503,13 +503,13 @@ function Get-ModulesToRun {
                         # Add error result so assessment continues
                         $script:AssessmentResults += [PSCustomObject]@{
                             CheckName = [System.IO.Path]::GetFileNameWithoutExtension($scriptFile)
-                            Category = "Security"
+                            Category = $module
                             Status = "Info"
                             Severity = "Info"
                             Message = "Assessment failed: $errorMsg"
                             Details = @{ Error = $errorMsg }
                             Recommendation = "Review error details and Graph API permissions"
-                            DocumentationUrl = ""
+                            DocumentationUrl = "https://github.com/mobieus10036/m365-security-guardian#troubleshooting"
                             RemediationSteps = @()
                         }
                     }
