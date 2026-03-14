@@ -35,10 +35,10 @@ function Test-MailboxAuditing {
         
         $auditDisabledByDefault = $orgConfig.AuditDisabled
 
-        # Full tenant mailbox assessment (not sampled)
-        $mailboxes = Get-EXOMailbox -ResultSize Unlimited -Properties AuditEnabled,UserPrincipalName,DisplayName,PrimarySmtpAddress,WhenCreated -ErrorAction SilentlyContinue
-        
-        if ($null -eq $mailboxes) {
+        # Full tenant mailbox assessment (streamed for memory safety)
+        $mailboxQuery = Get-EXOMailbox -ResultSize Unlimited -Properties AuditEnabled,UserPrincipalName,DisplayName,PrimarySmtpAddress,WhenCreated -ErrorAction SilentlyContinue
+
+        if ($null -eq $mailboxQuery) {
             return [PSCustomObject]@{
                 CheckName = "Mailbox Auditing"
                 Category = "Exchange"
@@ -53,25 +53,44 @@ function Test-MailboxAuditing {
             }
         }
 
-        $totalAssessed = @($mailboxes).Count
-        $auditEnabled = @($mailboxes | Where-Object { $_.AuditEnabled -eq $true }).Count
+        $maxDetailedNonCompliant = if ($Config.Exchange.MaxDetailedNonCompliantMailboxes) {
+            [int]$Config.Exchange.MaxDetailedNonCompliantMailboxes
+        } else { 5000 }
+
+        $totalAssessed = 0
+        $auditEnabled = 0
+        $nonCompliantCount = 0
+        $nonCompliantMailboxes = [System.Collections.Generic.List[object]]::new()
+
+        $mailboxQuery | ForEach-Object {
+            $totalAssessed++
+
+            if ($_.AuditEnabled -eq $true) {
+                $auditEnabled++
+            }
+            else {
+                $nonCompliantCount++
+                if ($nonCompliantMailboxes.Count -lt $maxDetailedNonCompliant) {
+                    $nonCompliantMailboxes.Add([PSCustomObject]@{
+                        UserPrincipalName = $_.UserPrincipalName
+                        DisplayName = $_.DisplayName
+                        PrimarySmtpAddress = $_.PrimarySmtpAddress
+                        WhenCreated = $_.WhenCreated
+                        AuditEnabled = $_.AuditEnabled
+                    })
+                }
+            }
+        }
+
         $auditPercentage = if ($totalAssessed -gt 0) {
             [math]::Round(($auditEnabled / $totalAssessed) * 100, 1)
         } else { 0 }
-
-        # Capture mailboxes with auditing disabled
-        $nonCompliantMailboxes = $mailboxes | 
-            Where-Object { $_.AuditEnabled -ne $true } |
-            Select-Object @{N='UserPrincipalName';E={$_.UserPrincipalName}},
-                         @{N='DisplayName';E={$_.DisplayName}},
-                         @{N='PrimarySmtpAddress';E={$_.PrimarySmtpAddress}},
-                         @{N='WhenCreated';E={$_.WhenCreated}},
-                         @{N='AuditEnabled';E={$_.AuditEnabled}}
+        $nonCompliantTruncated = $nonCompliantCount -gt $nonCompliantMailboxes.Count
 
         # Determine status
         $status = "Pass"
         $severity = "Low"
-        $auditDisabledCount = $totalAssessed - $auditEnabled
+        $auditDisabledCount = $nonCompliantCount
 
         if ($auditDisabledByDefault) {
             $status = "Fail"
@@ -89,7 +108,11 @@ function Test-MailboxAuditing {
             }
             elseif ($nonCompliantMailboxes.Count -gt 10) {
                 $sampleList = ($nonCompliantMailboxes | Select-Object -First 5 -ExpandProperty UserPrincipalName) -join ", "
-                $message += ". Non-compliant (sample): $sampleList (and $($nonCompliantMailboxes.Count - 5) more...)"
+                $remaining = [math]::Max(0, $nonCompliantCount - 5)
+                $message += ". Non-compliant (sample): $sampleList (and $remaining more...)"
+            }
+            if ($nonCompliantTruncated) {
+                $message += " Detailed non-compliant export capped at $maxDetailedNonCompliant records for performance."
             }
         }
         else {
@@ -113,9 +136,12 @@ function Test-MailboxAuditing {
                 AuditEnabledMailboxes = $auditEnabled
                 AuditDisabledMailboxes = $auditDisabledCount
                 AuditPercentage = $auditPercentage
-                NonCompliantCount = $nonCompliantMailboxes.Count
+                NonCompliantCount = $nonCompliantCount
+                NonCompliantExportCount = $nonCompliantMailboxes.Count
+                NonCompliantTruncated = $nonCompliantTruncated
+                MaxDetailedNonCompliantMailboxes = $maxDetailedNonCompliant
             }
-            NonCompliantMailboxes = $nonCompliantMailboxes
+            NonCompliantMailboxes = @($nonCompliantMailboxes)
             Recommendation = if ($status -ne "Pass") {
                 if ($auditDisabledByDefault) {
                     "CRITICAL: Enable mailbox auditing organization-wide immediately. Run: Set-OrganizationConfig -AuditDisabled `$false"
