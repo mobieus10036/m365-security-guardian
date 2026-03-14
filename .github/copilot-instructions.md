@@ -10,6 +10,7 @@ PowerShell 7+ tool that assesses Microsoft 365 tenant security posture against C
 `Connect → Run Assessment Modules → Score → CIS Compliance → Baseline Compare → Export Reports → Disconnect`
 
 **Module layout:**
+
 - `modules/Security/Test-*.ps1` — Identity, CA, apps, privileged accounts (8 checks)
 - `modules/Exchange/Test-*.ps1` — Email auth, mailbox auditing (3 checks)
 - `modules/Licensing/Test-*.ps1` — License optimization (1 check)
@@ -88,11 +89,13 @@ Tests use **Pester 5+** and run entirely offline — all Microsoft Graph / EXO c
 ```
 
 **Test structure mirrors source layout:**
+
 - `tests/TestHelpers.ps1` — Shared mock factories (`New-MockUser`, `New-MockConfig`, etc.) and `Assert-AssessmentResult` contract validator
 - `tests/Security/*.Tests.ps1` — Tests for `modules/Security/Test-*.ps1`
 - `tests/Core/*.Tests.ps1` — Tests for `modules/Core/*.ps1`
 
 **Pattern for testing an assessment module** (see `tests/Security/Test-MFAConfiguration.Tests.ps1`):
+
 1. Dot-source `TestHelpers.ps1` and the module under test in `BeforeAll`
 2. Stub any orchestrator-provided helpers (e.g., `function Get-AuthRegistrationDetails { @() }`)
 3. `Mock Get-MgUser { ... }` and other Graph cmdlets with `New-Mock*` factories

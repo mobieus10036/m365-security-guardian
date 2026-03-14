@@ -253,6 +253,12 @@ function Test-ExternalSharing {
         if ($defaultLinkType -eq 'anonymousAccess') {
             $recommendations += "Change default sharing link type to 'Specific People' or 'People in Organization'"
         }
+        if ($allowExternalReshare) {
+            $recommendations += "Disable external user resharing for sensitive content where business requirements allow"
+        }
+        if ($sharingDomainRestrictionMode -eq 'none' -and $sharingCapability -in @('externalUserAndGuestSharing', 'anyone')) {
+            $recommendations += "Configure external sharing domain allow/block lists to limit sharing to trusted partners"
+        }
         if ($highRiskFindings.Count -eq 0 -and $mediumRiskFindings.Count -eq 0) {
             $recommendations += "External sharing configuration follows security best practices"
         }

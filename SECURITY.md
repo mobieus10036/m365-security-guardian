@@ -40,8 +40,8 @@ You will receive an acknowledgement within 3-5 business days. We will work with 
 
 ## Supported Versions
 
-| Version | Supported | Status |
-| ------- | --------- | ------ |
+| Version | Supported | Status          |
+| ------- | --------- | --------------- |
 | 3.x     | ✅ Yes    | Current release |
 | < 3.0   | ❌ No     | Legacy versions |
 
