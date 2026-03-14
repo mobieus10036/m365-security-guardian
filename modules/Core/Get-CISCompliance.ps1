@@ -224,6 +224,54 @@ function Get-ControlComplianceStatus {
                 $status = 'Non-Compliant'
             }
         }
+        'UserConsentDisabled' {
+            if ($Finding.Details.ConsentPolicyEvidenceAvailable -eq $true) {
+                if ($Finding.Details.UserConsentDisabled -eq $true) {
+                    $status = 'Compliant'
+                    $reason = 'User consent to applications is restricted/disabled by tenant policy'
+                }
+                else {
+                    $status = 'Non-Compliant'
+                    $reason = 'User consent to applications is enabled or insufficiently restricted'
+                }
+            }
+            else {
+                $status = 'Manual Review Required'
+                $reason = 'Tenant consent policy evidence not available from assessment data'
+            }
+        }
+        'UserConsentBlocked' {
+            if ($Finding.Details.ConsentPolicyEvidenceAvailable -eq $true) {
+                if ($Finding.Details.UserConsentBlocked -eq $true) {
+                    $status = 'Compliant'
+                    $reason = 'User consent to apps accessing company data is blocked'
+                }
+                else {
+                    $status = 'Non-Compliant'
+                    $reason = 'Users can still consent to apps accessing company data'
+                }
+            }
+            else {
+                $status = 'Manual Review Required'
+                $reason = 'Tenant consent policy evidence not available from assessment data'
+            }
+        }
+        'AdminConsentWorkflow' {
+            if ($Finding.Details.ConsentPolicyEvidenceAvailable -eq $true) {
+                if ($Finding.Details.AdminConsentWorkflowEnabled -eq $true) {
+                    $status = 'Compliant'
+                    $reason = 'Admin consent workflow is enabled'
+                }
+                else {
+                    $status = 'Non-Compliant'
+                    $reason = 'Admin consent workflow is disabled'
+                }
+            }
+            else {
+                $status = 'Manual Review Required'
+                $reason = 'Admin consent workflow evidence not available from assessment data'
+            }
+        }
     }
     
     return @{

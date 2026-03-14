@@ -99,6 +99,58 @@ function Test-AppPermissions {
         $multiTenantApps = @()
         $appsWithExpiringCredentials = @()
 
+        # Tenant-wide consent policy evidence (for CIS 2.1.x controls)
+        $consentPolicyEvidenceAvailable = $false
+        $userConsentDisabled = $null
+        $userConsentBlocked = $null
+        $adminConsentWorkflowEnabled = $null
+        $consentPolicyNotes = @()
+
+        try {
+            $authorizationPolicy = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/policies/authorizationPolicy" -ErrorAction Stop
+            $permissionGrantPoliciesAssigned = @($authorizationPolicy.defaultUserRolePermissions.permissionGrantPoliciesAssigned)
+
+            # If any self-consent policy is assigned, users can consent to at least some apps
+            $selfConsentPolicies = @(
+                'ManagePermissionGrantsForSelf.microsoft-user-default-legacy',
+                'ManagePermissionGrantsForSelf.microsoft-user-default-low',
+                'ManagePermissionGrantsForSelf.microsoft-user-default'
+            )
+
+            $selfConsentEnabled = ($permissionGrantPoliciesAssigned | Where-Object { $selfConsentPolicies -contains $_ }).Count -gt 0
+            $userConsentDisabled = -not $selfConsentEnabled
+            $userConsentBlocked = -not $selfConsentEnabled
+            $consentPolicyEvidenceAvailable = $true
+
+            if ($selfConsentEnabled) {
+                $consentPolicyNotes += "User consent policies are assigned ($($permissionGrantPoliciesAssigned -join ', '))"
+            }
+            else {
+                $consentPolicyNotes += "No self-consent permission grant policy assigned to default user role"
+            }
+        }
+        catch {
+            $consentPolicyNotes += "Unable to evaluate authorization policy for user consent settings"
+            Write-Verbose "Could not retrieve authorization policy: $_"
+        }
+
+        try {
+            $adminConsentPolicy = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/policies/adminConsentRequestPolicy" -ErrorAction Stop
+            $adminConsentWorkflowEnabled = [bool]$adminConsentPolicy.isEnabled
+            $consentPolicyEvidenceAvailable = $true
+
+            if ($adminConsentWorkflowEnabled) {
+                $consentPolicyNotes += "Admin consent request workflow is enabled"
+            }
+            else {
+                $consentPolicyNotes += "Admin consent request workflow is disabled"
+            }
+        }
+        catch {
+            $consentPolicyNotes += "Unable to evaluate admin consent request workflow policy"
+            Write-Verbose "Could not retrieve admin consent request policy: $_"
+        }
+
         # Get OAuth2 permission grants (delegated permissions with admin consent)
         $oauth2Grants = @()
         try {
@@ -253,7 +305,6 @@ function Test-AppPermissions {
             
             $now = Get-Date
             $warningThreshold = $now.AddDays(30)
-            $criticalThreshold = $now.AddDays(7)
 
             foreach ($appReg in $appRegistrations) {
                 # Check password credentials (secrets)
@@ -316,6 +367,18 @@ function Test-AppPermissions {
             $issues += "$($appsWithAdminConsent.Count) apps have admin consent (review for necessity)"
         }
 
+        if ($consentPolicyEvidenceAvailable -and $userConsentDisabled -eq $false) {
+            $status = if ($status -eq "Pass") { "Warning" } else { $status }
+            if ($severity -eq "Low") { $severity = "Medium" }
+            $issues += "User consent to applications is enabled"
+        }
+
+        if ($consentPolicyEvidenceAvailable -and $adminConsentWorkflowEnabled -eq $false) {
+            $status = if ($status -eq "Pass") { "Warning" } else { $status }
+            if ($severity -eq "Low") { $severity = "Medium" }
+            $issues += "Admin consent request workflow is not enabled"
+        }
+
         if ($multiTenantApps.Count -gt 5) {
             $status = if ($status -eq "Pass") { "Warning" } else { $status }
             $severity = if ($severity -eq "Low") { "Medium" } else { $severity }
@@ -344,6 +407,12 @@ function Test-AppPermissions {
         if ($appsWithAdminConsent.Count -gt 10) {
             $recommendations += "Review admin consent grants - ensure all are necessary and justified"
         }
+        if ($consentPolicyEvidenceAvailable -and $userConsentDisabled -eq $false) {
+            $recommendations += "Restrict user consent to apps and require admin review for OAuth access"
+        }
+        if ($consentPolicyEvidenceAvailable -and $adminConsentWorkflowEnabled -eq $false) {
+            $recommendations += "Enable the admin consent request workflow to provide controlled app approval"
+        }
 
         return [PSCustomObject]@{
             CheckName = "Application Permissions Audit"
@@ -359,6 +428,11 @@ function Test-AppPermissions {
                 StaleDisabledApps = $staleApps.Count
                 AppsWithExpiringCredentials = $appsWithExpiringCredentials.Count
                 ExpiredOrCriticalCredentials = $expiredOrCriticalCreds.Count
+                ConsentPolicyEvidenceAvailable = $consentPolicyEvidenceAvailable
+                UserConsentDisabled = $userConsentDisabled
+                UserConsentBlocked = $userConsentBlocked
+                AdminConsentWorkflowEnabled = $adminConsentWorkflowEnabled
+                ConsentPolicyNotes = $consentPolicyNotes
             }
             RiskyApps = $riskyApps
             AppsWithAdminConsent = $appsWithAdminConsent
