@@ -460,6 +460,9 @@ function Get-ModulesToRun {
                         if ($functionName -in @('Test-MFAConfiguration','Test-PrivilegedAccounts')) {
                             $scriptParams['AuthRegistrationDetails'] = $cachedAuthDetails
                         }
+                        if ($functionName -eq 'Test-MFAConfiguration') {
+                            $scriptParams['ConditionalAccessPolicies'] = $cachedCaPolicies
+                        }
                         if ($functionName -in @('Test-ConditionalAccess','Test-LegacyAuth')) {
                             $scriptParams['ConditionalAccessPolicies'] = $cachedCaPolicies
                         }

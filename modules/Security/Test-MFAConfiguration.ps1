@@ -27,7 +27,10 @@ function Test-MFAConfiguration {
         [PSCustomObject]$Config,
 
         [Parameter(Mandatory = $false)]
-        [array]$AuthRegistrationDetails
+        [array]$AuthRegistrationDetails,
+
+        [Parameter(Mandatory = $false)]
+        [array]$ConditionalAccessPolicies
     )
 
     try {
@@ -113,6 +116,46 @@ function Test-MFAConfiguration {
             [math]::Round(($usersWithMFA / $totalUsers) * 100, 1) 
         } else { 0 }
 
+        # Assess enforcement posture from Conditional Access (registration != enforcement)
+        $enforcementEvidenceAvailable = $false
+        $hasAllUserMfaPolicy = $false
+        $hasAdminMfaPolicy = $false
+
+        try {
+            $caPolicies = if ($ConditionalAccessPolicies) {
+                @($ConditionalAccessPolicies)
+            }
+            else {
+                @(Get-MgIdentityConditionalAccessPolicy -All -ErrorAction Stop)
+            }
+
+            $enforcementEvidenceAvailable = $true
+
+            $allUserMfaPolicies = $caPolicies | Where-Object {
+                $_.State -eq 'enabled' -and
+                $_.Conditions.Users.IncludeUsers -contains 'All' -and (
+                    $_.GrantControls.BuiltInControls -contains 'mfa' -or
+                    ($_.GrantControls.AuthenticationStrength -and $_.GrantControls.AuthenticationStrength.Id)
+                )
+            }
+
+            $adminMfaPolicies = $caPolicies | Where-Object {
+                $_.State -eq 'enabled' -and (
+                    (@($_.Conditions.Users.IncludeRoles).Count -gt 0) -or
+                    (@($_.Conditions.Users.IncludeGroups).Count -gt 0)
+                ) -and (
+                    $_.GrantControls.BuiltInControls -contains 'mfa' -or
+                    ($_.GrantControls.AuthenticationStrength -and $_.GrantControls.AuthenticationStrength.Id)
+                )
+            }
+
+            $hasAllUserMfaPolicy = @($allUserMfaPolicies).Count -gt 0
+            $hasAdminMfaPolicy = @($adminMfaPolicies).Count -gt 0
+        }
+        catch {
+            Write-Verbose "Could not evaluate Conditional Access MFA enforcement policies: $_"
+        }
+
         # Determine status based on threshold
         $threshold = if ($Config.Security.MFAEnforcementThreshold) { 
             $Config.Security.MFAEnforcementThreshold 
@@ -127,7 +170,27 @@ function Test-MFAConfiguration {
                     elseif ($mfaPercentage -ge 50) { "High" }
                     else { "Critical" }
 
+        # If registration is high but enforcement controls are missing, do not return Pass
+        if ($enforcementEvidenceAvailable) {
+            if (-not $hasAllUserMfaPolicy) {
+                if ($status -eq 'Pass') { $status = 'Warning' }
+                if ($severity -eq 'Low') { $severity = 'Medium' }
+            }
+            if (-not $hasAdminMfaPolicy) {
+                if ($status -eq 'Pass') { $status = 'Warning' }
+                if ($severity -in @('Low', 'Info')) { $severity = 'Medium' }
+            }
+        }
+
         $message = "MFA adoption: $mfaPercentage% ($usersWithMFA/$totalUsers users)"
+
+        if ($enforcementEvidenceAvailable) {
+            $message += ". CA enforcement: all-users=" + $(if ($hasAllUserMfaPolicy) { 'Yes' } else { 'No' })
+            $message += ", admins=" + $(if ($hasAdminMfaPolicy) { 'Yes' } else { 'No' })
+        }
+        else {
+            $message += ". CA enforcement evidence unavailable"
+        }
         
         if ($usersWithoutMFA.Count -gt 0 -and $usersWithoutMFA.Count -le 10) {
             $message += ". Users without MFA: $($usersWithoutMFA.UserPrincipalName -join ', ')"
@@ -148,10 +211,13 @@ function Test-MFAConfiguration {
                 UsersWithoutMFA = $usersWithoutMFA.Count
                 CompliancePercentage = $mfaPercentage
                 Threshold = $threshold
+                EnforcementEvidenceAvailable = $enforcementEvidenceAvailable
+                HasAllUserMfaPolicy = $hasAllUserMfaPolicy
+                HasAdminMfaPolicy = $hasAdminMfaPolicy
             }
             UsersWithoutMFA = $usersWithoutMFA
             Recommendation = if ($status -ne "Pass") {
-                "Enable MFA for all users via Conditional Access policies. Target: $threshold% adoption"
+                "Ensure both MFA registration and enforcement: require MFA for all users and privileged roles via Conditional Access. Target registration: $threshold%"
             } else {
                 "MFA adoption meets requirements. Continue monitoring."
             }

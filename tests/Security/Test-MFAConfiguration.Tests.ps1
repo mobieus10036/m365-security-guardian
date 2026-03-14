@@ -25,6 +25,32 @@ BeforeAll {
 
     # Stub the Get-AuthRegistrationDetails helper (defined in orchestrator)
     function Get-AuthRegistrationDetails { return @() }
+
+    function New-MockCAPolicy {
+        param(
+            [string]$State = 'enabled',
+            [string[]]$IncludeUsers = @(),
+            [string[]]$IncludeRoles = @(),
+            [string[]]$IncludeGroups = @(),
+            [string[]]$BuiltInControls = @(),
+            [bool]$UseAuthStrength = $false
+        )
+
+        [PSCustomObject]@{
+            State = $State
+            Conditions = [PSCustomObject]@{
+                Users = [PSCustomObject]@{
+                    IncludeUsers = $IncludeUsers
+                    IncludeRoles = $IncludeRoles
+                    IncludeGroups = $IncludeGroups
+                }
+            }
+            GrantControls = [PSCustomObject]@{
+                BuiltInControls = $BuiltInControls
+                AuthenticationStrength = if ($UseAuthStrength) { [PSCustomObject]@{ Id = 'phish-resistant' } } else { $null }
+            }
+        }
+    }
 }
 
 Describe 'Test-MFAConfiguration' {
@@ -201,6 +227,43 @@ Describe 'Test-MFAConfiguration' {
 
             $result.Status | Should -Be 'Pass'
             $result.Details.Threshold | Should -Be 80
+        }
+    }
+
+    Context 'Enforcement-aware posture' {
+        It 'Downgrades Pass to Warning when all-user CA MFA policy is missing' {
+            $users = 1..20 | ForEach-Object { New-MockUser -UserPrincipalName "user$_@contoso.com" }
+            Mock Get-MgUser { $users }
+
+            $authDetails = 1..20 | ForEach-Object {
+                New-MockAuthRegistration -UserPrincipalName "user$_@contoso.com" -IsMfaRegistered $true
+            }
+
+            $adminOnlyPolicy = New-MockCAPolicy -IncludeRoles @('62e90394-69f5-4237-9190-012177145e10') -BuiltInControls @('mfa')
+
+            $result = Test-MFAConfiguration -Config $script:Config -AuthRegistrationDetails $authDetails -ConditionalAccessPolicies @($adminOnlyPolicy)
+
+            $result.Status | Should -Be 'Warning'
+            $result.Details.EnforcementEvidenceAvailable | Should -Be $true
+            $result.Details.HasAllUserMfaPolicy | Should -Be $false
+        }
+
+        It 'Returns Pass when registration threshold is met and CA MFA covers all users and admins' {
+            $users = 1..20 | ForEach-Object { New-MockUser -UserPrincipalName "user$_@contoso.com" }
+            Mock Get-MgUser { $users }
+
+            $authDetails = 1..19 | ForEach-Object {
+                New-MockAuthRegistration -UserPrincipalName "user$_@contoso.com" -IsMfaRegistered $true
+            }
+
+            $allUsersPolicy = New-MockCAPolicy -IncludeUsers @('All') -BuiltInControls @('mfa')
+            $adminPolicy = New-MockCAPolicy -IncludeRoles @('62e90394-69f5-4237-9190-012177145e10') -BuiltInControls @('mfa')
+
+            $result = Test-MFAConfiguration -Config $script:Config -AuthRegistrationDetails $authDetails -ConditionalAccessPolicies @($allUsersPolicy, $adminPolicy)
+
+            $result.Status | Should -Be 'Pass'
+            $result.Details.HasAllUserMfaPolicy | Should -Be $true
+            $result.Details.HasAdminMfaPolicy | Should -Be $true
         }
     }
 }
