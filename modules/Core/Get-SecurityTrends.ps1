@@ -112,9 +112,9 @@ function Get-AssessmentHistory {
         
         # Filter by date if specified
         if ($DaysBack -gt 0) {
-            $cutoffDate = (Get-Date).AddDays(-$DaysBack)
-            $entries = @($entries | Where-Object { 
-                [datetime]$_.Timestamp -ge $cutoffDate 
+            $cutoffDate = (Get-Date).AddDays(-$DaysBack).Date
+            $entries = @($entries | Where-Object {
+                ([datetime]$_.Timestamp).Date -ge $cutoffDate
             })
         }
         
@@ -604,28 +604,48 @@ function Get-CategoryTrends {
     
     .PARAMETER Entries
         Array of history entries (newest first).
+
+    .PARAMETER CurrentEntry
+        Current assessment entry (compatibility overload).
+
+    .PARAMETER PreviousEntry
+        Previous assessment entry (compatibility overload).
     
     .OUTPUTS
         Array of category trend objects.
     #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)]
-        [array]$Entries
+        [Parameter(Mandatory = $false)]
+        [array]$Entries,
+
+        [Parameter(Mandatory = $false)]
+        [PSCustomObject]$CurrentEntry,
+
+        [Parameter(Mandatory = $false)]
+        [PSCustomObject]$PreviousEntry
     )
-    
-    if ($Entries.Count -lt 2) {
+
+    $latestEntry = $null
+    $priorEntry = $null
+
+    if ($CurrentEntry -and $PreviousEntry) {
+        $latestEntry = $CurrentEntry
+        $priorEntry = $PreviousEntry
+    }
+    elseif ($Entries -and $Entries.Count -ge 2) {
+        $latestEntry = $Entries[0]
+        $priorEntry = $Entries[1]
+    }
+    else {
         return @()
     }
-    
-    $latestEntry = $Entries[0]
-    $previousEntry = $Entries[1]
     
     $categoryTrends = @()
     
     # Build lookup for previous categories
     $previousCategories = @{}
-    foreach ($cat in $previousEntry.CategoryScores) {
+    foreach ($cat in $priorEntry.CategoryScores) {
         $previousCategories[$cat.Category] = $cat.Score
     }
     
@@ -662,13 +682,19 @@ function Get-TrendVelocity {
     .PARAMETER Entries
         Array of history entries (newest first).
     
+    .PARAMETER TargetScore
+        Security score target used for ETA calculation.
+
     .OUTPUTS
         PSCustomObject with velocity metrics.
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [array]$Entries
+        [array]$Entries,
+
+        [Parameter(Mandatory = $false)]
+        [double]$TargetScore = 80
     )
     
     if ($Entries.Count -lt 2) {
@@ -677,7 +703,8 @@ function Get-TrendVelocity {
             WeeklyRate = 0
             MonthlyProjection = 0
             DaysToTarget = $null
-            TargetScore = 80
+            TargetScore = $TargetScore
+            TargetAchieved = $false
         }
     }
     
@@ -693,13 +720,14 @@ function Get-TrendVelocity {
     $scoreDiff = $latestEntry.Metrics.SecurityScore - $oldestEntry.Metrics.SecurityScore
     $dailyRate = $scoreDiff / $daysDiff
     
-    # Calculate days to reach target score (80%)
-    $targetScore = 80
+    # Calculate days to reach target score
+    $targetScore = $TargetScore
     $currentScore = $latestEntry.Metrics.SecurityScore
+    $targetAchieved = $currentScore -ge $targetScore
     $daysToTarget = if ($dailyRate -gt 0 -and $currentScore -lt $targetScore) {
         [math]::Ceiling(($targetScore - $currentScore) / $dailyRate)
-    } elseif ($currentScore -ge $targetScore) {
-        0
+    } elseif ($targetAchieved) {
+        $null
     } else {
         $null  # Not improving
     }
@@ -710,6 +738,7 @@ function Get-TrendVelocity {
         MonthlyProjection = [math]::Round($dailyRate * 30, 1)
         DaysToTarget = $daysToTarget
         TargetScore = $targetScore
+        TargetAchieved = $targetAchieved
         DataPointsAnalyzed = $Entries.Count
         PeriodDays = [math]::Round($daysDiff, 0)
     }
@@ -754,6 +783,16 @@ function Get-TrendTimeline {
         $chronological = $sampled
     }
     
+    $dataPoints = $chronological | ForEach-Object {
+        [PSCustomObject]@{
+            Timestamp = $_.Timestamp
+            Score = $_.Metrics.SecurityScore
+            PassedCount = $_.Metrics.PassedCount
+            FailedCount = $_.Metrics.FailedCount
+            CriticalFindings = $_.Metrics.CriticalFindings
+        }
+    }
+
     return [PSCustomObject]@{
         Labels = $chronological | ForEach-Object {
             ([datetime]$_.Timestamp).ToString("MMM dd")
@@ -762,7 +801,8 @@ function Get-TrendTimeline {
         PassedCounts = $chronological | ForEach-Object { $_.Metrics.PassedCount }
         FailedCounts = $chronological | ForEach-Object { $_.Metrics.FailedCount }
         CriticalFindings = $chronological | ForEach-Object { $_.Metrics.CriticalFindings }
-        DataPoints = $chronological.Count
+        DataPoints = $dataPoints
+        DataPointCount = $chronological.Count
     }
 }
 
