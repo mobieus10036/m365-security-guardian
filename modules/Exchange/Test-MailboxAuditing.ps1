@@ -35,8 +35,8 @@ function Test-MailboxAuditing {
         
         $auditDisabledByDefault = $orgConfig.AuditDisabled
 
-        # Sample check of mailboxes (first 100)
-        $mailboxes = Get-EXOMailbox -ResultSize 100 -Properties AuditEnabled,UserPrincipalName,DisplayName,PrimarySmtpAddress,WhenCreated -ErrorAction SilentlyContinue
+        # Full tenant mailbox assessment (not sampled)
+        $mailboxes = Get-EXOMailbox -ResultSize Unlimited -Properties AuditEnabled,UserPrincipalName,DisplayName,PrimarySmtpAddress,WhenCreated -ErrorAction SilentlyContinue
         
         if ($null -eq $mailboxes) {
             return [PSCustomObject]@{
@@ -53,10 +53,10 @@ function Test-MailboxAuditing {
             }
         }
 
-        $totalSampled = @($mailboxes).Count
+        $totalAssessed = @($mailboxes).Count
         $auditEnabled = @($mailboxes | Where-Object { $_.AuditEnabled -eq $true }).Count
-        $auditPercentage = if ($totalSampled -gt 0) {
-            [math]::Round(($auditEnabled / $totalSampled) * 100, 1)
+        $auditPercentage = if ($totalAssessed -gt 0) {
+            [math]::Round(($auditEnabled / $totalAssessed) * 100, 1)
         } else { 0 }
 
         # Capture mailboxes with auditing disabled
@@ -71,7 +71,7 @@ function Test-MailboxAuditing {
         # Determine status
         $status = "Pass"
         $severity = "Low"
-        $auditDisabledCount = $totalSampled - $auditEnabled
+        $auditDisabledCount = $totalAssessed - $auditEnabled
 
         if ($auditDisabledByDefault) {
             $status = "Fail"
@@ -81,7 +81,7 @@ function Test-MailboxAuditing {
         elseif ($auditPercentage -lt 90) {
             $status = "Warning"
             $severity = "Medium"
-            $message = "Mailbox auditing: $auditPercentage% enabled (sampled $totalSampled mailboxes, $auditDisabledCount without auditing)"
+            $message = "Mailbox auditing: $auditPercentage% enabled ($totalAssessed mailboxes assessed, $auditDisabledCount without auditing)"
             # Add sample of non-compliant mailboxes to message
             if ($nonCompliantMailboxes.Count -gt 0 -and $nonCompliantMailboxes.Count -le 10) {
                 $sampleList = ($nonCompliantMailboxes.UserPrincipalName -join ", ")
@@ -93,7 +93,7 @@ function Test-MailboxAuditing {
             }
         }
         else {
-            $message = "Mailbox auditing enabled ($auditPercentage% of sampled mailboxes)"
+            $message = "Mailbox auditing enabled ($auditPercentage% of assessed mailboxes)"
             if ($auditDisabledCount -gt 0) {
                 $message += " - $auditDisabledCount mailbox(es) without auditing"
             }
@@ -107,7 +107,9 @@ function Test-MailboxAuditing {
             Message = $message
             Details = @{
                 OrgAuditDisabled = $auditDisabledByDefault
-                SampledMailboxes = $totalSampled
+                TotalMailboxesAssessed = $totalAssessed
+                # Backward compatibility for existing report consumers
+                SampledMailboxes = $totalAssessed
                 AuditEnabledMailboxes = $auditEnabled
                 AuditDisabledMailboxes = $auditDisabledCount
                 AuditPercentage = $auditPercentage
