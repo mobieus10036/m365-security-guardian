@@ -71,8 +71,19 @@ function Get-AttackChains {
 
     # Build CIS compliance lookup if available
     $cisLookup = @{}
-    if ($CISCompliance -and $CISCompliance.ControlResults) {
-        foreach ($control in $CISCompliance.ControlResults) {
+    $cisControls = @()
+    if ($CISCompliance) {
+        if ($CISCompliance.ControlResults) {
+            $cisControls = @($CISCompliance.ControlResults)
+        }
+        elseif ($CISCompliance.AllControls) {
+            # Backward compatibility with older CIS summary contract
+            $cisControls = @($CISCompliance.AllControls)
+        }
+    }
+
+    if ($cisControls.Count -gt 0) {
+        foreach ($control in $cisControls) {
             $cisLookup[$control.ControlId] = $control
         }
     }
@@ -174,7 +185,7 @@ function Invoke-ChainAnalysis {
         $isEnabled = $false
         if ($CISLookup.ContainsKey($controlId)) {
             $cisControl = $CISLookup[$controlId]
-            if ($cisControl.Status -in @('Non-Compliant', 'Partial')) {
+            if ($cisControl.Status -in @('Non-Compliant', 'Partial', 'Partially Compliant')) {
                 $isEnabled = $true
             }
         }

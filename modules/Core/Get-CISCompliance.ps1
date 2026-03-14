@@ -144,24 +144,24 @@ function Get-ControlComplianceStatus {
     switch ($Finding.Status) {
         'Pass' {
             $status = 'Compliant'
-            $reason = $Finding.Description
+            $reason = $Finding.Message
         }
         'Fail' {
             $status = 'Non-Compliant'
-            $reason = $Finding.Description
+            $reason = $Finding.Message
         }
         'Warning' {
             # Warnings may still be compliant depending on the control
             $status = 'Partially Compliant'
-            $reason = $Finding.Description
+            $reason = $Finding.Message
         }
         'Info' {
             $status = 'Manual Review Required'
-            $reason = $Finding.Description
+            $reason = $Finding.Message
         }
         'Error' {
             $status = 'Unable to Assess'
-            $reason = "Assessment error: $($Finding.Description)"
+            $reason = "Assessment error: $($Finding.Message)"
         }
         default {
             $status = 'Unknown'
@@ -184,8 +184,16 @@ function Get-ControlComplianceStatus {
             }
         }
         'AllUserMFAEnabled' {
-            if ($Finding.Details.PercentWithMFA) {
-                $pct = $Finding.Details.PercentWithMFA
+            $pct = $null
+            if ($null -ne $Finding.Details.CompliancePercentage) {
+                $pct = [double]$Finding.Details.CompliancePercentage
+            }
+            elseif ($null -ne $Finding.Details.PercentWithMFA) {
+                # Backward compatibility for older result objects
+                $pct = [double]$Finding.Details.PercentWithMFA
+            }
+
+            if ($null -ne $pct) {
                 if ($pct -ge 100) {
                     $status = 'Compliant'
                     $reason = "100% of users have MFA enabled"
@@ -209,7 +217,7 @@ function Get-ControlComplianceStatus {
             if ($Finding.Details.PIMAvailable -eq $true) {
                 $status = 'Compliant'
                 $reason = "PIM is enabled and configured"
-            } elseif ($Finding.Description -like '*P2*' -or $Finding.Description -like '*license*') {
+            } elseif ($Finding.Message -like '*P2*' -or $Finding.Message -like '*license*') {
                 $status = 'Not Applicable'
                 $reason = "PIM requires Entra ID P2 licensing"
             } else {
@@ -329,6 +337,7 @@ function Get-CISComplianceSummary {
         ThreatMappedFindings = $threatMapped
         
         # All control statuses for detailed reporting
+        ControlResults   = $allControlStatuses
         AllControls      = $allControlStatuses
     }
 }
