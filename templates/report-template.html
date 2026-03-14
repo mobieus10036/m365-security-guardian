@@ -1949,6 +1949,229 @@
         .cat-stable .cat-delta {
             color: #605e5c;
         }
+
+        .top-actions-week {
+            padding: 30px 40px;
+            background: linear-gradient(135deg, #f4f9ff 0%, #eef6ff 100%);
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .top-actions-intro {
+            font-size: 14px;
+            color: var(--gray-700);
+            margin: -8px 0 18px;
+        }
+
+        .top-actions-list {
+            margin: 0;
+            padding-left: 0;
+            list-style: none;
+            display: grid;
+            gap: 12px;
+        }
+
+        .top-action-item {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-md);
+            padding: 12px 14px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .top-action-main {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 4px;
+        }
+
+        .top-action-check {
+            color: var(--primary-color);
+            font-size: 15px;
+            line-height: 1;
+        }
+
+        .top-action-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .top-action-badge {
+            margin-left: auto;
+            background: var(--gray-100);
+            border-radius: var(--radius-sm);
+            padding: 3px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--gray-700);
+            text-transform: uppercase;
+        }
+
+        .top-action-step {
+            font-size: 13px;
+            color: var(--gray-700);
+            margin-left: 25px;
+        }
+
+        .finding-quickstart {
+            border: 1px solid var(--gray-200);
+            border-left-width: 4px;
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            margin-bottom: 14px;
+            background: var(--gray-50);
+        }
+
+        .finding-quickstart.quickstart-fail {
+            border-left-color: var(--danger-color);
+            background: #fff7f7;
+        }
+
+        .finding-quickstart.quickstart-warning {
+            border-left-color: var(--warning-color);
+            background: #fffaf2;
+        }
+
+        .finding-quickstart.quickstart-pass {
+            border-left-color: var(--success-color);
+            background: #f5fff5;
+        }
+
+        .finding-quickstart.quickstart-info {
+            border-left-color: var(--info-color);
+            background: #f5fbff;
+        }
+
+        .quickstart-row {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 8px;
+            margin-bottom: 4px;
+            align-items: start;
+        }
+
+        .quickstart-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .quickstart-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--gray-700);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .quickstart-text {
+            font-size: 13px;
+            color: var(--gray-900);
+            line-height: 1.45;
+        }
+
+        .quickstart-meta {
+            margin-top: 6px;
+            font-size: 12px;
+            color: var(--gray-700);
+        }
+
+        .toggle-evidence-btn {
+            border: 1px solid var(--gray-300);
+            background: white;
+            color: var(--primary-color);
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 10px;
+            cursor: pointer;
+            margin-top: 8px;
+            margin-bottom: 8px;
+        }
+
+        .toggle-evidence-btn:hover {
+            border-color: var(--primary-color);
+            background: #f3f9ff;
+        }
+
+        .technical-evidence {
+            overflow: hidden;
+            max-height: 5000px;
+            opacity: 1;
+            transition: max-height 0.25s ease, opacity 0.2s ease;
+        }
+
+        .technical-evidence.is-collapsed {
+            max-height: 0;
+            opacity: 0;
+            margin: 0;
+            border: 0;
+            padding: 0;
+        }
+
+        .learning-glossary {
+            padding: 18px 40px;
+            border-bottom: 1px solid var(--gray-200);
+            background: #fcfcfd;
+        }
+
+        .learning-glossary h3 {
+            font-size: 15px;
+            margin-bottom: 10px;
+            color: var(--gray-900);
+        }
+
+        .glossary-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .glossary-chip {
+            border: 1px solid var(--gray-300);
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 12px;
+            color: var(--gray-700);
+            background: white;
+            cursor: help;
+        }
+
+        @media print {
+            .top-actions-week,
+            .learning-glossary {
+                background: white !important;
+                box-shadow: none;
+            }
+
+            .toggle-evidence-btn {
+                display: none !important;
+            }
+
+            .technical-evidence,
+            .technical-evidence.is-collapsed {
+                max-height: none !important;
+                opacity: 1 !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .top-actions-week,
+            .learning-glossary {
+                padding: 20px 24px;
+            }
+
+            .top-action-step {
+                margin-left: 0;
+            }
+
+            .quickstart-row {
+                grid-template-columns: 1fr;
+                gap: 2px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -2014,6 +2237,8 @@
                 </div>
             </div>
         </div>
+
+        {{TOP_ACTIONS_SECTION}}
         
         {{SECURITY_SCORE_SECTION}}
         
@@ -2034,6 +2259,18 @@
                 <button class="filter-btn" data-filter="warning">Warnings</button>
                 <button class="filter-btn" data-filter="pass">Passed</button>
                 <button class="filter-btn" data-filter="info">Info</button>
+            </div>
+        </div>
+
+        <div class="learning-glossary">
+            <h3>Quick glossary (hover to learn)</h3>
+            <div class="glossary-chips">
+                <span class="glossary-chip" title="Multi-Factor Authentication: requires more than a password to sign in.">MFA</span>
+                <span class="glossary-chip" title="Conditional Access: rules that decide who can access apps and under what conditions.">Conditional Access</span>
+                <span class="glossary-chip" title="Privileged Identity Management: just-in-time activation for admin roles.">PIM</span>
+                <span class="glossary-chip" title="Email policy that tells receivers what to do when SPF or DKIM checks fail.">DMARC</span>
+                <span class="glossary-chip" title="Binds tokens to a trusted context to reduce replay and theft risk.">Token Protection</span>
+                <span class="glossary-chip" title="App identities such as service principals and managed identities.">Workload Identity</span>
             </div>
         </div>
         
@@ -2102,6 +2339,40 @@
                 }
             }
         });
+
+        function initializeReadabilityEnhancements() {
+            const tables = document.querySelectorAll('.finding-content table');
+
+            tables.forEach((table, index) => {
+                if (table.closest('.technical-evidence')) {
+                    return;
+                }
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'technical-evidence is-collapsed';
+                wrapper.setAttribute('data-evidence-index', String(index));
+
+                table.parentNode.insertBefore(wrapper, table);
+                wrapper.appendChild(table);
+
+                const toggleBtn = document.createElement('button');
+                toggleBtn.type = 'button';
+                toggleBtn.className = 'toggle-evidence-btn';
+                toggleBtn.textContent = 'Show technical evidence';
+                toggleBtn.setAttribute('aria-expanded', 'false');
+
+                wrapper.parentNode.insertBefore(toggleBtn, wrapper);
+
+                toggleBtn.addEventListener('click', () => {
+                    const collapsed = wrapper.classList.contains('is-collapsed');
+                    wrapper.classList.toggle('is-collapsed', !collapsed);
+                    toggleBtn.textContent = collapsed ? 'Hide technical evidence' : 'Show technical evidence';
+                    toggleBtn.setAttribute('aria-expanded', collapsed ? 'true' : 'false');
+                });
+            });
+        }
+
+        initializeReadabilityEnhancements();
         
         // Search and filter functionality
         const searchInput = document.getElementById('searchInput');

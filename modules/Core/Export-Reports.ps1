@@ -32,6 +32,164 @@ function ConvertTo-HtmlSafe {
     return [System.Net.WebUtility]::HtmlEncode($Text)
 }
 
+function ConvertTo-PlainText {
+    <#
+    .SYNOPSIS
+        Converts HTML/text content into normalized plain text.
+    #>
+    param([string]$Text)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) { return "" }
+
+    $decoded = [System.Net.WebUtility]::HtmlDecode($Text)
+    $withoutTags = [regex]::Replace($decoded, '<[^>]+>', ' ')
+    return ([regex]::Replace($withoutTags, '\s+', ' ')).Trim()
+}
+
+function Get-FirstSentence {
+    <#
+    .SYNOPSIS
+        Extracts a concise first sentence from text.
+    #>
+    param([string]$Text)
+
+    $plain = ConvertTo-PlainText $Text
+    if ([string]::IsNullOrWhiteSpace($plain)) { return "" }
+
+    $parts = $plain -split '(?<=[\.\!\?])\s+'
+    if ($parts.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($parts[0])) {
+        return $parts[0].Trim()
+    }
+
+    return $plain
+}
+
+function Get-FirstActionStep {
+    <#
+    .SYNOPSIS
+        Extracts the first actionable step from recommendation text.
+    #>
+    param([string]$Recommendation)
+
+    $plain = ConvertTo-PlainText $Recommendation
+    if ([string]::IsNullOrWhiteSpace($plain)) {
+        return "Review this finding and apply the documented recommended control."
+    }
+
+    $segments = $plain -split '(?:\s*;\s*|\s*\.\s+|\s+\|\s+|\s+-\s+)'
+    foreach ($segment in $segments) {
+        $candidate = $segment.Trim()
+        if ([string]::IsNullOrWhiteSpace($candidate)) { continue }
+        if ($candidate -match '^(Critical:|Warning:|Actionable Recommendations \(\d+\):)') { continue }
+        if ($candidate.Length -ge 8) { return $candidate.TrimEnd('.') }
+    }
+
+    return $plain
+}
+
+function Build-FindingGuidanceHtml {
+    <#
+    .SYNOPSIS
+        Builds learner-friendly guidance for each finding card.
+    #>
+    param([object]$Result)
+
+    $status = if ($Result.Status) { $Result.Status.ToLower() } else { 'info' }
+    $severity = if ($Result.Severity) { $Result.Severity } else { 'Info' }
+    $statusClass = switch ($status) {
+        'fail' { 'quickstart-fail' }
+        'warning' { 'quickstart-warning' }
+        'pass' { 'quickstart-pass' }
+        default { 'quickstart-info' }
+    }
+
+    $whatThisMeans = Get-FirstSentence $Result.Message
+    if ([string]::IsNullOrWhiteSpace($whatThisMeans)) {
+        $whatThisMeans = switch ($status) {
+            'fail' { 'A high-impact control gap was detected and should be addressed quickly.' }
+            'warning' { 'A partial control gap was detected that could increase risk over time.' }
+            'pass' { 'This control is currently in a healthy state.' }
+            default { 'This check is informational and may require environment prerequisites.' }
+        }
+    }
+
+    $doThisFirst = switch ($status) {
+        'pass' { 'Keep this control stable by reviewing it during your next monthly assessment cycle.' }
+        'info' { 'Validate prerequisites and rerun this check so this control can be fully assessed.' }
+        default { Get-FirstActionStep $Result.Recommendation }
+    }
+
+    $whatThisMeansSafe = ConvertTo-HtmlSafe $whatThisMeans
+    $doThisFirstSafe = ConvertTo-HtmlSafe $doThisFirst
+    $severitySafe = ConvertTo-HtmlSafe $severity
+
+    return @"
+        <div class='finding-quickstart $statusClass' role='note' aria-label='Guidance summary'>
+            <div class='quickstart-row'>
+                <span class='quickstart-label'>What this means</span>
+                <span class='quickstart-text'>$whatThisMeansSafe</span>
+            </div>
+            <div class='quickstart-row'>
+                <span class='quickstart-label'>Do this first</span>
+                <span class='quickstart-text'>$doThisFirstSafe</span>
+            </div>
+            <div class='quickstart-meta'>Severity context: <strong>$severitySafe</strong></div>
+        </div>
+"@
+}
+
+function Build-TopActionsSectionHtml {
+    <#
+    .SYNOPSIS
+        Builds a prioritized, beginner-friendly top actions panel.
+    #>
+    param([array]$Results)
+
+    if (-not $Results -or $Results.Count -eq 0) { return "" }
+
+    $severityWeight = @{ 'Critical' = 1; 'High' = 2; 'Medium' = 3; 'Low' = 4; 'Info' = 5 }
+    $statusWeight = @{ 'Fail' = 1; 'Warning' = 2; 'Info' = 3; 'Pass' = 4 }
+
+    $prioritized = $Results |
+        Where-Object { $_.Status -in @('Fail', 'Warning') } |
+        Sort-Object \
+            @{ Expression = { $statusWeight[$_.Status] } }, \
+            @{ Expression = { $severityWeight[$_.Severity] } }, \
+            @{ Expression = { $_.CheckName } } |
+        Select-Object -First 5
+
+    if (-not $prioritized -or $prioritized.Count -eq 0) { return "" }
+
+    $itemsHtml = ""
+    foreach ($item in $prioritized) {
+        $checkNameSafe = ConvertTo-HtmlSafe $item.CheckName
+        $severitySafe = ConvertTo-HtmlSafe $item.Severity
+        $statusSafe = ConvertTo-HtmlSafe $item.Status
+        $firstStepSafe = ConvertTo-HtmlSafe (Get-FirstActionStep $item.Recommendation)
+
+        $itemsHtml += @"
+            <li class='top-action-item'>
+                <div class='top-action-main'>
+                    <span class='top-action-check'>☐</span>
+                    <span class='top-action-name'>$checkNameSafe</span>
+                    <span class='top-action-badge'>$statusSafe / $severitySafe</span>
+                </div>
+                <div class='top-action-step'>$firstStepSafe</div>
+            </li>
+"@
+    }
+
+    return @"
+        <div class='top-actions-week'>
+            <h2 class='summary-title'>📅 Top 5 Actions This Week</h2>
+            <p class='top-actions-intro'>Start here if you are new to security hardening. Complete these actions first for the highest practical risk reduction.</p>
+            <ol class='top-actions-list'>
+                $itemsHtml
+            </ol>
+        </div>
+"@
+}
+
 function Protect-ReportFiles {
     <#
     .SYNOPSIS
@@ -367,7 +525,10 @@ function Build-ConditionalAccessFindingHtml {
     $html = "<strong>$($Result.Details.EnabledPolicies) enabled policies analyzed.</strong>"
     
     if ($null -ne $Result.ConditionalAccessScore) {
-        $html += " CA Posture Score: <strong>$($Result.ConditionalAccessScore)%</strong> of policies have no flagged risks."
+        $html += " CA Posture Score: <strong>$($Result.ConditionalAccessScore)%</strong>."
+        if ($Result.Findings -and $Result.Findings.Count -gt 0) {
+            $html += " Per-policy posture may look healthy, but tenant-wide coverage analysis found actionable security gaps."
+        }
     }
     
     if ($Result.Findings -and $Result.Findings.Count -gt 0) {
@@ -1479,6 +1640,7 @@ function Export-HtmlReport {
     
     # Build results cards
     $resultsHtml = Build-FindingCardsHtml -Results $Results
+    $topActionsHtml = Build-TopActionsSectionHtml -Results $Results
     
     # Build dashboard sections
     $securityScoreHtml = Build-SecurityScoreDashboardHtml -SecurityScore $SecurityScore
@@ -1500,6 +1662,7 @@ function Export-HtmlReport {
     $html = $html -replace '{{PASS_PERCENTAGE}}', $passPercentage
     $html = $html -replace '{{SEVERITY_LABELS}}', $severityLabelsJson
     $html = $html -replace '{{SEVERITY_COUNTS}}', $severityValuesJson
+    $html = $html -replace '{{TOP_ACTIONS_SECTION}}', $topActionsHtml
     $html = $html -replace '{{SECURITY_SCORE_SECTION}}', $securityScoreHtml
     $html = $html -replace '{{BASELINE_COMPARISON_SECTION}}', $baselineComparisonHtml
     $html = $html -replace '{{ATTACK_CHAINS_SECTION}}', $attackChainsHtml
@@ -1581,6 +1744,8 @@ function Build-FindingCardsHtml {
         # Build recommendation content
         $recommendationContent = Build-RecommendationContentHtml -Result $result -DefaultRecommendation $recommendationSafe
         
+        $guidanceHtml = Build-FindingGuidanceHtml -Result $result
+
         $resultsHtml += @"
 <div class="finding-card" data-status="$statusClass">
     <div class="finding-header">
@@ -1594,6 +1759,7 @@ function Build-FindingCardsHtml {
         </div>
     </div>
     <div class="finding-body">
+        $guidanceHtml
         <div class="finding-section">
             <div class="finding-label">Finding</div>
             <div class="finding-content">$findingContent</div>
@@ -1737,7 +1903,6 @@ function Build-MFAFindingsHtml {
         return $DefaultMessage
     }
 
-    $totalUsers = $Result.Details.TotalUsers
     $usersWithMfa = $Result.Details.UsersWithMFA
     $usersWithoutMfa = $Result.Details.UsersWithoutMFA
     $compliance = $Result.Details.CompliancePercentage
