@@ -45,14 +45,14 @@ function Get-TenantSecurityScore {
         "MFA Enforcement" = 12
         "Privileged Account Security" = 10
         "Privileged Identity Management (PIM)" = 8
-        "Legacy Authentication" = 5
+        "Legacy Authentication Blocking" = 5
         
         # Conditional Access & Policies (25% of total)
         "Conditional Access Policies" = 15
         "External Sharing Configuration" = 10
         
         # Application Security (20% of total)
-        "Application Permission Audit" = 12
+        "Application Permissions Audit" = 12
         "Microsoft Secure Score" = 8
         
         # Email & Communication (15% of total)
@@ -87,10 +87,10 @@ function Get-TenantSecurityScore {
         "MFA Enforcement" = "Identity & Access"
         "Privileged Account Security" = "Identity & Access"
         "Privileged Identity Management (PIM)" = "Identity & Access"
-        "Legacy Authentication" = "Identity & Access"
+        "Legacy Authentication Blocking" = "Identity & Access"
         "Conditional Access Policies" = "Conditional Access"
         "External Sharing Configuration" = "Conditional Access"
-        "Application Permission Audit" = "Application Security"
+        "Application Permissions Audit" = "Application Security"
         "Microsoft Secure Score" = "Application Security"
         "Email Authentication (SPF/DKIM/DMARC)" = "Email Security"
         "Mailbox Auditing" = "Email Security"
@@ -156,6 +156,12 @@ function Get-TenantSecurityScore {
         }
     }
 
+    # Backward-compatible aliases for historical check name variants
+    $checkNameAliases = @{
+        "Application Permission Audit" = "Application Permissions Audit"
+        "Legacy Authentication" = "Legacy Authentication Blocking"
+    }
+
     # Initialize category tracking
     $categoryScores = @{
         "Identity & Access" = @{ Earned = 0; Possible = 0; Checks = @() }
@@ -173,6 +179,9 @@ function Get-TenantSecurityScore {
 
     foreach ($result in $AssessmentResults) {
         $checkName = $result.CheckName
+        if ($checkNameAliases.ContainsKey($checkName)) {
+            $checkName = $checkNameAliases[$checkName]
+        }
         $weight = if ($weights.ContainsKey($checkName)) { $weights[$checkName] } else { 5 }
         $category = if ($checkCategoryMap.ContainsKey($checkName)) { $checkCategoryMap[$checkName] } else { "Governance" }
         

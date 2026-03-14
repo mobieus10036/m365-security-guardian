@@ -32,25 +32,11 @@ function Test-ExternalSharing {
     try {
         Write-Verbose "Analyzing external sharing configuration..."
 
-        # Check if SharePoint module is available
+        # Check for SharePoint PowerShell modules (optional)
+        # This check now uses Graph first and only recommends modules as fallback.
         $spoModule = Get-Module -Name Microsoft.Online.SharePoint.PowerShell -ListAvailable
-        if (-not $spoModule) {
-            # Try to use PnP.PowerShell as alternative
-            $pnpModule = Get-Module -Name PnP.PowerShell -ListAvailable
-            if (-not $pnpModule) {
-                return [PSCustomObject]@{
-                    CheckName = "External Sharing Configuration"
-                    Category = "Security"
-                    Status = "Info"
-                    Severity = "Info"
-                    Message = "SharePoint Online module not available. Install Microsoft.Online.SharePoint.PowerShell or PnP.PowerShell to enable this check."
-                    Details = @{}
-                    Recommendation = "Install-Module Microsoft.Online.SharePoint.PowerShell -Scope CurrentUser"
-                    DocumentationUrl = "https://learn.microsoft.com/sharepoint/turn-external-sharing-on-or-off"
-                    RemediationSteps = @("Install SharePoint Online Management Shell to enable this assessment")
-                }
-            }
-        }
+        $pnpModule = Get-Module -Name PnP.PowerShell -ListAvailable
+        $hasSharePointModule = [bool]$spoModule -or [bool]$pnpModule
 
         # Try to get SharePoint tenant settings via Graph API first (more accessible)
         $sharepointSettings = $null
@@ -202,16 +188,23 @@ function Test-ExternalSharing {
         }
         else {
             # Fallback message if we couldn't get settings
+            $moduleHint = if (-not $hasSharePointModule) {
+                " Install Microsoft.Online.SharePoint.PowerShell or PnP.PowerShell as an alternate collection path."
+            } else {
+                ""
+            }
+
             return [PSCustomObject]@{
                 CheckName = "External Sharing Configuration"
                 Category = "Security"
                 Status = "Info"
                 Severity = "Info"
-                Message = "Could not retrieve SharePoint external sharing settings. Additional permissions may be required."
+                Message = "Could not retrieve SharePoint external sharing settings. Additional Graph permissions may be required.$moduleHint"
                 Details = @{}
-                Recommendation = "Ensure SharePoint.Settings.Read permission is granted, or connect via SharePoint Online PowerShell"
+                Recommendation = "Ensure SharePoint.Settings.Read permission is granted. If Graph access is constrained, connect via SharePoint Online PowerShell."
                 DocumentationUrl = "https://learn.microsoft.com/sharepoint/turn-external-sharing-on-or-off"
                 RemediationSteps = @(
+                    "0. Ensure consented Graph permission includes SharePoint settings read access",
                     "1. Connect to SharePoint Online: Connect-SPOService -Url https://yourtenant-admin.sharepoint.com",
                     "2. Run: Get-SPOTenant | Select *sharing*"
                 )

@@ -152,10 +152,11 @@ function Build-TopActionsSectionHtml {
 
     $prioritized = $Results |
         Where-Object { $_.Status -in @('Fail', 'Warning') } |
-        Sort-Object \
-            @{ Expression = { $statusWeight[$_.Status] } }, \
-            @{ Expression = { $severityWeight[$_.Severity] } }, \
-            @{ Expression = { $_.CheckName } } |
+        Sort-Object @(
+            @{ Expression = { $statusWeight[$_.Status] } },
+            @{ Expression = { $severityWeight[$_.Severity] } },
+            @{ Expression = { $_.CheckName } }
+        ) |
         Select-Object -First 5
 
     if (-not $prioritized -or $prioritized.Count -eq 0) { return "" }
@@ -488,7 +489,7 @@ function Export-DetailedCsvReports {
     }
     
     # Risky applications
-    $appResult = $Results | Where-Object { $_.CheckName -eq "Application Permission Audit" -and $_.RiskyApps }
+    $appResult = $Results | Where-Object { $_.CheckName -in @("Application Permissions Audit", "Application Permission Audit") -and $_.RiskyApps }
     if ($appResult -and $appResult.RiskyApps.Count -gt 0) {
         $path = "${OutputPath}_RiskyApplications.csv"
         $appResult.RiskyApps | Select-Object DisplayName, AppId, Type, 
