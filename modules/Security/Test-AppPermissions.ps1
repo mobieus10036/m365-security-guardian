@@ -62,22 +62,45 @@ function Test-AppPermissions {
             'Contacts.ReadWrite'
         )
 
-        # Get all service principals (Enterprise Apps) with retry wrapper
+        # Get all service principals with retry wrapper
         $servicePrincipals = if (Get-Command Invoke-MgGraphWithRetry -ErrorAction SilentlyContinue) {
             Invoke-MgGraphWithRetry -ScriptBlock {
-                Get-MgServicePrincipal -All -Property Id, DisplayName, AppId, ServicePrincipalType, AccountEnabled, CreatedDateTime, SignInAudience, AppRoles, Oauth2PermissionScopes -ErrorAction Stop
+                Get-MgServicePrincipal -All -Property Id, DisplayName, AppId, ServicePrincipalType, AccountEnabled, CreatedDateTime, SignInAudience, AppRoles, Oauth2PermissionScopes, Tags, PublisherName, AppOwnerOrganizationId -ErrorAction Stop
             } -OperationName "Retrieving service principals"
         } else {
             Write-Verbose "Retry wrapper not available, using direct call"
-            Get-MgServicePrincipal -All -Property Id, DisplayName, AppId, ServicePrincipalType, AccountEnabled, CreatedDateTime, SignInAudience, AppRoles, Oauth2PermissionScopes -ErrorAction Stop
+            Get-MgServicePrincipal -All -Property Id, DisplayName, AppId, ServicePrincipalType, AccountEnabled, CreatedDateTime, SignInAudience, AppRoles, Oauth2PermissionScopes, Tags, PublisherName, AppOwnerOrganizationId -ErrorAction Stop
         }
 
-        # Filter to application type (exclude Microsoft first-party where possible)
-        $enterpriseApps = $servicePrincipals | Where-Object { 
-            $_.ServicePrincipalType -eq 'Application' 
+        function Get-AppCategory {
+            param(
+                [Parameter(Mandatory = $true)]
+                $ServicePrincipal
+            )
+
+            if ($ServicePrincipal.ServicePrincipalType -eq 'ManagedIdentity') {
+                return 'Managed Identity'
+            }
+
+            $tags = @($ServicePrincipal.Tags)
+            $isMicrosoftIntegrated = ($tags | Where-Object { $_ -eq 'WindowsAzureActiveDirectoryIntegratedApp' }).Count -gt 0
+            $isMicrosoftPublisher = $ServicePrincipal.PublisherName -and $ServicePrincipal.PublisherName -match '^Microsoft'
+            if ($isMicrosoftIntegrated -or $isMicrosoftPublisher) {
+                return 'Microsoft Application'
+            }
+
+            return 'Enterprise Application'
         }
 
-        $totalApps = @($enterpriseApps).Count
+        # Focus on analyzable app/workload identities
+        $analyzableApps = $servicePrincipals | Where-Object {
+            $_.ServicePrincipalType -in @('Application', 'ManagedIdentity')
+        }
+
+        $totalApps = @($analyzableApps).Count
+        $managedIdentityCount = @($analyzableApps | Where-Object { (Get-AppCategory $_) -eq 'Managed Identity' }).Count
+        $microsoftAppCount = @($analyzableApps | Where-Object { (Get-AppCategory $_) -eq 'Microsoft Application' }).Count
+        $enterpriseAppCount = @($analyzableApps | Where-Object { (Get-AppCategory $_) -eq 'Enterprise Application' }).Count
         
         if ($totalApps -eq 0) {
             return [PSCustomObject]@{
@@ -85,7 +108,7 @@ function Test-AppPermissions {
                 Category = "Security"
                 Status = "Info"
                 Severity = "Info"
-                Message = "No enterprise applications found"
+                Message = "No enterprise applications, Microsoft applications, or managed identities found"
                 Details = @{}
                 Recommendation = "No action required"
                 DocumentationUrl = "https://learn.microsoft.com/entra/identity/enterprise-apps/manage-application-permissions"
@@ -94,6 +117,9 @@ function Test-AppPermissions {
         }
 
         $riskyApps = @()
+        $riskyEnterpriseApps = @()
+        $riskyMicrosoftApplications = @()
+        $riskyManagedIdentities = @()
         $appsWithAdminConsent = @()
         $staleApps = @()
         $multiTenantApps = @()
@@ -175,12 +201,13 @@ function Test-AppPermissions {
             $grantsByApp[$grant.ClientId] += $grant
         }
 
-        # Analyze each enterprise app
-        foreach ($app in $enterpriseApps) {
+        # Analyze each app/workload identity
+        foreach ($app in $analyzableApps) {
             $appRisks = @()
             $appPermissions = @()
             $isRisky = $false
             $hasAdminConsent = $false
+            $appCategory = Get-AppCategory $app
 
             # Check OAuth2 permission grants for this app
             $appGrants = $grantsByApp[$app.Id]
@@ -280,12 +307,19 @@ function Test-AppPermissions {
                     DisplayName = $app.DisplayName
                     AppId = $app.AppId
                     Type = $appType
+                    AppCategory = $appCategory
                     Enabled = $app.AccountEnabled
                     Risks = $appRisks
                     RiskReasons = $appRisks
                     Permissions = $appPermissions
                     HighRiskPermissions = $highRiskPerms
                     HasAdminConsent = $hasAdminConsent
+                }
+
+                switch ($appCategory) {
+                    'Enterprise Application' { $riskyEnterpriseApps += $riskyApps[-1] }
+                    'Microsoft Application' { $riskyMicrosoftApplications += $riskyApps[-1] }
+                    'Managed Identity' { $riskyManagedIdentities += $riskyApps[-1] }
                 }
             }
 
@@ -385,7 +419,7 @@ function Test-AppPermissions {
             $issues += "$($multiTenantApps.Count) multi-tenant apps configured"
         }
 
-        $message = "Analyzed $totalApps enterprise apps"
+        $message = "Analyzed $totalApps identities/apps ($enterpriseAppCount enterprise, $microsoftAppCount Microsoft, $managedIdentityCount managed identities)"
         if ($issues.Count -gt 0) {
             $message += ". Issues: " + ($issues -join '; ')
         }
@@ -421,8 +455,15 @@ function Test-AppPermissions {
             Severity = $severity
             Message = $message
             Details = @{
-                TotalEnterpriseApps = $totalApps
+                TotalEnterpriseApps = $enterpriseAppCount
+                TotalAnalyzedServicePrincipals = $totalApps
+                EnterpriseApplications = $enterpriseAppCount
+                MicrosoftApplications = $microsoftAppCount
+                ManagedIdentities = $managedIdentityCount
                 AppsWithHighRiskPermissions = $riskyApps.Count
+                RiskyEnterpriseApplications = $riskyEnterpriseApps.Count
+                RiskyMicrosoftApplications = $riskyMicrosoftApplications.Count
+                RiskyManagedIdentities = $riskyManagedIdentities.Count
                 AppsWithAdminConsent = $appsWithAdminConsent.Count
                 MultiTenantApps = $multiTenantApps.Count
                 StaleDisabledApps = $staleApps.Count
@@ -435,6 +476,9 @@ function Test-AppPermissions {
                 ConsentPolicyNotes = $consentPolicyNotes
             }
             RiskyApps = $riskyApps
+            RiskyEnterpriseApps = $riskyEnterpriseApps
+            RiskyMicrosoftApplications = $riskyMicrosoftApplications
+            RiskyManagedIdentities = $riskyManagedIdentities
             AppsWithAdminConsent = $appsWithAdminConsent
             MultiTenantApps = $multiTenantApps
             ExpiringCredentials = $appsWithExpiringCredentials

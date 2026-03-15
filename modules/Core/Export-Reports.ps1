@@ -46,6 +46,28 @@ function ConvertTo-PlainText {
     return ([regex]::Replace($withoutTags, '\s+', ' ')).Trim()
 }
 
+function ConvertTo-AnchorId {
+    <#
+    .SYNOPSIS
+        Converts a text label into a stable HTML anchor id.
+    #>
+    param([string]$Text)
+
+    $plain = (ConvertTo-PlainText $Text).ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($plain)) {
+        return "finding-item"
+    }
+
+    $slug = [regex]::Replace($plain, '[^a-z0-9]+', '-')
+    $slug = $slug.Trim('-')
+
+    if ([string]::IsNullOrWhiteSpace($slug)) {
+        return "finding-item"
+    }
+
+    return "finding-$slug"
+}
+
 function Get-FirstSentence {
     <#
     .SYNOPSIS
@@ -167,12 +189,13 @@ function Build-TopActionsSectionHtml {
         $severitySafe = ConvertTo-HtmlSafe $item.Severity
         $statusSafe = ConvertTo-HtmlSafe $item.Status
         $firstStepSafe = ConvertTo-HtmlSafe (Get-FirstActionStep $item.Recommendation)
+        $actionAnchorId = ConvertTo-AnchorId $item.CheckName
 
         $itemsHtml += @"
             <li class='top-action-item'>
                 <div class='top-action-main'>
                     <span class='top-action-check'>☐</span>
-                    <span class='top-action-name'>$checkNameSafe</span>
+                    <span class='top-action-name'><a class='top-action-link' href='#$actionAnchorId'>$checkNameSafe</a></span>
                     <span class='top-action-badge'>$statusSafe / $severitySafe</span>
                 </div>
                 <div class='top-action-step'>$firstStepSafe</div>
@@ -492,12 +515,42 @@ function Export-DetailedCsvReports {
     $appResult = $Results | Where-Object { $_.CheckName -in @("Application Permissions Audit", "Application Permission Audit") -and $_.RiskyApps }
     if ($appResult -and $appResult.RiskyApps.Count -gt 0) {
         $path = "${OutputPath}_RiskyApplications.csv"
-        $appResult.RiskyApps | Select-Object DisplayName, AppId, Type, 
+        $appResult.RiskyApps | Select-Object DisplayName, AppId, AppCategory, Type, 
             @{Name='RiskReasons';Expression={$_.RiskReasons -join '; '}}, 
             @{Name='HighRiskPermissions';Expression={$_.HighRiskPermissions -join '; '}}, 
             LastSignIn | 
             Export-Csv -Path $path -NoTypeInformation -Encoding UTF8
         $exports['RiskyApplications'] = @{ Path = $path; Count = $appResult.RiskyApps.Count }
+
+        if ($appResult.RiskyEnterpriseApps -and $appResult.RiskyEnterpriseApps.Count -gt 0) {
+            $path = "${OutputPath}_RiskyEnterpriseApplications.csv"
+            $appResult.RiskyEnterpriseApps | Select-Object DisplayName, AppId, AppCategory, Type,
+                @{Name='RiskReasons';Expression={$_.RiskReasons -join '; '}},
+                @{Name='HighRiskPermissions';Expression={$_.HighRiskPermissions -join '; '}},
+                LastSignIn |
+                Export-Csv -Path $path -NoTypeInformation -Encoding UTF8
+            $exports['RiskyEnterpriseApplications'] = @{ Path = $path; Count = $appResult.RiskyEnterpriseApps.Count }
+        }
+
+        if ($appResult.RiskyMicrosoftApplications -and $appResult.RiskyMicrosoftApplications.Count -gt 0) {
+            $path = "${OutputPath}_RiskyMicrosoftApplications.csv"
+            $appResult.RiskyMicrosoftApplications | Select-Object DisplayName, AppId, AppCategory, Type,
+                @{Name='RiskReasons';Expression={$_.RiskReasons -join '; '}},
+                @{Name='HighRiskPermissions';Expression={$_.HighRiskPermissions -join '; '}},
+                LastSignIn |
+                Export-Csv -Path $path -NoTypeInformation -Encoding UTF8
+            $exports['RiskyMicrosoftApplications'] = @{ Path = $path; Count = $appResult.RiskyMicrosoftApplications.Count }
+        }
+
+        if ($appResult.RiskyManagedIdentities -and $appResult.RiskyManagedIdentities.Count -gt 0) {
+            $path = "${OutputPath}_RiskyManagedIdentities.csv"
+            $appResult.RiskyManagedIdentities | Select-Object DisplayName, AppId, AppCategory, Type,
+                @{Name='RiskReasons';Expression={$_.RiskReasons -join '; '}},
+                @{Name='HighRiskPermissions';Expression={$_.HighRiskPermissions -join '; '}},
+                LastSignIn |
+                Export-Csv -Path $path -NoTypeInformation -Encoding UTF8
+            $exports['RiskyManagedIdentities'] = @{ Path = $path; Count = $appResult.RiskyManagedIdentities.Count }
+        }
     }
     
     # Secure Score actions
@@ -665,23 +718,25 @@ function Build-RiskyAppsHtml {
     
     $html = "<br><br><strong>Risky Applications ($($Result.RiskyApps.Count)):</strong><br>"
     $html += "<table style='width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;'>"
-    $html += "<tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>Application</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Type</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Risk Reasons</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>High-Risk Permissions</td></tr>"
+    $html += "<tr style='background: var(--gray-100); font-weight: 600;'><td style='padding: 8px; border: 1px solid var(--gray-300);'>Application</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Category</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Consent Type</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>Risk Reasons</td><td style='padding: 8px; border: 1px solid var(--gray-300);'>High-Risk Permissions</td></tr>"
     
     $displayCount = [Math]::Min(15, $Result.RiskyApps.Count)
     for ($i = 0; $i -lt $displayCount; $i++) {
         $app = $Result.RiskyApps[$i]
         $appNameSafe = ConvertTo-HtmlSafe $app.DisplayName
+        $appCategorySafe = ConvertTo-HtmlSafe $app.AppCategory
         $appTypeSafe = ConvertTo-HtmlSafe $app.Type
         $riskReasonsSafe = ($app.RiskReasons | ForEach-Object { ConvertTo-HtmlSafe $_ }) -join '<br>'
         $permsSafe = ($app.HighRiskPermissions | ForEach-Object { ConvertTo-HtmlSafe $_ }) -join ', '
         if (-not $permsSafe) { $permsSafe = '-' }
         $html += "<tr><td style='padding: 8px; border: 1px solid var(--gray-300);'><code>$appNameSafe</code></td>"
+        $html += "<td style='padding: 8px; border: 1px solid var(--gray-300);'>$appCategorySafe</td>"
         $html += "<td style='padding: 8px; border: 1px solid var(--gray-300);'>$appTypeSafe</td>"
         $html += "<td style='padding: 8px; border: 1px solid var(--gray-300); color: var(--danger-color);'>$riskReasonsSafe</td>"
         $html += "<td style='padding: 8px; border: 1px solid var(--gray-300); font-size: 11px;'>$permsSafe</td></tr>"
     }
     if ($Result.RiskyApps.Count -gt 15) {
-        $html += "<tr><td colspan='4' style='padding: 8px; border: 1px solid var(--gray-300); font-style: italic; text-align: center;'>...and $($Result.RiskyApps.Count - 15) more apps (see CSV export)</td></tr>"
+        $html += "<tr><td colspan='5' style='padding: 8px; border: 1px solid var(--gray-300); font-style: italic; text-align: center;'>...and $($Result.RiskyApps.Count - 15) more apps (see CSV export)</td></tr>"
     }
     $html += "</table>"
     
@@ -1746,9 +1801,10 @@ function Build-FindingCardsHtml {
         $recommendationContent = Build-RecommendationContentHtml -Result $result -DefaultRecommendation $recommendationSafe
         
         $guidanceHtml = Build-FindingGuidanceHtml -Result $result
+        $findingAnchorId = ConvertTo-AnchorId $result.CheckName
 
         $resultsHtml += @"
-<div class="finding-card" data-status="$statusClass">
+    <div class="finding-card" id="$findingAnchorId" data-status="$statusClass">
     <div class="finding-header">
         <div class="finding-title-group">
             <div class="finding-name">$checkNameSafe</div>
