@@ -418,6 +418,7 @@ function Get-ModulesToRun {
         'Security' = @(
             'Security\Test-SecureScore.ps1',
             'Security\Test-MFAConfiguration.ps1',
+            'Security\Test-SSPRConfiguration.ps1',
             'Security\Test-ConditionalAccess.ps1',
             'Security\Test-PrivilegedAccounts.ps1',
             'Security\Test-PIMConfiguration.ps1',

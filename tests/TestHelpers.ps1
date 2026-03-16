@@ -152,6 +152,7 @@ function New-MockConfig {
             Enabled     = $true
             RiskWeights = [PSCustomObject]@{
                 'MFA Enforcement'                     = 12
+                'Self-Service Password Reset (SSPR)' = 5
                 'Privileged Account Security'         = 10
                 'Conditional Access Policies'         = 15
                 'Email Authentication (SPF/DKIM/DMARC)' = 8
@@ -172,6 +173,7 @@ function New-MockConfig {
             }
             CheckCategoryMap = [PSCustomObject]@{
                 'MFA Enforcement'                     = 'Identity & Access'
+                'Self-Service Password Reset (SSPR)' = 'Identity & Access'
                 'Privileged Account Security'         = 'Identity & Access'
                 'Conditional Access Policies'         = 'Conditional Access'
                 'Email Authentication (SPF/DKIM/DMARC)' = 'Email Security'

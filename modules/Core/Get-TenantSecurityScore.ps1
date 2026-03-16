@@ -43,6 +43,7 @@ function Get-TenantSecurityScore {
     $defaultWeights = @{
         # Identity & Access (35% of total)
         "MFA Enforcement" = 12
+        "Self-Service Password Reset (SSPR)" = 5
         "Privileged Account Security" = 10
         "Privileged Identity Management (PIM)" = 8
         "Legacy Authentication Blocking" = 5
@@ -85,6 +86,7 @@ function Get-TenantSecurityScore {
     # Default check category mappings
     $defaultCheckCategoryMap = @{
         "MFA Enforcement" = "Identity & Access"
+        "Self-Service Password Reset (SSPR)" = "Identity & Access"
         "Privileged Account Security" = "Identity & Access"
         "Privileged Identity Management (PIM)" = "Identity & Access"
         "Legacy Authentication Blocking" = "Identity & Access"
