@@ -31,6 +31,9 @@ config/assessment-config.local.json
 *.key
 secrets/
 
+# Private agent definitions
+.github/agents/m365-assessor.agent.md
+
 # OS Files
 .DS_Store
 Thumbs.db
