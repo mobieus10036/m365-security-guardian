@@ -12,7 +12,7 @@ Thanks for helping improve M365 Security Guardian.
 ./Invoke-Tests.ps1
 ```
 
-4. Ensure generated artifacts are not committed (`reports/`, `test-reports/`, `baselines/`).
+1. Ensure generated artifacts are not committed (`reports/`, `test-reports/`, `baselines/`).
 
 ## Pull Request Checklist
 
