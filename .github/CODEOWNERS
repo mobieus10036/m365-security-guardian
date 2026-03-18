@@ -1,0 +1,7 @@
+# Default owners for all files
+* @mobieus10036
+
+# Security-sensitive areas
+/config/ @mobieus10036
+/modules/ @mobieus10036
+/Start-M365Assessment.ps1 @mobieus10036

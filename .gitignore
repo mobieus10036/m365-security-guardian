@@ -54,6 +54,10 @@ PSScriptAnalyzerSettings.psd1
 # Test results
 TestResults/
 *.trx
+test-reports/*
+!test-reports/.gitkeep
+tests/test-results.xml
+tests/coverage.xml
 
 # Package managers
 packages/

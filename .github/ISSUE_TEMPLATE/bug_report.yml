@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a reproducible problem with M365 Security Guardian
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please do not include tenant-sensitive data.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the problem and expected behavior.
+      placeholder: Clear and concise description.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Provide exact steps.
+      placeholder: |
+        1. Run ...
+        2. Authenticate with ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Tool version
+      placeholder: e.g., 3.2.0
+    validations:
+      required: true
+
+  - type: input
+    id: powershell
+    attributes:
+      label: PowerShell version
+      placeholder: e.g., 7.4.x
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: Paste sanitized logs only. Remove tenant IDs, domain names, and user details.
+      render: powershell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I verified this is not a security vulnerability disclosure.
+          required: true
+        - label: I removed sensitive data from logs and screenshots.
+          required: true

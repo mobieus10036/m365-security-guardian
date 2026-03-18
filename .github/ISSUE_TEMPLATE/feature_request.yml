@@ -1,0 +1,43 @@
+name: Feature request
+description: Suggest an improvement to assessments, scoring, or reporting
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem are you trying to solve?
+      placeholder: Describe the current gap.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe what you want to happen.
+      placeholder: Describe your proposed behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: controls
+    attributes:
+      label: Assessment impact
+      description: If applicable, list impacted control areas (Identity, CA, Apps, Email, Governance).
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any other approaches you considered.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: This request is not asking for the tool to make tenant changes (read-only constraint).
+          required: true

@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  powershell-quality:
+    name: PowerShell Tests and Lint
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PowerShell modules
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module -Name Pester -MinimumVersion 5.0.0 -Scope CurrentUser -Force -SkipPublisherCheck
+          Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force -SkipPublisherCheck
+
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          $paths = @(
+            'Start-M365Assessment.ps1',
+            'Install-Prerequisites.ps1',
+            'Invoke-Tests.ps1',
+            'modules'
+          )
+          $issues = Invoke-ScriptAnalyzer -Path $paths -Recurse -Severity Error, ParseError
+          if ($issues) {
+            $issues | Format-Table -AutoSize | Out-String | Write-Host
+            throw "PSScriptAnalyzer found $($issues.Count) error-level issue(s)."
+          }
+
+      - name: Run Pester tests
+        shell: pwsh
+        run: ./Invoke-Tests.ps1

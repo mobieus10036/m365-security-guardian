@@ -3,8 +3,10 @@
 **Rapid, actionable Microsoft 365 security assessment for modern enterprises.**
 
 [![Version](https://img.shields.io/badge/version-3.2.0-blue)](https://github.com/mobieus10036/m365-security-guardian/releases)
-[![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue)](https://docs.microsoft.com/powershell/)
+[![PowerShell](https://img.shields.io/badge/PowerShell-7.0%2B-blue)](https://docs.microsoft.com/powershell/)
 [![License](https://img.shields.io/github/license/mobieus10036/m365-security-guardian)](LICENSE)
+[![CI](https://github.com/mobieus10036/m365-security-guardian/actions/workflows/ci.yml/badge.svg)](https://github.com/mobieus10036/m365-security-guardian/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/mobieus10036/m365-security-guardian/actions/workflows/codeql.yml/badge.svg)](https://github.com/mobieus10036/m365-security-guardian/actions/workflows/codeql.yml)
 
 ---
 
@@ -401,6 +403,12 @@ Get-ChildItem .\logs\assessment-transcript-*.log | Sort-Object LastWriteTime -De
 ## License
 
 MIT License - see [LICENSE](LICENSE)
+
+## Community & Governance
+
+- Contributing guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Code of Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- Security policy: [SECURITY.md](SECURITY.md)
 
 ---
 
